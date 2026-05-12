@@ -4166,10 +4166,46 @@ function CoachTab(props) {
   );
 }
 
+function useCompactLayout() {
+  function compute() {
+    if (typeof window === "undefined" || !window.matchMedia) return false;
+    return window.matchMedia("(max-width: 480px)").matches || window.matchMedia("(display-mode: standalone)").matches;
+  }
+  var s = useState(compute);
+  var compact = s[0],
+    setCompact = s[1];
+  useEffect(function () {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    var mq1 = window.matchMedia("(max-width: 480px)");
+    var mq2 = window.matchMedia("(display-mode: standalone)");
+    var handler = function () {
+      setCompact(mq1.matches || mq2.matches);
+    };
+    if (mq1.addEventListener) {
+      mq1.addEventListener("change", handler);
+      mq2.addEventListener("change", handler);
+    } else {
+      mq1.addListener(handler);
+      mq2.addListener(handler);
+    }
+    return function () {
+      if (mq1.removeEventListener) {
+        mq1.removeEventListener("change", handler);
+        mq2.removeEventListener("change", handler);
+      } else {
+        mq1.removeListener(handler);
+        mq2.removeListener(handler);
+      }
+    };
+  }, []);
+  return compact;
+}
+
 export default function App() {
   var tk = today(),
     todayDOW = new Date().getDay(),
     wd = weekDates();
+  var compact = useCompactLayout();
   var h1 = useState(HABITS);
   var habits = h1[0],
     setHabits = h1[1];
@@ -4454,8 +4490,8 @@ export default function App() {
   if (!booted) {
     return (
       <div>
-        <style>{"body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@keyframes pulseDot{0%,100%{opacity:0.35;transform:scale(0.9)}50%{opacity:1;transform:scale(1.1)}}"}</style>
-        <div style={{ width: 390, height: 844, background: C.bg, borderRadius: 48, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", color: C.text }}>
+        <style>{"body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes pulseDot{0%,100%{opacity:0.35;transform:scale(0.9)}50%{opacity:1;transform:scale(1.1)}}"}</style>
+        <div style={{ width: compact ? "100vw" : 390, height: compact ? "100dvh" : 844, background: C.bg, borderRadius: compact ? 0 : 48, overflow: "hidden", boxShadow: compact ? "none" : "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", color: C.text }}>
           <div style={{ fontSize: 44, marginBottom: 18 }}>{"\uD83D\uDCAA"}</div>
           <div style={{ fontSize: 14, color: C.muted, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }}>GymTrack</div>
           <div style={{ marginTop: 18, display: "flex", gap: 6 }}>
@@ -4472,22 +4508,24 @@ export default function App() {
     <div>
       <style>
         {
-          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 2px 10px rgba(45,59,46,0.06)}40%{box-shadow:0 0 0 4px rgba(109,217,148,0.25)}100%{box-shadow:0 2px 16px rgba(109,217,148,0.18)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
+          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 2px 10px rgba(45,59,46,0.06)}40%{box-shadow:0 0 0 4px rgba(109,217,148,0.25)}100%{box-shadow:0 2px 16px rgba(109,217,148,0.18)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
         }
       </style>
       <div
         ref={phoneRef}
         style={{
-          width: 390,
-          height: 844,
+          width: compact ? "100vw" : 390,
+          height: compact ? "100dvh" : 844,
           background: C.bg,
-          borderRadius: 48,
+          borderRadius: compact ? 0 : 48,
           overflow: "hidden",
-          boxShadow: "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a",
+          boxShadow: compact ? "none" : "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a",
           position: "relative",
           display: "flex",
           flexDirection: "column",
           fontFamily: "'DM Sans',sans-serif",
+          paddingTop: compact ? "env(safe-area-inset-top)" : 0,
+          paddingBottom: compact ? "env(safe-area-inset-bottom)" : 0,
         }}
       >
         {anims.map(function (a) {
@@ -4523,15 +4561,17 @@ export default function App() {
             }}
           />
         )}
-        <div style={{ height: 50, background: C.bg, display: "flex", alignItems: "flex-end", justifyContent: "space-between", padding: "0 28px 8px", position: "relative", zIndex: 10 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>9:41</span>
-          <div style={{ width: 120, height: 32, background: "#1a1a1a", borderRadius: 20, position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }} />
-          <div style={{ display: "flex", gap: 5, alignItems: "center", fontSize: 11, color: C.text }}>
-            <span>{"\u2026"}</span>
-            <span>WiFi</span>
-            <span>100%</span>
+        {!compact && (
+          <div style={{ height: 50, background: C.bg, display: "flex", alignItems: "flex-end", justifyContent: "space-between", padding: "0 28px 8px", position: "relative", zIndex: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>9:41</span>
+            <div style={{ width: 120, height: 32, background: "#1a1a1a", borderRadius: 20, position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }} />
+            <div style={{ display: "flex", gap: 5, alignItems: "center", fontSize: 11, color: C.text }}>
+              <span>{"\u2026"}</span>
+              <span>WiFi</span>
+              <span>100%</span>
+            </div>
           </div>
-        </div>
+        )}
         <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
           {tab === "home" && !selHabit && (
             <div style={{ paddingBottom: 100 }}>
