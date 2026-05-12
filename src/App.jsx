@@ -1486,6 +1486,75 @@ function scoreColor(s) {
   if (s >= 70) return "#E5B53C";
   return "#E05050";
 }
+function computeSleepDebt(sleep, anchorKey) {
+  if (!anchorKey) return null;
+  var TARGET_SEC = 8 * 3600;
+  var WINDOW = 7;
+  var anchor = new Date(anchorKey + "T00:00:00");
+  if (isNaN(anchor.getTime())) return null;
+  var debtSec = 0;
+  var anyData = false;
+  for (var i = 0; i < WINDOW; i++) {
+    var d = new Date(anchor);
+    d.setDate(anchor.getDate() - i);
+    var k = dk(d);
+    var rec = sleep[k];
+    if (rec && rec.total_sleep_duration != null) {
+      anyData = true;
+      debtSec += Math.max(0, TARGET_SEC - rec.total_sleep_duration);
+    }
+  }
+  return anyData ? debtSec / 3600 : null;
+}
+function debtColor(hrs) {
+  if (hrs == null) return C.border;
+  if (hrs <= 2) return "#4CC774";
+  if (hrs <= 5) return "#E5B53C";
+  return "#E05050";
+}
+
+function SleepDebtBadge(props) {
+  var hrs = props.hours;
+  var size = props.size || 52;
+  var hasData = hrs != null;
+  var rounded = hasData ? Math.round(hrs) : null;
+  var isZero = hasData && rounded === 0;
+  var col = debtColor(hasData ? rounded : null);
+  var textColor = hasData ? C.white : C.muted;
+  var shadow = "0 6px 16px rgba(0,0,0,0.18)";
+  return (
+    <div
+      title={hasData ? rounded + " hr sleep debt (last 7 days)" : "No sleep debt data"}
+      style={{
+        position: "absolute",
+        bottom: 2,
+        right: 2,
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: col,
+        border: "3px solid " + C.bg,
+        outline: isZero ? "2px solid #E5B53C" : "none",
+        outlineOffset: isZero ? "1px" : "0",
+        boxShadow: shadow,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        color: textColor,
+        fontFamily: "'DM Sans',sans-serif",
+        transition: "background 0.3s ease, outline 0.3s ease",
+      }}
+    >
+      <div style={{ fontSize: 17, fontWeight: 700, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>
+        {hasData ? rounded : "\u2013"}
+      </div>
+      <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginTop: 2, opacity: 0.9 }}>
+        {hasData ? "hr debt" : "no data"}
+      </div>
+    </div>
+  );
+}
 function scoreLabel(s) {
   if (s == null) return "No data";
   if (s >= 85) return "Optimal";
@@ -1950,7 +2019,10 @@ function SleepTab(props) {
       )}
 
       <div style={{ padding: "2px 16px 12px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <ScoreRing score={current ? current.score : null} size={140} />
+        <div style={{ position: "relative", width: 140, height: 140 }}>
+          <ScoreRing score={current ? current.score : null} size={140} />
+          <SleepDebtBadge hours={computeSleepDebt(sleep, selected)} />
+        </div>
       </div>
 
       <div style={{ padding: "0 16px 12px" }}>
