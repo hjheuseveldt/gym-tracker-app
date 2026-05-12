@@ -475,9 +475,14 @@ function BwChart(props) {
 }
 
 function GymQ(props) {
-  var bS = useState(""),
-    mS = useState({}),
-    sS = useState({});
+  var init = props.initial || {};
+  var bS = useState(init.bodyweight == null ? "" : String(init.bodyweight)),
+    mS = useState(function () {
+      var m = {};
+      (Array.isArray(init.muscles) ? init.muscles : []).forEach(function (mg) { m[mg] = true; });
+      return m;
+    }),
+    sS = useState(init.sets || {});
   var bw = bS[0],
     setBw = bS[1],
     selM = mS[0],
@@ -513,12 +518,15 @@ function GymQ(props) {
   var muscles = Object.keys(selM).filter(function (m) {
     return selM[m];
   });
+  var dayKey = props.day || today();
+  var isLogToday = dayKey === today();
+  var dayLabel = isLogToday ? "today" : new Date(dayKey + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
   return (
     <div style={{ position: "absolute", inset: 0, background: "rgba(45,59,46,0.45)", display: "flex", alignItems: "flex-end", zIndex: 200 }}>
       <div style={{ background: C.bg, borderRadius: "28px 28px 0 0", padding: "24px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
         <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 16px" }} />
         <div style={{ fontSize: 20, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 4 }}>Workout Log</div>
-        <div style={{ fontSize: 12, color: C.muted, marginBottom: 20 }}>How did today go?</div>
+        <div style={{ fontSize: 12, color: C.muted, marginBottom: 20 }}>How did {dayLabel} go?</div>
         <div style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Bodyweight (lbs)</div>
           <input
@@ -4272,9 +4280,14 @@ export default function App() {
   var h22 = useState(null);
   var bootErr = h22[0],
     setBootErr = h22[1];
+  var h23 = useState(tk);
+  var selDay = h23[0],
+    setSelDay = h23[1];
   var phoneRef = useRef(null),
     scrollRef = useRef(null),
-    pendingTabRef = useRef(null);
+    pendingTabRef = useRef(null),
+    dayStripRef = useRef(null),
+    dateInputRef = useRef(null);
 
   useEffect(function () {
     if (!supaReady()) {
@@ -4309,6 +4322,18 @@ export default function App() {
       });
   }, []);
 
+  function scrollStripToEnd() {
+    var el = dayStripRef.current;
+    if (!el) return;
+    window.requestAnimationFrame(function () {
+      el.scrollLeft = el.scrollWidth;
+    });
+  }
+  useEffect(function () {
+    if (!booted || tab !== "home") return;
+    scrollStripToEnd();
+  }, [booted, tab]);
+
   function closePicker(commit) {
     if (commit) {
       var pid = pendingTabRef.current;
@@ -4324,6 +4349,12 @@ export default function App() {
   function isComp(id) {
     return !!(comp[id] && comp[id][tk]);
   }
+  function isCompOn(id, k) {
+    return !!(comp[id] && comp[id][k]);
+  }
+  function isToday(k) {
+    return k === tk;
+  }
   function switchTab(id) {
     setTab(id);
     setSelHabit(null);
@@ -4331,14 +4362,15 @@ export default function App() {
   }
 
   function toggleHabit(id, btn) {
-    var was = comp[id] && comp[id][tk];
+    var k = selDay;
+    var was = comp[id] && comp[id][k];
     setComp(function (p) {
       var n = Object.assign({}, p);
       n[id] = Object.assign({}, p[id] || {});
-      n[id][tk] = !was;
+      n[id][k] = !was;
       return n;
     });
-    D.fireAndForget(D.setCompletion(id, tk, !was), "toggleHabit");
+    D.fireAndForget(D.setCompletion(id, k, !was), "toggleHabit");
     if (!was) {
       if (btn && phoneRef.current) {
         var br = btn.getBoundingClientRect(),
@@ -4371,10 +4403,12 @@ export default function App() {
       var hab = habits.find(function (h) {
         return h.id === id;
       });
-      if (hab && hab.emoji === "\uD83D\uDCAA")
+      if (hab && hab.emoji === "\uD83D\uDCAA") {
+        var capturedDay = k;
         setTimeout(function () {
-          setPendGym(id);
+          setPendGym({ id: id, day: capturedDay });
         }, 2900);
+      }
     } else {
       setSortRdy(function (p) {
         var n = Object.assign({}, p);
@@ -4464,17 +4498,34 @@ export default function App() {
     setShowAdd(false);
   }
 
-  var todayH = habits
+  var selDate = new Date(selDay + "T00:00:00");
+  var selDOW = selDate.getDay();
+  var selIsToday = selDay === tk;
+  var selH = habits
     .filter(function (h) {
-      return h.scheduledDays.includes(todayDOW);
+      return h.scheduledDays.includes(selDOW);
     })
     .sort(function (a, b) {
-      return (sortRdy[a.id] ? 1 : 0) - (sortRdy[b.id] ? 1 : 0);
+      return (selIsToday ? (sortRdy[a.id] ? 1 : 0) - (sortRdy[b.id] ? 1 : 0) : 0);
     });
-  var doneC = todayH.filter(function (h) {
-    return isComp(h.id);
+  var selDoneC = selH.filter(function (h) {
+    return isCompOn(h.id, selDay);
   }).length;
-  var pct = todayH.length > 0 ? (doneC / todayH.length) * 100 : 0;
+  var selPct = selH.length > 0 ? (selDoneC / selH.length) * 100 : 0;
+  var dayStrip = (function () {
+    var out = [];
+    var t = new Date(tk + "T00:00:00");
+    for (var i = 13; i >= 0; i--) {
+      var d = new Date(t);
+      d.setDate(t.getDate() - i);
+      out.push(d);
+    }
+    return out;
+  })();
+  function selectDay(k) {
+    setSelDay(k);
+    setSortRdy({});
+  }
   var TABS = [
     { id: "home", label: "Today", Icon: IToday },
     { id: "calendar", label: "Calendar", Icon: ICal },
@@ -4547,13 +4598,16 @@ export default function App() {
         })}
         {pendGym && (
           <GymQ
+            day={pendGym.day || tk}
+            initial={logs[pendGym.day || tk]}
             onSave={function (data) {
+              var d = (pendGym && pendGym.day) || tk;
               setLogs(function (p) {
                 var n = Object.assign({}, p);
-                n[tk] = data;
+                n[d] = data;
                 return n;
               });
-              D.fireAndForget(D.upsertWorkoutLog(tk, data), "gymq-save");
+              D.fireAndForget(D.upsertWorkoutLog(d, data), "gymq-save");
               setPendGym(null);
             }}
             onSkip={function () {
@@ -4575,20 +4629,90 @@ export default function App() {
         <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
           {tab === "home" && !selHabit && (
             <div style={{ paddingBottom: 100 }}>
-              <div style={{ padding: "14px 22px 10px" }}>
-                <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }}>{new Date().toLocaleDateString("en-US", { weekday: "long" })}</div>
-                <div style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.1 }}>{new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" })}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 12px 4px" }}>
+                <div ref={dayStripRef} className="tabstrip" style={{ flex: 1, display: "flex", gap: 5, overflowX: "auto", scrollSnapType: "x mandatory", padding: "4px 2px" }}>
+                  {dayStrip.map(function (d) {
+                    var k = dk(d);
+                    var isSel = k === selDay;
+                    var isT = k === tk;
+                    var dow = d.getDay();
+                    var sched = habits.filter(function (h) { return h.scheduledDays.includes(dow); });
+                    var done = sched.filter(function (h) { return !!(comp[h.id] && comp[h.id][k]); }).length;
+                    var hasAny = done > 0;
+                    var isPerfect = sched.length > 0 && done === sched.length;
+                    return (
+                      <button
+                        key={k}
+                        onClick={function () { selectDay(k); }}
+                        style={{
+                          flex: "0 0 auto",
+                          scrollSnapAlign: "end",
+                          minWidth: 44,
+                          padding: "6px 0 5px",
+                          borderRadius: 12,
+                          border: isSel ? "1.5px solid " + C.green : isT ? "1.5px solid " + C.gm : "1.5px solid " + C.border,
+                          background: isSel ? C.green : C.white,
+                          color: isSel ? C.white : C.text,
+                          cursor: "pointer",
+                          fontFamily: "'DM Sans',sans-serif",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 2,
+                          boxShadow: isSel ? "0 4px 12px rgba(109,217,148,0.35)" : "none",
+                          transition: "background 0.18s ease,border-color 0.18s ease",
+                        }}
+                      >
+                        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", opacity: 0.75 }}>{DL[dow]}</span>
+                        <span style={{ fontSize: 16, fontWeight: 700, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>{d.getDate()}</span>
+                        <span style={{ height: 5, marginTop: 1, display: "flex", alignItems: "center" }}>
+                          {hasAny && <span style={{ width: 5, height: 5, borderRadius: "50%", background: isSel ? C.white : (isPerfect ? C.green : C.gm) }} />}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={function () { if (dateInputRef.current) { try { dateInputRef.current.showPicker(); } catch (e) { dateInputRef.current.click(); } } }}
+                  style={{ flex: "0 0 auto", width: 36, height: 36, borderRadius: 11, background: C.white, border: "1.5px solid " + C.border, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.text }}
+                  aria-label="Pick a date"
+                >
+                  <ICal color={C.text} />
+                </button>
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={selDay}
+                  max={tk}
+                  onChange={function (e) { if (e.target.value) selectDay(e.target.value); }}
+                  style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                />
+              </div>
+              <div style={{ padding: "6px 22px 10px", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }}>
+                    {selIsToday ? "Today" : selDate.toLocaleDateString("en-US", { weekday: "long" })}
+                  </div>
+                  <div style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.1 }}>
+                    {selDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })}
+                  </div>
+                </div>
+                {!selIsToday && (
+                  <button onClick={function () { selectDay(tk); scrollStripToEnd(); }} style={{ padding: "5px 11px", borderRadius: 99, background: C.gl, border: "1.5px solid " + C.gm, color: C.gd, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                    Jump to today
+                  </button>
+                )}
               </div>
               {habits.length > 0 && (
                 <div style={{ padding: "0 22px 12px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                    <span style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>Today&apos;s Progress</span>
+                    <span style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>{selIsToday ? "Today\u2019s Progress" : "Progress"}</span>
                     <span style={{ fontSize: 12, color: C.green, fontWeight: 700 }}>
-                      {doneC}/{todayH.length}
+                      {selDoneC}/{selH.length}
                     </span>
                   </div>
                   <div style={{ height: 5, background: C.border, borderRadius: 99, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: pct + "%", background: "linear-gradient(90deg," + C.gd + "," + C.green + ")", borderRadius: 99, transition: "width 0.6s cubic-bezier(0.34,1.56,0.64,1)" }} />
+                    <div style={{ height: "100%", width: selPct + "%", background: "linear-gradient(90deg," + C.gd + "," + C.green + ")", borderRadius: 99, transition: "width 0.6s cubic-bezier(0.34,1.56,0.64,1)" }} />
                   </div>
                 </div>
               )}
@@ -4636,7 +4760,7 @@ export default function App() {
                   )}
                 </div>
               )}
-              {todayH.length === 0 && (
+              {selH.length === 0 && habits.length === 0 && (
                 <div style={{ margin: "16px 14px 0", display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px", background: C.white, borderRadius: 22, border: "1.5px dashed " + C.border }}>
                   <div style={{ fontSize: 44, marginBottom: 14 }}>{"\uD83C\uDF31"}</div>
                   <div style={{ fontSize: 17, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 6, textAlign: "center" }}>No habits yet</div>
@@ -4646,9 +4770,17 @@ export default function App() {
                   </button>
                 </div>
               )}
+              {selH.length === 0 && habits.length > 0 && (
+                <div style={{ margin: "10px 14px 0", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 16px", background: C.white, borderRadius: 18, border: "1.5px dashed " + C.border }}>
+                  <div style={{ fontSize: 28, marginBottom: 6 }}>{"\uD83D\uDECC"}</div>
+                  <div style={{ fontSize: 13, color: C.muted, textAlign: "center", lineHeight: 1.5 }}>
+                    No habits scheduled for {selIsToday ? "today" : selDate.toLocaleDateString("en-US", { weekday: "long" })}.
+                  </div>
+                </div>
+              )}
               <div style={{ padding: "0 14px", display: "flex", flexDirection: "column", gap: 9 }}>
-                {todayH.map(function (habit) {
-                  var done = isComp(habit.id),
+                {selH.map(function (habit) {
+                  var done = isCompOn(habit.id, selDay),
                     streak = getStreak(habit.id),
                     wp = getWP(habit.id),
                     pop = justChk[habit.id];
@@ -4701,10 +4833,12 @@ export default function App() {
                   );
                 })}
               </div>
-              {doneC === todayH.length && todayH.length > 0 && (
+              {selDoneC === selH.length && selH.length > 0 && (
                 <div style={{ margin: "16px 14px 0", background: "linear-gradient(135deg," + C.green + "," + C.gd + ")", borderRadius: 18, padding: "14px 18px", textAlign: "center" }}>
                   <div style={{ fontSize: 20, marginBottom: 3 }}>{"\uD83C\uDF31"}</div>
-                  <div style={{ fontSize: 14, color: C.white, fontFamily: "'DM Serif Display',serif", lineHeight: 1.4 }}>All done for today.</div>
+                  <div style={{ fontSize: 14, color: C.white, fontFamily: "'DM Serif Display',serif", lineHeight: 1.4 }}>
+                    All done for {selIsToday ? "today" : selDate.toLocaleDateString("en-US", { weekday: "long" })}.
+                  </div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.82)", marginTop: 3 }}>Every action is a vote for the person you want to become.</div>
                 </div>
               )}
