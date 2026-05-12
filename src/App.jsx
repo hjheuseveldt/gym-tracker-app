@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { supabase, supaReady } from "./supabase.js";
 
 var C = {
   bg: "#FAF9F6",
@@ -51,6 +52,20 @@ function dk(d) {
 function today() {
   return dk(new Date());
 }
+function todayLocal() {
+  var d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function addDays(ymd, n) {
+  var d = new Date(ymd + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function dayDiff(a, b) {
+  var da = new Date(a + "T00:00:00");
+  var db = new Date(b + "T00:00:00");
+  return Math.round((da - db) / 86400000);
+}
 function dim(y, m) {
   return new Date(y, m + 1, 0).getDate();
 }
@@ -93,115 +108,11 @@ function cc(hex) {
 }
 
 var HABITS = [
-  { id: 1, name: "Morning Walk", emoji: "\uD83D\uDEB6", scheduledDays: [0, 1, 2, 3, 4, 5, 6] },
-  { id: 2, name: "Read 20 Pages", emoji: "\uD83D\uDCD6", scheduledDays: [1, 2, 3, 4, 5] },
   { id: 3, name: "Gym", emoji: "\uD83D\uDCAA", scheduledDays: [1, 2, 3, 4, 5] },
-  { id: 4, name: "Meditate", emoji: "\uD83E\uDDD8", scheduledDays: [1, 3, 5] },
 ];
-var CYCLES = [
-  {
-    id: 1,
-    name: "Winter Bulk",
-    type: "Bulk",
-    color: "#4FA8E0",
-    start: "2025-11-12",
-    end: "2026-01-31",
-    calories: 3400,
-    supplements: "Creatine 5g, Whey 2x, Vitamin D",
-  },
-  {
-    id: 2,
-    name: "Spring Cut",
-    type: "Cut",
-    color: "#E05050",
-    start: "2026-02-01",
-    end: "2026-04-30",
-    calories: 2300,
-    supplements: "Creatine 5g, Whey 1x, Fish Oil, Caffeine",
-  },
-  {
-    id: 3,
-    name: "Summer Lean",
-    type: "Maintain",
-    color: "#40B870",
-    start: "2026-05-01",
-    end: "2026-07-31",
-    calories: 2800,
-    supplements: "Creatine 5g, Whey 1x, Vitamin D, Fish Oil",
-  },
-];
-
-function genData() {
-  function add(base, n) {
-    var d = new Date(base);
-    d.setDate(d.getDate() + n);
-    return d;
-  }
-  var START = new Date("2025-11-12"),
-    TODAY = new Date();
-  var seed = 42;
-  function rnd() {
-    seed = (seed * 1664525 + 1013904223) & 0xffffffff;
-    return (seed >>> 0) / 4294967295;
-  }
-  function p(x) {
-    return rnd() < x;
-  }
-  function ri(a, b) {
-    return a + Math.round(rnd() * (b - a));
-  }
-  function bw(k) {
-    var t = (new Date(k) - START) / ((TODAY - START) || 1),
-      base;
-    if (t < 0.3) base = 191 + (t * (195 - 191)) / 0.3;
-    else if (t < 0.55) base = 195 - (t - 0.3) * ((195 - 182) / 0.25);
-    else base = 182 + (t - 0.55) * ((183.5 - 182) / 0.45);
-    return Math.round((base + (rnd() - 0.5) * 0.8) * 2) / 2;
-  }
-  var SP = [
-    { muscles: ["Chest", "Triceps", "Shoulders"], sets: { Chest: 15, Triceps: 9, Shoulders: 9 } },
-    { muscles: ["Back", "Biceps"], sets: { Back: 15, Biceps: 12 } },
-    { muscles: ["Legs", "Core"], sets: { Legs: 18, Core: 6 } },
-    { muscles: ["Chest", "Triceps"], sets: { Chest: 12, Triceps: 9 } },
-    { muscles: ["Back", "Biceps", "Core"], sets: { Back: 12, Biceps: 9, Core: 6 } },
-    { muscles: ["Legs"], sets: { Legs: 20 } },
-    { muscles: ["Shoulders", "Biceps", "Triceps"], sets: { Shoulders: 12, Biceps: 9, Triceps: 9 } },
-    { muscles: ["Chest", "Back"], sets: { Chest: 12, Back: 12 } },
-  ];
-  var si = 0,
-    comp = { 1: {}, 2: {}, 3: {}, 4: {} },
-    logs = {};
-  for (var i = 0; i < 180; i++) {
-    var d = add(START, i),
-      k = dk(d),
-      dow = d.getDay();
-    if (k > dk(TODAY)) break;
-    if (p(dow === 0 || dow === 6 ? 0.78 : 0.88)) comp[1][k] = true;
-    if (dow >= 1 && dow <= 5 && p(0.78)) comp[2][k] = true;
-    if (dow >= 1 && dow <= 5) {
-      var deload = Math.floor(i / 7) % 6 === 5;
-      if (p(deload ? 0.2 : i < 30 ? 0.72 : i < 90 ? 0.82 : 0.88)) {
-        comp[3][k] = true;
-        var sp = SP[si % SP.length];
-        si++;
-        var s = {};
-        Object.keys(sp.sets).forEach(function (m) {
-          s[m] = sp.sets[m] + ri(-2, 3);
-        });
-        logs[k] = { bodyweight: bw(k), muscles: sp.muscles, sets: s };
-      }
-    }
-    if ((dow === 1 || dow === 3 || dow === 5) && p(0.65)) comp[4][k] = true;
-  }
-  var t = dk(TODAY);
-  [1, 2, 3, 4].forEach(function (id) {
-    delete comp[id][t];
-  });
-  return { comp: comp, logs: logs };
-}
-var MD = genData();
-var COMP = MD.comp,
-  LOGS = MD.logs;
+var CYCLES = [];
+var COMP = { 3: {} };
+var LOGS = {};
 
 function aRipple(ctx, cx, cy, f) {
   var rings = [
@@ -438,6 +349,33 @@ function ISettings(props) {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3" />
       <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </svg>
+  );
+}
+function ISleep(props) {
+  var c = props.color || C.muted;
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.5 14.2A8 8 0 0 1 9.8 3.5a8 8 0 1 0 10.7 10.7z" />
+      <path d="M15 4h4l-4 4h4" />
+    </svg>
+  );
+}
+function IFlame(props) {
+  var c = props.color || C.muted;
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2.5c1.2 2.4 3.2 3.6 4.4 5.6 1.6 2.6 1.7 5.9-.4 8.3a6.5 6.5 0 0 1-9.8-.2c-1.9-2.3-1.8-5.4-.1-7.7 1-1.4 2.2-2 2.7-3.2.5 1.6 1.6 2.5 2.7 2.8.4-2 0-3.7.5-5.6z" />
+      <path d="M12 20a3 3 0 0 0 3-3c0-1.2-.8-1.9-1.6-2.6-.6-.5-1-1-1.4-1.9-.3.9-.7 1.4-1.4 1.9C9.8 15.1 9 15.8 9 17a3 3 0 0 0 3 3z" />
+    </svg>
+  );
+}
+function ICoach(props) {
+  var c = props.color || C.muted;
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 21l2.1-5.3A8.5 8.5 0 1 1 21 11.5z" />
+      <path d="M8.5 11.2l1.4 1.4 1.4-1.4M13.7 11.2l1.4 1.4 1.4-1.4" />
     </svg>
   );
 }
@@ -1524,6 +1462,2700 @@ function SettingsTab(props) {
   );
 }
 
+function scoreColor(s) {
+  if (s == null) return C.muted;
+  if (s >= 85) return "#4CC774";
+  if (s >= 70) return "#E5B53C";
+  return "#E05050";
+}
+function scoreLabel(s) {
+  if (s == null) return "No data";
+  if (s >= 85) return "Optimal";
+  if (s >= 70) return "Good";
+  return "Pay attention";
+}
+function scoreTextOn(s) {
+  if (s == null) return C.text;
+  if (s >= 70 && s < 85) return "#3D2F00";
+  return C.white;
+}
+function fmtDur(secs) {
+  if (secs == null) return "\u2013";
+  var h = Math.floor(secs / 3600);
+  var m = Math.round((secs % 3600) / 60);
+  if (m === 60) {
+    h += 1;
+    m = 0;
+  }
+  return h + "h " + String(m).padStart(2, "0") + "m";
+}
+function fmtTimeISO(iso) {
+  if (!iso) return "\u2013";
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return "\u2013";
+  var h = d.getHours();
+  var m = String(d.getMinutes()).padStart(2, "0");
+  var ap = h >= 12 ? "PM" : "AM";
+  var h12 = h % 12 || 12;
+  return h12 + ":" + m + " " + ap;
+}
+
+function ScoreRing(props) {
+  var size = props.size || 140;
+  var stroke = 12;
+  var r = (size - stroke) / 2;
+  var circ = 2 * Math.PI * r;
+  var score = props.score;
+  var pct = score != null ? Math.max(0, Math.min(100, score)) / 100 : 0;
+  var col = scoreColor(score);
+  return (
+    <div style={{ position: "relative", width: size, height: size }}>
+      <svg width={size} height={size}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={C.border} strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={col}
+          strokeWidth={stroke}
+          strokeDasharray={circ}
+          strokeDashoffset={circ * (1 - pct)}
+          strokeLinecap="round"
+          transform={"rotate(-90 " + size / 2 + " " + size / 2 + ")"}
+          style={{ transition: "stroke-dashoffset 0.7s ease, stroke 0.4s ease" }}
+        />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontSize: 44, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>
+          {score != null ? score : "\u2013"}
+        </div>
+        <div style={{ fontSize: 10, color: col, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginTop: 5 }}>
+          {scoreLabel(score)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+var CONTRIB_KEYS = [
+  { k: "total_sleep", label: "Total" },
+  { k: "rem_sleep", label: "REM" },
+  { k: "deep_sleep", label: "Deep" },
+  { k: "efficiency", label: "Eff" },
+  { k: "restfulness", label: "Rest" },
+  { k: "latency", label: "Latency" },
+  { k: "timing", label: "Timing" },
+];
+
+function ContributorBars(props) {
+  var contributors = props.contributors;
+  return (
+    <div style={{ display: "flex", gap: 5 }}>
+      {CONTRIB_KEYS.map(function (item) {
+        var val = contributors ? contributors[item.k] : null;
+        var col = scoreColor(val);
+        var pct = val != null ? Math.max(0, Math.min(100, val)) / 100 : 0;
+        return (
+          <div key={item.k} style={{ flex: 1, textAlign: "center" }}>
+            <div style={{ height: 52, background: C.bg, borderRadius: 6, position: "relative", overflow: "hidden", border: "1px solid " + C.border }}>
+              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: pct * 100 + "%", background: col, transition: "height 0.6s ease, background 0.4s ease" }} />
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: val != null && pct > 0.55 ? C.white : C.text, transition: "color 0.4s" }}>
+                {val != null ? val : "\u2013"}
+              </div>
+            </div>
+            <div style={{ fontSize: 8, color: C.muted, fontWeight: 600, marginTop: 4, letterSpacing: 0.2 }}>{item.label}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Sparkline(props) {
+  var data = props.data;
+  var w = props.width || 328;
+  var h = props.height || 42;
+  var filledIdx = [];
+  data.forEach(function (d, i) {
+    if (d.score != null) filledIdx.push(i);
+  });
+  if (filledIdx.length < 2) {
+    return (
+      <div style={{ height: h, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted, fontSize: 11 }}>
+        Need 2+ scored nights to draw trend
+      </div>
+    );
+  }
+  var scores = filledIdx.map(function (i) { return data[i].score; });
+  var mn = Math.max(0, Math.min.apply(null, scores) - 6);
+  var mx = Math.min(100, Math.max.apply(null, scores) + 6);
+  var rng = mx - mn || 1;
+  var pad = 8;
+  function px(i) { return pad + (i / (data.length - 1)) * (w - pad * 2); }
+  function py(s) { return h - pad - ((s - mn) / rng) * (h - pad * 2); }
+  var pts = filledIdx.map(function (i) {
+    return { x: px(i), y: py(data[i].score), score: data[i].score };
+  });
+  var pathD = pts
+    .map(function (p, i) { return (i === 0 ? "M" : "L") + p.x.toFixed(1) + "," + p.y.toFixed(1); })
+    .join(" ");
+  var areaD = pathD + " L" + pts[pts.length - 1].x.toFixed(1) + "," + h + " L" + pts[0].x.toFixed(1) + "," + h + " Z";
+  return (
+    <svg width={w} height={h} style={{ display: "block" }}>
+      <defs>
+        <linearGradient id="spark-gr" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={C.green} stopOpacity={0.32} />
+          <stop offset="100%" stopColor={C.green} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <path d={areaD} fill="url(#spark-gr)" />
+      <path d={pathD} stroke={C.green} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {pts.map(function (p, i) {
+        return <circle key={i} cx={p.x} cy={p.y} r={2.8} fill={C.white} stroke={scoreColor(p.score)} strokeWidth={1.8} />;
+      })}
+    </svg>
+  );
+}
+
+function SleepCalendar(props) {
+  var year = props.year,
+    month = props.month,
+    sleep = props.sleep,
+    selected = props.selected,
+    todayKey = props.todayKey;
+  var days = dim(year, month);
+  var first = fd(year, month);
+  var cells = Array.from({ length: first }, function () { return null; }).concat(
+    Array.from({ length: days }, function (_, i) { return i + 1; })
+  );
+  function dKey(d) {
+    return year + "-" + String(month + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+  }
+  return (
+    <div style={{ background: C.white, borderRadius: 14, padding: 12, border: "1.5px solid " + C.border }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <button onClick={function () { props.onMonthChange(-1); }} style={{ background: "none", border: "none", fontSize: 18, color: C.green, cursor: "pointer", padding: 2 }}>{"<"}</button>
+        <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 15, color: C.text, fontWeight: 600 }}>
+          {MN[month]} {year}
+        </div>
+        <button onClick={function () { props.onMonthChange(1); }} style={{ background: "none", border: "none", fontSize: 18, color: C.green, cursor: "pointer", padding: 2 }}>{">"}</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
+        {DL.map(function (d) {
+          return <div key={d} style={{ textAlign: "center", fontSize: 10, color: C.muted, fontWeight: 600 }}>{d}</div>;
+        })}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+        {cells.map(function (day, i) {
+          if (!day) return <div key={i} />;
+          var k = dKey(day);
+          var data = sleep[k];
+          var hasScore = data && data.score != null;
+          var col = hasScore ? scoreColor(data.score) : null;
+          var txt = hasScore ? scoreTextOn(data.score) : C.text;
+          var isSel = k === selected;
+          var isT = k === todayKey;
+          var isFut = k > todayKey;
+          var border = isSel
+            ? "2.5px solid " + C.text
+            : hasScore
+            ? "1.5px solid transparent"
+            : "1.5px solid " + C.border;
+          var shadow = isT && !isSel ? "inset 0 0 0 2px " + C.green : "none";
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={function () { if (!isFut) props.onSelect(k); }}
+              disabled={isFut}
+              style={{
+                aspectRatio: "1",
+                borderRadius: 9,
+                border: border,
+                background: hasScore ? col : "transparent",
+                boxShadow: shadow,
+                color: txt,
+                cursor: isFut ? "default" : "pointer",
+                opacity: isFut ? 0.28 : 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
+                fontFamily: "'DM Sans',sans-serif",
+                lineHeight: 1,
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: isT || isSel ? 700 : 600, color: txt }}>{day}</div>
+              {hasScore && (
+                <div style={{ fontSize: 9, fontWeight: 700, color: txt, opacity: 0.92, marginTop: 2 }}>{data.score}</div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+var STAGE_DEFS = [
+  { k: "deep_sleep_duration", label: "Deep", color: "#3D4F7A" },
+  { k: "rem_sleep_duration", label: "REM", color: "#9060E0" },
+  { k: "light_sleep_duration", label: "Light", color: "#6DD994" },
+  { k: "awake_time", label: "Awake", color: "#E07840" },
+];
+
+function SleepDayDetail(props) {
+  var day = props.day,
+    data = props.data;
+  if (!data) {
+    return (
+      <div style={{ background: C.white, borderRadius: 14, padding: "18px 14px", border: "1.5px dashed " + C.border, textAlign: "center" }}>
+        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4 }}>{fmtDS(day)}</div>
+        <div style={{ fontSize: 13, color: C.muted }}>No Oura data for this day</div>
+      </div>
+    );
+  }
+  var totalStages = STAGE_DEFS.reduce(function (a, s) { return a + (data[s.k] || 0); }, 0);
+  var stats = [
+    { label: "Avg HR", val: data.average_heart_rate, unit: "bpm" },
+    { label: "Min HR", val: data.lowest_heart_rate, unit: "bpm" },
+    { label: "Avg HRV", val: data.average_hrv, unit: "ms" },
+    { label: "Breath", val: data.average_breath != null ? data.average_breath.toFixed(1) : null, unit: "br/m" },
+    { label: "Efficiency", val: data.efficiency, unit: "%" },
+    { label: "Latency", val: data.latency != null ? Math.round(data.latency / 60) : null, unit: "min" },
+  ];
+  return (
+    <div style={{ background: C.white, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>{fmtDS(day)}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginTop: 2 }}>
+            {fmtDur(data.total_sleep_duration)}
+            <span style={{ fontSize: 11, color: C.muted, fontWeight: 500, marginLeft: 5 }}>asleep</span>
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+            {fmtTimeISO(data.bedtime_start)} {"\u2192"} {fmtTimeISO(data.bedtime_end)}
+            {data.time_in_bed != null && (
+              <span>{" \u00B7 "}in bed {fmtDur(data.time_in_bed)}</span>
+            )}
+          </div>
+        </div>
+        {data.score != null && (
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "'DM Serif Display',serif", color: scoreColor(data.score), lineHeight: 1 }}>{data.score}</div>
+            <div style={{ fontSize: 10, color: C.muted, fontWeight: 600 }}>score</div>
+          </div>
+        )}
+      </div>
+      {totalStages > 0 && (
+        <div>
+          <div style={{ height: 9, background: C.border, borderRadius: 99, overflow: "hidden", display: "flex" }}>
+            {STAGE_DEFS.map(function (s) {
+              var v = data[s.k] || 0;
+              if (v <= 0) return null;
+              return <div key={s.k} title={s.label + " " + fmtDur(v)} style={{ width: (v / totalStages) * 100 + "%", background: s.color }} />;
+            })}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", marginTop: 8 }}>
+            {STAGE_DEFS.map(function (s) {
+              var v = data[s.k] || 0;
+              return (
+                <div key={s.k} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: s.color }} />
+                  <span style={{ fontSize: 11, color: C.text, fontWeight: 600 }}>{s.label}</span>
+                  <span style={{ fontSize: 11, color: C.muted }}>{fmtDur(v)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 7 }}>
+        {stats.map(function (s) {
+          return (
+            <div key={s.label} style={{ background: C.bg, borderRadius: 9, padding: "8px 9px" }}>
+              <div style={{ fontSize: 9, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3 }}>{s.label}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.1, marginTop: 2 }}>
+                {s.val != null ? s.val : "\u2013"}
+                {s.val != null && <span style={{ fontSize: 9, color: C.muted, fontWeight: 500, marginLeft: 3 }}>{s.unit}</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {data.contributors && (
+        <div>
+          <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 6, letterSpacing: 0.5 }}>Contributors</div>
+          <ContributorBars contributors={data.contributors} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function pickLatestKey(sleep, fallback) {
+  var withScore = Object.keys(sleep)
+    .filter(function (k) { return sleep[k] && sleep[k].score != null; })
+    .sort();
+  return withScore.length ? withScore[withScore.length - 1] : fallback;
+}
+
+function SleepTab(props) {
+  var sleep = props.sleep,
+    setSleep = props.setSleep;
+  var tk = today();
+
+  var loadingS = useState(false);
+  var loading = loadingS[0],
+    setLoading = loadingS[1];
+  var errorS = useState(null);
+  var error = errorS[0],
+    setError = errorS[1];
+  var selS = useState(pickLatestKey(sleep, tk));
+  var selected = selS[0],
+    setSelected = selS[1];
+  var now = new Date();
+  var calYS = useState(now.getFullYear());
+  var calY = calYS[0],
+    setCalY = calYS[1];
+  var calMS = useState(now.getMonth());
+  var calM = calMS[0],
+    setCalM = calMS[1];
+
+  function changeMonth(dir) {
+    var m = calM + dir,
+      y = calY;
+    if (m < 0) { m = 11; y--; }
+    else if (m > 11) { m = 0; y++; }
+    setCalM(m);
+    setCalY(y);
+  }
+
+  function fetchData() {
+    setLoading(true);
+    setError(null);
+    var endD = new Date();
+    var startD = new Date();
+    startD.setDate(startD.getDate() - 7);
+    var startStr = dk(startD),
+      endStr = dk(endD);
+    var base = "/api/oura/v2/usercollection/";
+    var u1 = base + "daily_sleep?start_date=" + startStr + "&end_date=" + endStr;
+    var u2 = base + "sleep?start_date=" + startStr + "&end_date=" + endStr;
+    Promise.all([fetch(u1), fetch(u2)])
+      .then(function (rs) {
+        if (!rs[0].ok) throw new Error("daily_sleep " + rs[0].status);
+        if (!rs[1].ok) throw new Error("sleep " + rs[1].status);
+        return Promise.all([rs[0].json(), rs[1].json()]);
+      })
+      .then(function (jsons) {
+        var ds = jsons[0],
+          slp = jsons[1];
+        var merged = Object.assign({}, sleep);
+        (ds.data || []).forEach(function (item) {
+          merged[item.day] = Object.assign({}, merged[item.day] || {}, {
+            score: item.score,
+            contributors: item.contributors,
+          });
+        });
+        (slp.data || [])
+          .filter(function (it) { return it.type === "long_sleep"; })
+          .forEach(function (item) {
+            merged[item.day] = Object.assign({}, merged[item.day] || {}, {
+              bedtime_start: item.bedtime_start,
+              bedtime_end: item.bedtime_end,
+              total_sleep_duration: item.total_sleep_duration,
+              time_in_bed: item.time_in_bed,
+              rem_sleep_duration: item.rem_sleep_duration,
+              deep_sleep_duration: item.deep_sleep_duration,
+              light_sleep_duration: item.light_sleep_duration,
+              awake_time: item.awake_time,
+              efficiency: item.efficiency,
+              latency: item.latency,
+              average_heart_rate: item.average_heart_rate,
+              lowest_heart_rate: item.lowest_heart_rate,
+              average_hrv: item.average_hrv,
+              average_breath: item.average_breath,
+              restless_periods: item.restless_periods,
+            });
+          });
+        setSleep(merged);
+        var latest = pickLatestKey(merged, tk);
+        setSelected(latest);
+        setLoading(false);
+      })
+      .catch(function (err) {
+        setError(String(err.message || err));
+        setLoading(false);
+      });
+  }
+
+  useEffect(function () {
+    fetchData();
+  }, []);
+
+  var current = sleep[selected];
+  var sparkData = Array.from({ length: 7 }, function (_, i) {
+    var d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    var k = dk(d);
+    return { day: k, score: sleep[k] ? sleep[k].score : null };
+  });
+  var titleText = selected === tk ? "Last Night" : fmtDS(selected);
+
+  return (
+    <div style={{ paddingBottom: 100 }}>
+      <div style={{ padding: "16px 22px 8px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Sleep</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.1 }}>{titleText}</div>
+        </div>
+        <button
+          onClick={fetchData}
+          disabled={loading}
+          aria-label="Refresh from Oura"
+          style={{ width: 36, height: 36, borderRadius: "50%", background: loading ? C.border : C.gl, border: "none", color: C.green, fontSize: 17, cursor: loading ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}
+        >
+          {loading ? "\u2026" : "\u21BB"}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ margin: "0 16px 8px", padding: "8px 12px", background: C.red, borderRadius: 10, fontSize: 11, color: C.redT, fontWeight: 600 }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{ padding: "2px 16px 12px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <ScoreRing score={current ? current.score : null} size={140} />
+      </div>
+
+      <div style={{ padding: "0 16px 12px" }}>
+        <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Contributors</div>
+        <ContributorBars contributors={current ? current.contributors : null} />
+      </div>
+
+      <div style={{ padding: "0 16px 12px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 5 }}>
+          <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Last 7 Days</div>
+          <div style={{ fontSize: 9, color: C.muted }}>score trend</div>
+        </div>
+        <div style={{ background: C.white, borderRadius: 11, padding: "8px 6px", border: "1.5px solid " + C.border }}>
+          <Sparkline data={sparkData} width={328} height={42} />
+        </div>
+      </div>
+
+      <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <SleepCalendar
+          year={calY}
+          month={calM}
+          sleep={sleep}
+          selected={selected}
+          todayKey={tk}
+          onSelect={setSelected}
+          onMonthChange={changeMonth}
+        />
+        <SleepDayDetail day={selected} data={current} />
+      </div>
+    </div>
+  );
+}
+
+function parseFsDesc(desc) {
+  if (!desc) return null;
+  var m = desc.match(/Per\s+([^-]+?)\s*-\s*Calories:\s*([\d.]+)\s*kcal(?:\s*\|\s*Fat:\s*([\d.]+)\s*g)?(?:\s*\|\s*Carbs:\s*([\d.]+)\s*g)?(?:\s*\|\s*Protein:\s*([\d.]+)\s*g)?/i);
+  if (!m) return null;
+  return {
+    serving: m[1].trim(),
+    calories: +m[2],
+    fat: m[3] != null ? +m[3] : null,
+    carbs: m[4] != null ? +m[4] : null,
+    protein: m[5] != null ? +m[5] : null,
+  };
+}
+
+function AddFoodSheet(props) {
+  var food = props.food;
+  var p = parseFsDesc(food.food_description) || { serving: "serving", calories: 0, fat: null, carbs: null, protein: null };
+  var qS = useState(1);
+  var qty = qS[0],
+    setQty = qS[1];
+  function bump(d) {
+    var v = +(qty + d).toFixed(2);
+    if (v < 0.25) v = 0.25;
+    setQty(v);
+  }
+  return (
+    <div
+      onClick={props.onCancel}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(45,59,46,0.42)",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        zIndex: 200,
+        animation: "fadeIn 0.18s ease both",
+      }}
+    >
+      <div
+        onClick={function (e) { e.stopPropagation(); }}
+        style={{
+          background: C.bg,
+          width: "100%",
+          maxWidth: 420,
+          borderRadius: "28px 28px 0 0",
+          padding: "18px 22px 32px",
+          animation: "slideUp 0.24s cubic-bezier(0.34,1.56,0.64,1) both",
+          fontFamily: "'DM Sans',sans-serif",
+        }}
+      >
+        <div style={{ width: 38, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 18px" }} />
+        <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.25 }}>{food.food_name}</div>
+        {food.brand_name && <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{food.brand_name}</div>}
+        <div style={{ marginTop: 12, padding: "10px 14px", background: C.white, borderRadius: 12, border: "1px solid " + C.border, fontSize: 12, color: C.muted }}>
+          Per <span style={{ color: C.text, fontWeight: 600 }}>{p.serving}</span> {"\u00B7"} <span style={{ color: C.text, fontWeight: 600 }}>{Math.round(p.calories)} cal</span>
+          {p.protein != null && <span> {"\u00B7"} P {p.protein}g</span>}
+          {p.carbs != null && <span> {"\u00B7"} C {p.carbs}g</span>}
+          {p.fat != null && <span> {"\u00B7"} F {p.fat}g</span>}
+        </div>
+        <div style={{ fontSize: 12, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 16, marginBottom: 8 }}>Servings</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={function () { bump(-0.5); }} style={{ width: 44, height: 44, borderRadius: 14, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer" }}>{"\u2212"}</button>
+          <input
+            type="number"
+            step="0.25"
+            min="0.25"
+            value={qty}
+            onChange={function (e) {
+              var v = +e.target.value;
+              if (isNaN(v) || v < 0) v = 0;
+              setQty(v);
+            }}
+            style={{ flex: 1, padding: "12px 14px", borderRadius: 14, border: "1.5px solid " + C.border, fontSize: 18, fontWeight: 700, textAlign: "center", color: C.text, outline: "none", fontFamily: "'DM Sans',sans-serif", background: C.white }}
+          />
+          <button onClick={function () { bump(0.5); }} style={{ width: 44, height: 44, borderRadius: 14, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer" }}>+</button>
+        </div>
+        <div style={{ fontSize: 13, color: C.muted, marginTop: 10, textAlign: "center" }}>
+          = <span style={{ color: C.text, fontWeight: 700 }}>{Math.round(p.calories * qty)} cal</span>
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <button onClick={props.onCancel} style={{ flex: 1, padding: "13px", borderRadius: 14, border: "1.5px solid " + C.border, background: C.white, fontSize: 14, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Cancel</button>
+          <button
+            onClick={function () { props.onConfirm(qty); }}
+            disabled={!qty}
+            style={{ flex: 1.4, padding: "13px", borderRadius: 14, border: "none", background: "linear-gradient(135deg," + C.green + "," + C.gd + ")", color: C.white, fontSize: 14, fontWeight: 700, cursor: qty ? "pointer" : "default", opacity: qty ? 1 : 0.6, fontFamily: "'DM Sans',sans-serif", boxShadow: "0 6px 18px rgba(76,199,116,0.32)" }}
+          >
+            Add to log
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DayNav(props) {
+  var date = props.date;
+  var open = props.calOpen;
+  var d = new Date(date + "T00:00:00");
+  var WDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var wd = WDAYS[d.getDay()];
+  var monDay = MN[d.getMonth()].slice(0, 3) + " " + d.getDate();
+  var year = d.getFullYear();
+  var curY = new Date().getFullYear();
+  var label = wd + ", " + monDay + (year !== curY ? ", " + year : "");
+  var diff = dayDiff(todayLocal(), date);
+  var rel = diff === 0 ? "Today" : diff === 1 ? "Yesterday" : null;
+  var nextDisabled = diff <= 0;
+  return (
+    <div
+      style={{
+        margin: "0 16px 0",
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        background: C.white,
+        borderRadius: 16,
+        padding: 6,
+        border: "1px solid " + C.border,
+        position: "relative",
+        zIndex: 2,
+      }}
+    >
+      <button
+        onClick={props.onPrev}
+        aria-label="Previous day"
+        style={{ width: 38, height: 44, borderRadius: 12, border: "none", background: "transparent", cursor: "pointer", fontSize: 22, fontWeight: 700, color: C.text, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif" }}
+      >
+        {"\u2039"}
+      </button>
+      <button
+        onClick={props.onToggleCal}
+        aria-label="Pick a date"
+        aria-expanded={open ? "true" : "false"}
+        style={{ flex: 1, padding: "4px 6px", borderRadius: 12, border: "none", background: open ? C.gl : "transparent", cursor: "pointer", textAlign: "center", fontFamily: "'DM Sans',sans-serif", transition: "background 0.16s ease" }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, flexWrap: "wrap" }}>
+          <span>{label}</span>
+          {rel && (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 99, background: rel === "Today" ? C.green : C.gl, color: rel === "Today" ? C.white : C.gd, letterSpacing: 0.4 }}>
+              {rel.toUpperCase()}
+            </span>
+          )}
+          <span style={{ fontSize: 10, color: C.muted, transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.18s ease", display: "inline-block", marginLeft: 2 }}>
+            {"\u25BE"}
+          </span>
+        </div>
+      </button>
+      <button
+        onClick={props.onNext}
+        disabled={nextDisabled}
+        aria-label="Next day"
+        style={{ width: 38, height: 44, borderRadius: 12, border: "none", background: "transparent", cursor: nextDisabled ? "default" : "pointer", opacity: nextDisabled ? 0.3 : 1, fontSize: 22, fontWeight: 700, color: C.text, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif" }}
+      >
+        {"\u203A"}
+      </button>
+    </div>
+  );
+}
+
+function CalCalendar(props) {
+  var date = props.date;
+  var daysWithLogs = props.daysWithLogs || new Set();
+  var tk = todayLocal();
+  var parts = date.split("-");
+  var yS = useState(+parts[0]);
+  var mS = useState(+parts[1] - 1);
+  var yy = yS[0],
+    setYY = yS[1];
+  var mm = mS[0],
+    setMM = mS[1];
+
+  function gotoMonth(delta) {
+    var nm = mm + delta;
+    var ny = yy;
+    if (nm < 0) { nm = 11; ny -= 1; }
+    if (nm > 11) { nm = 0; ny += 1; }
+    var firstOfNext = ny + "-" + String(nm + 1).padStart(2, "0") + "-01";
+    if (delta > 0 && firstOfNext > tk) return;
+    setMM(nm);
+    setYY(ny);
+  }
+  function dKey(d) {
+    return yy + "-" + String(mm + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+  }
+  var days = dim(yy, mm);
+  var first = fd(yy, mm);
+  var cells = Array.from({ length: first }, function () { return null; }).concat(
+    Array.from({ length: days }, function (_, i) { return i + 1; })
+  );
+  var firstOfNext = (mm === 11 ? yy + 1 : yy) + "-" + String(mm === 11 ? 1 : mm + 2).padStart(2, "0") + "-01";
+  var nextMonthDisabled = firstOfNext > tk;
+
+  return (
+    <div
+      style={{
+        margin: "-8px 16px 14px",
+        background: C.white,
+        borderRadius: 18,
+        padding: 14,
+        paddingTop: 18,
+        border: "1.5px solid " + C.border,
+        boxShadow: "0 8px 22px rgba(45,59,46,0.10)",
+        animation: "slideUp 0.18s ease both",
+        position: "relative",
+        zIndex: 1,
+        fontFamily: "'DM Sans',sans-serif",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <button
+          onClick={function () { gotoMonth(-1); }}
+          aria-label="Previous month"
+          style={{ width: 32, height: 32, borderRadius: 10, background: "transparent", border: "none", color: C.green, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}
+        >
+          {"\u2039"}
+        </button>
+        <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 16, color: C.text, fontWeight: 600 }}>
+          {MN[mm]} {yy}
+        </div>
+        <button
+          onClick={function () { gotoMonth(1); }}
+          disabled={nextMonthDisabled}
+          aria-label="Next month"
+          style={{ width: 32, height: 32, borderRadius: 10, background: "transparent", border: "none", color: C.green, fontSize: 18, cursor: nextMonthDisabled ? "default" : "pointer", opacity: nextMonthDisabled ? 0.3 : 1, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}
+        >
+          {"\u203A"}
+        </button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
+        {DL.map(function (d) {
+          return <div key={d} style={{ textAlign: "center", fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: 0.4, padding: "4px 0" }}>{d}</div>;
+        })}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+        {cells.map(function (day, i) {
+          if (!day) return <div key={i} />;
+          var k = dKey(day);
+          var isSel = k === date;
+          var isT = k === tk;
+          var isFut = k > tk;
+          var hasLog = daysWithLogs.has(k);
+          var border = "none";
+          if (!isSel && isT) border = "2px solid " + C.green;
+          else if (!isSel && !hasLog) border = "1px solid " + C.border;
+          else if (!isSel && hasLog) border = "1px solid " + C.gm;
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={function () { if (!isFut) props.onSelect(k); }}
+              disabled={isFut}
+              style={{
+                aspectRatio: "1",
+                borderRadius: 10,
+                border: border,
+                background: isSel ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : hasLog && !isT ? C.gl : "transparent",
+                color: isSel ? C.white : C.text,
+                cursor: isFut ? "default" : "pointer",
+                opacity: isFut ? 0.28 : 1,
+                fontSize: 13,
+                fontWeight: isSel || isT ? 700 : 600,
+                position: "relative",
+                fontFamily: "'DM Sans',sans-serif",
+                padding: 0,
+                boxShadow: isSel ? "0 4px 12px rgba(76,199,116,0.4)" : "none",
+                transition: "transform 0.12s ease",
+              }}
+            >
+              {day}
+              {hasLog && (
+                <span
+                  style={{
+                    position: "absolute",
+                    bottom: 4,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: 4,
+                    height: 4,
+                    borderRadius: 99,
+                    background: isSel ? C.white : C.gd,
+                  }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {date !== tk && (
+        <button
+          onClick={function () { props.onSelect(tk); }}
+          style={{ marginTop: 12, width: "100%", padding: "10px", borderRadius: 12, background: C.gl, color: C.gd, border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", letterSpacing: 0.2 }}
+        >
+          Jump to today
+        </button>
+      )}
+    </div>
+  );
+}
+
+function CalorieTab() {
+  var dS = useState(todayLocal());
+  var selDate = dS[0],
+    setSelDate = dS[1];
+  var eS = useState([]);
+  var entries = eS[0],
+    setEntries = eS[1];
+  var lS = useState(true);
+  var loading = lS[0],
+    setLoading = lS[1];
+  var errS = useState(null);
+  var error = errS[0],
+    setError = errS[1];
+  var qS = useState("");
+  var q = qS[0],
+    setQ = qS[1];
+  var rS = useState([]);
+  var results = rS[0],
+    setResults = rS[1];
+  var sS = useState(false);
+  var searching = sS[0],
+    setSearching = sS[1];
+  var pS = useState(null);
+  var pending = pS[0],
+    setPending = pS[1];
+  var cS = useState(false);
+  var showCal = cS[0],
+    setShowCal = cS[1];
+  var dwlS = useState(new Set());
+  var daysWithLogs = dwlS[0],
+    setDaysWithLogs = dwlS[1];
+
+  useEffect(
+    function () {
+      if (!supaReady()) {
+        setError("Supabase isn't configured \u2014 set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setEntries([]);
+      var aborted = false;
+      supabase
+        .from("food_log")
+        .select("*")
+        .eq("log_date", selDate)
+        .order("created_at", { ascending: false })
+        .then(function (res) {
+          if (aborted) return;
+          if (res.error) setError(res.error.message);
+          else setEntries(res.data || []);
+          setLoading(false);
+        });
+      return function () {
+        aborted = true;
+      };
+    },
+    [selDate]
+  );
+
+  useEffect(
+    function () {
+      if (!supaReady() || !showCal) return;
+      supabase
+        .from("food_log")
+        .select("log_date")
+        .then(function (res) {
+          if (res.error) return;
+          var s = new Set();
+          (res.data || []).forEach(function (r) { s.add(r.log_date); });
+          setDaysWithLogs(s);
+        });
+    },
+    [showCal]
+  );
+
+  useEffect(
+    function () {
+      if (loading) return;
+      setDaysWithLogs(function (prev) {
+        var has = prev.has(selDate);
+        var should = entries.length > 0;
+        if (has === should) return prev;
+        var next = new Set(prev);
+        if (should) next.add(selDate);
+        else next.delete(selDate);
+        return next;
+      });
+    },
+    [entries, loading, selDate]
+  );
+
+  useEffect(
+    function () {
+      var trimmed = q.trim();
+      if (!trimmed) {
+        setResults([]);
+        setSearching(false);
+        return;
+      }
+      setSearching(true);
+      var aborted = false;
+      var to = setTimeout(function () {
+        fetch("/api/fatsecret/proxy?method=foods.search&max_results=10&search_expression=" + encodeURIComponent(trimmed))
+          .then(function (r) {
+            return r.json().then(function (data) {
+              if (!r.ok) throw new Error((data && data.error) || "Search failed (" + r.status + ")");
+              return data;
+            });
+          })
+          .then(function (data) {
+            if (aborted) return;
+            var foods = data && data.foods && data.foods.food;
+            if (!foods) {
+              setResults([]);
+            } else {
+              if (!Array.isArray(foods)) foods = [foods];
+              setResults(foods);
+            }
+            setSearching(false);
+          })
+          .catch(function (e) {
+            if (aborted) return;
+            setError(e.message || String(e));
+            setResults([]);
+            setSearching(false);
+          });
+      }, 280);
+      return function () {
+        aborted = true;
+        clearTimeout(to);
+      };
+    },
+    [q]
+  );
+
+  function logFood(food, servings) {
+    var p = parseFsDesc(food.food_description) || { serving: "serving", calories: 0, fat: null, carbs: null, protein: null };
+    var mul = function (n) { return n == null ? null : Math.round(n * servings * 10) / 10; };
+    var row = {
+      log_date: selDate,
+      food_id: String(food.food_id),
+      food_name: food.food_name,
+      brand_name: food.brand_name || null,
+      serving_description: p.serving,
+      servings: servings,
+      calories: mul(p.calories) || 0,
+      protein: mul(p.protein),
+      carbs: mul(p.carbs),
+      fat: mul(p.fat),
+    };
+    supabase
+      .from("food_log")
+      .insert(row)
+      .select()
+      .single()
+      .then(function (res) {
+        if (res.error) {
+          setError(res.error.message);
+          return;
+        }
+        setEntries(function (prev) { return [res.data].concat(prev); });
+        setPending(null);
+        setQ("");
+        setResults([]);
+      });
+  }
+
+  function delEntry(id) {
+    supabase
+      .from("food_log")
+      .delete()
+      .eq("id", id)
+      .then(function (res) {
+        if (res.error) {
+          setError(res.error.message);
+          return;
+        }
+        setEntries(function (prev) { return prev.filter(function (e) { return e.id !== id; }); });
+      });
+  }
+
+  var totalCal = entries.reduce(function (s, e) { return s + (Number(e.calories) || 0); }, 0);
+  var totalP = entries.reduce(function (s, e) { return s + (Number(e.protein) || 0); }, 0);
+  var totalC = entries.reduce(function (s, e) { return s + (Number(e.carbs) || 0); }, 0);
+  var totalF = entries.reduce(function (s, e) { return s + (Number(e.fat) || 0); }, 0);
+
+  var diffSel = dayDiff(todayLocal(), selDate);
+  var totalLbl = diffSel === 0 ? "Total today" : diffSel === 1 ? "Total yesterday" : diffSel === -1 ? "Total tomorrow" : "Total " + MN[+selDate.split("-")[1] - 1].slice(0, 3) + " " + parseInt(selDate.split("-")[2]);
+  var emptyLbl = diffSel === 0 ? "Nothing logged yet today." : diffSel === 1 ? "Nothing was logged yesterday." : "Nothing logged on this day.";
+
+  return (
+    <div style={{ paddingBottom: 120 }}>
+      <div style={{ padding: "16px 24px 14px" }}>
+        <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Calories</div>
+        <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Daily Intake</div>
+      </div>
+
+      <DayNav
+        date={selDate}
+        calOpen={showCal}
+        onPrev={function () {
+          setSelDate(addDays(selDate, -1));
+          setShowCal(false);
+        }}
+        onNext={function () {
+          if (dayDiff(todayLocal(), selDate) > 0) {
+            setSelDate(addDays(selDate, 1));
+            setShowCal(false);
+          }
+        }}
+        onToggleCal={function () { setShowCal(function (v) { return !v; }); }}
+      />
+      {showCal && (
+        <CalCalendar
+          date={selDate}
+          daysWithLogs={daysWithLogs}
+          onSelect={function (k) {
+            setSelDate(k);
+            setShowCal(false);
+          }}
+        />
+      )}
+      {!showCal && <div style={{ height: 14 }} />}
+
+      <div
+        style={{
+          margin: "0 16px 14px",
+          padding: "20px 22px",
+          background: "linear-gradient(135deg," + C.green + "," + C.gd + ")",
+          borderRadius: 24,
+          color: C.white,
+          boxShadow: "0 8px 24px rgba(76,199,116,0.25)",
+          animation: "slideUp 0.32s ease both",
+        }}
+      >
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.7, opacity: 0.9, textTransform: "uppercase" }}>{totalLbl}</div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 4 }}>
+          <div style={{ fontSize: 48, fontWeight: 700, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>{Math.round(totalCal).toLocaleString()}</div>
+          <div style={{ fontSize: 16, opacity: 0.9 }}>cal</div>
+        </div>
+        <div style={{ display: "flex", gap: 14, marginTop: 12, fontSize: 12, opacity: 0.95 }}>
+          <div><span style={{ fontWeight: 700 }}>{Math.round(totalP)}g</span> protein</div>
+          <div><span style={{ fontWeight: 700 }}>{Math.round(totalC)}g</span> carbs</div>
+          <div><span style={{ fontWeight: 700 }}>{Math.round(totalF)}g</span> fat</div>
+        </div>
+        <div style={{ fontSize: 11, opacity: 0.85, marginTop: 8 }}>{entries.length} {entries.length === 1 ? "item" : "items"} logged</div>
+      </div>
+
+      <div style={{ margin: "0 16px 14px" }}>
+        <input
+          value={q}
+          onChange={function (e) { setQ(e.target.value); }}
+          placeholder="Search food (e.g. chicken breast)"
+          style={{
+            width: "100%",
+            padding: "12px 14px",
+            borderRadius: 14,
+            border: "1.5px solid " + C.border,
+            background: C.white,
+            fontSize: 14,
+            fontFamily: "'DM Sans',sans-serif",
+            color: C.text,
+            outline: "none",
+            boxSizing: "border-box",
+          }}
+        />
+        {(q.trim() || searching) && (
+          <div style={{ marginTop: 8, background: C.white, borderRadius: 14, border: "1.5px solid " + C.border, overflow: "hidden", maxHeight: 280, overflowY: "auto" }}>
+            {searching && <div style={{ padding: "12px 14px", fontSize: 13, color: C.muted }}>Searching{"\u2026"}</div>}
+            {!searching && results.length === 0 && q.trim() && <div style={{ padding: "12px 14px", fontSize: 13, color: C.muted }}>No results.</div>}
+            {results.map(function (f, i) {
+              var p = parseFsDesc(f.food_description) || { calories: 0, serving: "" };
+              return (
+                <button
+                  key={f.food_id}
+                  onClick={function () { setPending(f); }}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "11px 14px",
+                    background: "transparent",
+                    border: "none",
+                    borderTop: i === 0 ? "none" : "1px solid " + C.border,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    fontFamily: "'DM Sans',sans-serif",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {f.food_name}
+                      {f.brand_name && <span style={{ color: C.muted, fontWeight: 500 }}> {"\u00B7"} {f.brand_name}</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                      {Math.round(p.calories)} cal {"\u00B7"} per {p.serving || "serving"}
+                    </div>
+                  </div>
+                  <div style={{ width: 28, height: 28, borderRadius: 10, background: C.gl, color: C.gd, fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>+</div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div style={{ padding: "0 16px" }}>
+        <div style={{ fontSize: 12, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, padding: "6px 4px 10px" }}>Log</div>
+        {loading && <div style={{ padding: "18px 14px", fontSize: 13, color: C.muted, textAlign: "center" }}>Loading{"\u2026"}</div>}
+        {!loading && entries.length === 0 && (
+          <div style={{ padding: "28px 20px", background: C.white, borderRadius: 16, border: "1.5px dashed " + C.border, textAlign: "center" }}>
+            <div style={{ fontSize: 30, marginBottom: 8 }}>{"\uD83E\uDD57"}</div>
+            <div style={{ fontSize: 13, color: C.muted }}>{emptyLbl}</div>
+          </div>
+        )}
+        {entries.map(function (e) {
+          return (
+            <div
+              key={e.id}
+              style={{
+                background: C.white,
+                borderRadius: 14,
+                padding: "12px 14px",
+                border: "1px solid " + C.border,
+                marginBottom: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                animation: "slideUp 0.22s ease both",
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {e.food_name}
+                  {e.brand_name && <span style={{ color: C.muted, fontWeight: 500 }}> {"\u00B7"} {e.brand_name}</span>}
+                </div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                  {e.servings} {"\u00D7"} {e.serving_description || "serving"} {"\u00B7"} <span style={{ color: C.text, fontWeight: 600 }}>{Math.round(Number(e.calories) || 0)} cal</span>
+                </div>
+              </div>
+              <button
+                onClick={function () { delEntry(e.id); }}
+                aria-label="Remove"
+                style={{ width: 30, height: 30, borderRadius: 10, background: C.bg, border: "1px solid " + C.border, cursor: "pointer", color: C.muted, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+              >
+                {"\u00D7"}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {error && (
+        <div style={{ margin: "12px 16px 0", padding: "10px 14px", background: C.red, color: C.redT, borderRadius: 12, fontSize: 12, fontWeight: 600, display: "flex", alignItems: "flex-start", gap: 8 }}>
+          <span style={{ flex: 1 }}>{error}</span>
+          <button onClick={function () { setError(null); }} style={{ background: "transparent", border: "none", color: C.redT, fontSize: 14, cursor: "pointer", padding: 0 }}>{"\u00D7"}</button>
+        </div>
+      )}
+
+      {pending && (
+        <AddFoodSheet
+          food={pending}
+          onCancel={function () { setPending(null); }}
+          onConfirm={function (s) { logFood(pending, s); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function TabPicker(props) {
+  var tabs = props.tabs;
+  var activeId = props.activeId;
+  var onSelect = props.onSelect;
+  var onCenterChange = props.onCenterChange;
+  var onSettle = props.onSettle;
+  var settleMs = props.settleMs || 500;
+  var REPEAT = 5;
+  var L = tabs.length;
+  var midBlock = Math.floor(REPEAT / 2);
+  var totalLen = L * REPEAT;
+  var looped = [];
+  for (var r = 0; r < REPEAT; r++) {
+    for (var i = 0; i < L; i++) looped.push({ tab: tabs[i], key: r + "-" + i, logical: i });
+  }
+
+  var ref = useRef(null);
+  var itemWRef = useRef(0);
+  var rafRef = useRef(null);
+  var teleTimerRef = useRef(null);
+  var settleTimerRef = useRef(null);
+  var supressUntilRef = useRef(0);
+  var lastLogicalRef = useRef(-1);
+  var lastSettledRef = useRef(null);
+
+  var cpS = useState(midBlock * L);
+  var centerPos = cpS[0],
+    setCenterPos = cpS[1];
+
+  function reportCenter(pos) {
+    var rounded = ((Math.round(pos) % L) + L) % L;
+    if (rounded !== lastLogicalRef.current) {
+      lastLogicalRef.current = rounded;
+      if (onCenterChange) onCenterChange(tabs[rounded].id);
+    }
+  }
+
+  function measureItemW() {
+    var c = ref.current;
+    if (!c) return 0;
+    var a = c.children[0],
+      b = c.children[1];
+    if (!a || !b) return 0;
+    return b.offsetLeft - a.offsetLeft;
+  }
+  function recompute() {
+    var c = ref.current;
+    if (!c) return;
+    var first = c.children[0];
+    if (!first) return;
+    var firstCenter = first.offsetLeft + first.offsetWidth / 2;
+    var w = itemWRef.current || measureItemW();
+    if (!w) return;
+    var pos = (c.scrollLeft + c.clientWidth / 2 - firstCenter) / w;
+    setCenterPos(pos);
+    reportCenter(pos);
+  }
+  function maybeTeleport() {
+    var c = ref.current;
+    if (!c) return;
+    var w = itemWRef.current || measureItemW();
+    if (!w) return;
+    var first = c.children[0];
+    var firstCenter = first.offsetLeft + first.offsetWidth / 2;
+    var pos = (c.scrollLeft + c.clientWidth / 2 - firstCenter) / w;
+    var idx = Math.round(pos);
+    if (idx < L) {
+      c.scrollLeft += midBlock * L * w;
+      supressUntilRef.current = Date.now() + 80;
+      recompute();
+    } else if (idx >= totalLen - L) {
+      c.scrollLeft -= midBlock * L * w;
+      supressUntilRef.current = Date.now() + 80;
+      recompute();
+    }
+  }
+
+  useEffect(function () {
+    var c = ref.current;
+    if (!c) return;
+    var rafId = requestAnimationFrame(function () {
+      itemWRef.current = measureItemW();
+      var actIdx = tabs.findIndex(function (t) { return t.id === activeId; });
+      if (actIdx < 0) actIdx = 0;
+      var physIdx = midBlock * L + actIdx;
+      var btn = c.children[physIdx];
+      if (btn) {
+        c.scrollLeft = btn.offsetLeft + btn.offsetWidth / 2 - c.clientWidth / 2;
+      }
+      setCenterPos(physIdx);
+      lastLogicalRef.current = actIdx;
+      lastSettledRef.current = tabs[actIdx].id;
+    });
+    return function () {
+      cancelAnimationFrame(rafId);
+    };
+  }, []);
+
+  useEffect(function () {
+    var c = ref.current;
+    if (!c) return;
+    function fireSettle() {
+      var w = itemWRef.current || measureItemW();
+      if (!w) return;
+      var first = c.children[0];
+      if (!first) return;
+      var firstCenter = first.offsetLeft + first.offsetWidth / 2;
+      var pos = (c.scrollLeft + c.clientWidth / 2 - firstCenter) / w;
+      var rounded = ((Math.round(pos) % L) + L) % L;
+      var id = tabs[rounded].id;
+      if (id !== lastSettledRef.current) {
+        lastSettledRef.current = id;
+        if (onSettle) onSettle(id);
+      }
+    }
+    function onScroll() {
+      if (Date.now() < supressUntilRef.current) return;
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(function () {
+        rafRef.current = null;
+        recompute();
+      });
+      if (teleTimerRef.current) clearTimeout(teleTimerRef.current);
+      teleTimerRef.current = setTimeout(maybeTeleport, 160);
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = setTimeout(fireSettle, settleMs);
+    }
+    c.addEventListener("scroll", onScroll, { passive: true });
+    return function () {
+      c.removeEventListener("scroll", onScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (teleTimerRef.current) clearTimeout(teleTimerRef.current);
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="tabstrip"
+      style={{
+        display: "flex",
+        gap: 6,
+        overflowX: "auto",
+        scrollSnapType: "x mandatory",
+        WebkitOverflowScrolling: "touch",
+        padding: "0 103px",
+        maskImage: "linear-gradient(to right, transparent 0, #000 14%, #000 86%, transparent 100%)",
+        WebkitMaskImage: "linear-gradient(to right, transparent 0, #000 14%, #000 86%, transparent 100%)",
+      }}
+    >
+      {looped.map(function (item, idx) {
+        var dist = Math.abs(idx - centerPos);
+        var t = Math.min(1, dist);
+        var isCenter = dist < 0.5;
+        var opacity = isCenter ? 1 : Math.max(0.32, 1 - t * 0.65);
+        var scale = isCenter ? 1.06 : Math.max(0.94, 1 - t * 0.08);
+        return (
+          <button
+            key={item.key}
+            onClick={function () { onSelect(item.tab.id); }}
+            style={{
+              flexShrink: 0,
+              scrollSnapAlign: "center",
+              scrollSnapStop: "normal",
+              width: 78,
+              height: 68,
+              padding: "10px 6px",
+              background: isCenter ? C.green : "transparent",
+              border: "none",
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              borderRadius: 18,
+              opacity: opacity,
+              transform: "scale(" + scale + ")",
+              transition: "background 0.18s ease, opacity 0.12s ease, transform 0.12s ease",
+              fontFamily: "'DM Sans',sans-serif",
+            }}
+          >
+            <div style={{ transform: "scale(1.35)", lineHeight: 0 }}>
+              <item.tab.Icon color={isCenter ? C.white : C.muted} />
+            </div>
+            <span style={{ fontSize: 11, fontWeight: isCenter ? 700 : 600, color: isCenter ? C.white : C.muted, whiteSpace: "nowrap" }}>{item.tab.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function setsTotalOn(wl, k) {
+  var l = wl[k];
+  if (!l || !l.sets) return 0;
+  var t = 0;
+  for (var m in l.sets) t += l.sets[m] || 0;
+  return t;
+}
+function scheduledHabitsOn(habits, k) {
+  var dow = new Date(k + "T00:00:00").getDay();
+  return habits.filter(function (h) {
+    return h.scheduledDays.includes(dow);
+  });
+}
+function habitsDoneOn(habits, comp, k) {
+  var sch = scheduledHabitsOn(habits, k);
+  if (!sch.length) return { done: 0, total: 0, pct: null };
+  var done = 0;
+  sch.forEach(function (h) {
+    if (comp[h.id] && comp[h.id][k]) done++;
+  });
+  return { done: done, total: sch.length, pct: done / sch.length };
+}
+function isPerfectDay(habits, comp, sleep, k, tk) {
+  if (k > tk) return false;
+  var s = sleep[k];
+  if (!s || s.score == null || s.score < 80) return false;
+  var hd = habitsDoneOn(habits, comp, k);
+  if (hd.total === 0) return false;
+  return hd.done === hd.total;
+}
+function cellColorForLayer(layer, k, ctx) {
+  if (layer === "sleep") {
+    var s = ctx.sleep[k];
+    if (!s || s.score == null) return null;
+    if (s.score >= 85) return "rgba(76,199,116,0.58)";
+    if (s.score >= 75) return "rgba(108,217,148,0.44)";
+    if (s.score >= 65) return "rgba(229,181,60,0.38)";
+    return "rgba(224,80,80,0.32)";
+  }
+  if (layer === "workouts") {
+    var sets = setsTotalOn(ctx.wl, k);
+    if (sets === 0) return null;
+    if (sets >= 20) return "rgba(76,199,116,0.66)";
+    if (sets >= 12) return "rgba(108,217,148,0.50)";
+    if (sets >= 6) return "rgba(168,230,188,0.65)";
+    return "rgba(232,249,238,0.95)";
+  }
+  if (layer === "habits") {
+    var hd = habitsDoneOn(ctx.habits, ctx.comp, k);
+    if (hd.total === 0) return null;
+    var p = hd.pct;
+    if (p === 1) return "rgba(76,199,116,0.62)";
+    if (p >= 0.66) return "rgba(108,217,148,0.46)";
+    if (p >= 0.33) return "rgba(168,230,188,0.55)";
+    if (p > 0) return "rgba(232,249,238,0.95)";
+    return null;
+  }
+  return null;
+}
+function cycleTintFor(cycles, k) {
+  for (var i = 0; i < cycles.length; i++) {
+    if (k >= cycles[i].start && k <= cycles[i].end) {
+      var c = cycles[i].color || PAL[0];
+      var r = parseInt(c.slice(1, 3), 16),
+        g = parseInt(c.slice(3, 5), 16),
+        b = parseInt(c.slice(5, 7), 16);
+      return "rgba(" + r + "," + g + "," + b + ",0.10)";
+    }
+  }
+  return null;
+}
+
+var LAYER_LEGENDS = {
+  sleep: ["rgba(224,80,80,0.32)", "rgba(229,181,60,0.38)", "rgba(108,217,148,0.44)", "rgba(76,199,116,0.58)"],
+  workouts: ["rgba(232,249,238,0.95)", "rgba(168,230,188,0.65)", "rgba(108,217,148,0.50)", "rgba(76,199,116,0.66)"],
+  habits: ["rgba(232,249,238,0.95)", "rgba(168,230,188,0.55)", "rgba(108,217,148,0.46)", "rgba(76,199,116,0.62)"],
+};
+
+function UnifiedCalendar(props) {
+  var habits = props.habits,
+    comp = props.comp,
+    wl = props.wl,
+    sleep = props.sleep,
+    cycles = props.cycles,
+    tk = props.todayKey;
+  var cy = props.calY,
+    cm = props.calM;
+  var layS = useState("sleep");
+  var layer = layS[0],
+    setLayer = layS[1];
+  var dS = useState(null);
+  var selDay = dS[0],
+    setSelDay = dS[1];
+
+  var first = fd(cy, cm),
+    days = dim(cy, cm);
+  var cells = Array.from({ length: first }, function () {
+    return null;
+  }).concat(
+    Array.from({ length: days }, function (_, i) {
+      return i + 1;
+    })
+  );
+  var prefix = cy + "-" + String(cm + 1).padStart(2, "0");
+  function ck(d) {
+    return prefix + "-" + String(d).padStart(2, "0");
+  }
+  var monthEnd = prefix + "-" + String(days).padStart(2, "0");
+  var ctx = { habits: habits, comp: comp, wl: wl, sleep: sleep };
+
+  var visibleCycs = cycles.filter(function (c) {
+    return c.start <= monthEnd && c.end >= prefix + "-01";
+  });
+
+  var monthWorkouts = 0;
+  Object.keys(wl).forEach(function (kk) {
+    if (kk.indexOf(prefix) === 0) monthWorkouts++;
+  });
+  var sleepScores = [];
+  Object.keys(sleep).forEach(function (kk) {
+    if (kk.indexOf(prefix) === 0 && sleep[kk].score != null) sleepScores.push(sleep[kk].score);
+  });
+  var avgSleep = sleepScores.length
+    ? Math.round(
+        sleepScores.reduce(function (a, b) {
+          return a + b;
+        }, 0) / sleepScores.length
+      )
+    : null;
+  var habitPctSum = 0,
+    habitPctDays = 0,
+    perfectCount = 0;
+  for (var di = 1; di <= days; di++) {
+    var dKey = ck(di);
+    if (dKey > tk) break;
+    var hd0 = habitsDoneOn(habits, comp, dKey);
+    if (hd0.total > 0) {
+      habitPctSum += hd0.pct;
+      habitPctDays++;
+    }
+    if (isPerfectDay(habits, comp, sleep, dKey, tk)) perfectCount++;
+  }
+  var habitPct = habitPctDays ? Math.round((habitPctSum / habitPctDays) * 100) : null;
+
+  function changeMonth(dir) {
+    var m = cm + dir,
+      y = cy;
+    if (m < 0) {
+      m = 11;
+      y--;
+    } else if (m > 11) {
+      m = 0;
+      y++;
+    }
+    props.setCM(m);
+    props.setCY(y);
+  }
+
+  var layerPills = [
+    { id: "sleep", label: "Sleep", emoji: "\uD83D\uDE34" },
+    { id: "workouts", label: "Workouts", emoji: "\uD83C\uDFCB" },
+    { id: "habits", label: "Habits", emoji: "\u2705" },
+  ];
+
+  var kpis = [
+    { val: monthWorkouts, label: "Workouts", emoji: "\uD83C\uDFCB" },
+    { val: avgSleep != null ? avgSleep : "\u2013", label: "Avg sleep", emoji: "\uD83D\uDE34" },
+    { val: habitPct != null ? habitPct + "%" : "\u2013", label: "Habits", emoji: "\u2705" },
+    { val: perfectCount, label: "Perfect", emoji: "\u2B50" },
+  ];
+
+  var legend = LAYER_LEGENDS[layer] || LAYER_LEGENDS.sleep;
+
+  return (
+    <div style={{ padding: "14px 0 110px", position: "relative" }}>
+      {selDay && (
+        <DaySummarySheet
+          dayKey={selDay}
+          habits={habits}
+          comp={comp}
+          wl={wl}
+          sleep={sleep}
+          cycles={cycles}
+          tk={tk}
+          onClose={function () {
+            setSelDay(null);
+          }}
+        />
+      )}
+      <div style={{ padding: "0 22px 12px" }}>
+        <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Calendar</div>
+        <div style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Daily Dashboard</div>
+      </div>
+
+      <div style={{ padding: "0 14px 12px", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+        {kpis.map(function (k2, i) {
+          return (
+            <div key={i} style={{ background: C.white, borderRadius: 14, padding: "10px 6px", border: "1.5px solid " + C.border, textAlign: "center" }}>
+              <div style={{ fontSize: 14, lineHeight: 1 }}>{k2.emoji}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginTop: 4, lineHeight: 1 }}>{k2.val}</div>
+              <div style={{ fontSize: 9, color: C.muted, marginTop: 3, letterSpacing: 0.3 }}>{k2.label}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {visibleCycs.length > 0 && (
+        <div style={{ padding: "0 14px 10px", display: "flex", flexDirection: "column", gap: 6 }}>
+          {visibleCycs.map(function (cyc) {
+            var col = cc(cyc.color || PAL[0]);
+            var isA = tk >= cyc.start && tk <= cyc.end;
+            return (
+              <div key={cyc.id} style={{ background: col.bg, border: "1.5px solid " + col.border, borderRadius: 12, padding: "7px 11px", display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: col.bar, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: col.text, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cyc.name}</span>
+                    <span style={{ fontSize: 9, opacity: 0.7, fontWeight: 500 }}>{"\u00B7 " + cyc.type}</span>
+                    {isA && <span style={{ fontSize: 8, fontWeight: 700, color: C.green, background: C.gl, border: "1px solid " + C.gm, borderRadius: 99, padding: "1px 6px" }}>Active</span>}
+                  </div>
+                  <div style={{ fontSize: 10, color: col.text, opacity: 0.7 }}>
+                    {fmtDS(cyc.start)} {"\u2192"} {fmtDS(cyc.end)}{cyc.calories ? " \u00B7 " + cyc.calories + " kcal" : ""}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ margin: "0 14px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.white, borderRadius: 14, padding: "8px 8px", border: "1.5px solid " + C.border }}>
+        <button onClick={function () { changeMonth(-1); }} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.green, padding: "0 14px" }}>
+          {"<"}
+        </button>
+        <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 16, color: C.text, fontWeight: 600 }}>
+          {MN[cm]} {cy}
+        </div>
+        <button onClick={function () { changeMonth(1); }} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.green, padding: "0 14px" }}>
+          {">"}
+        </button>
+      </div>
+
+      <div style={{ padding: "0 14px 10px", display: "flex", gap: 6 }}>
+        {layerPills.map(function (p) {
+          var active = p.id === layer;
+          return (
+            <button
+              key={p.id}
+              onClick={function () { setLayer(p.id); }}
+              style={{
+                flex: 1,
+                padding: "8px 6px",
+                borderRadius: 99,
+                background: active ? C.green : C.white,
+                border: "1.5px solid " + (active ? C.green : C.border),
+                color: active ? C.white : C.muted,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "'DM Sans',sans-serif",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+                transition: "all 0.18s ease",
+              }}
+            >
+              <span style={{ fontSize: 12 }}>{p.emoji}</span>
+              <span>{p.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ margin: "0 14px", background: C.white, borderRadius: 18, padding: 14, border: "1.5px solid " + C.border }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 8 }}>
+          {DL.map(function (d) {
+            return (
+              <div key={d} style={{ textAlign: "center", fontSize: 11, fontWeight: 600, color: C.muted }}>
+                {d}
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
+          {cells.map(function (day, i) {
+            if (!day) return <div key={i} />;
+            var k = ck(day);
+            var isFut = k > tk;
+            var isT = k === tk;
+            var heat = !isFut ? cellColorForLayer(layer, k, ctx) : null;
+            var tint = cycleTintFor(cycles, k);
+            var perfect = !isFut && isPerfectDay(habits, comp, sleep, k, tk);
+            var hasWk = !!wl[k];
+            var hasSl = !!(sleep[k] && sleep[k].score != null);
+            var hdInner = habitsDoneOn(habits, comp, k);
+            var hasHa = hdInner.total > 0 && hdInner.done > 0;
+            var ringBorder = isT
+              ? "2px solid " + C.green
+              : perfect
+              ? "2px solid #E5B53C"
+              : heat
+              ? "1px solid rgba(45,59,46,0.06)"
+              : "1.5px solid " + C.border;
+            return (
+              <div
+                key={i}
+                onClick={function () {
+                  setSelDay(k);
+                }}
+                style={{
+                  aspectRatio: "1",
+                  background: tint || "transparent",
+                  borderRadius: 12,
+                  position: "relative",
+                  cursor: "pointer",
+                  opacity: isFut ? 0.42 : 1,
+                  transition: "transform 0.12s ease",
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 3,
+                    borderRadius: "50%",
+                    background: heat || "transparent",
+                    border: ringBorder,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: perfect ? "0 0 0 1px rgba(229,181,60,0.30), 0 2px 8px rgba(229,181,60,0.35)" : "none",
+                    transition: "background 0.3s ease, border-color 0.2s ease",
+                  }}
+                >
+                  <span style={{ fontSize: 12, fontWeight: isT ? 700 : 500, color: C.text }}>{day}</span>
+                </div>
+                {!isFut && (hasWk || hasSl || hasHa) && (
+                  <div style={{ position: "absolute", bottom: 2, left: 0, right: 0, display: "flex", gap: 2, justifyContent: "center", pointerEvents: "none" }}>
+                    {hasWk && <div style={{ width: 3, height: 3, borderRadius: "50%", background: "#4FA8E0" }} />}
+                    {hasSl && <div style={{ width: 3, height: 3, borderRadius: "50%", background: "#9060E0" }} />}
+                    {hasHa && <div style={{ width: 3, height: 3, borderRadius: "50%", background: C.green }} />}
+                  </div>
+                )}
+                {perfect && (
+                  <div style={{ position: "absolute", top: 0, right: 1, fontSize: 9, lineHeight: 1, pointerEvents: "none" }}>{"\u2B50"}</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 9, color: C.muted, gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span>Low</span>
+            {legend.map(function (c2, i) {
+              return <div key={i} style={{ width: 12, height: 12, borderRadius: 3, background: c2, border: "1px solid " + C.border }} />;
+            })}
+            <span>High</span>
+          </div>
+          <div style={{ display: "flex", gap: 7 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#4FA8E0" }} />
+              wk
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#9060E0" }} />
+              sleep
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              <div style={{ width: 5, height: 5, borderRadius: "50%", background: C.green }} />
+              habits
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DaySummarySheet(props) {
+  var k = props.dayKey,
+    habits = props.habits,
+    comp = props.comp,
+    wl = props.wl,
+    sleep = props.sleep,
+    cycles = props.cycles,
+    tk = props.tk;
+  var calS = useState({ loading: false, data: null, error: null });
+  var calState = calS[0],
+    setCalState = calS[1];
+
+  useEffect(
+    function () {
+      if (!supaReady()) {
+        setCalState({ loading: false, data: null, error: null });
+        return;
+      }
+      var aborted = false;
+      setCalState({ loading: true, data: null, error: null });
+      supabase
+        .from("food_log")
+        .select("*")
+        .eq("log_date", k)
+        .order("created_at", { ascending: false })
+        .then(function (res) {
+          if (aborted) return;
+          if (res.error) setCalState({ loading: false, data: null, error: res.error.message });
+          else setCalState({ loading: false, data: res.data || [], error: null });
+        });
+      return function () {
+        aborted = true;
+      };
+    },
+    [k]
+  );
+
+  var s = sleep[k];
+  var l = wl[k];
+  var cyc = cycleAt(cycles, k);
+  var col = cyc ? cc(cyc.color || PAL[0]) : null;
+  var hd = habitsDoneOn(habits, comp, k);
+  var perfect = isPerfectDay(habits, comp, sleep, k, tk);
+  var sched = scheduledHabitsOn(habits, k);
+
+  var calData = calState.data;
+  var sumNum = function (e, key) {
+    return Number(e[key]) || 0;
+  };
+  var calTotal = calData
+    ? calData.reduce(function (a, e) {
+        return a + sumNum(e, "calories");
+      }, 0)
+    : 0;
+  var pTot = calData
+    ? calData.reduce(function (a, e) {
+        return a + sumNum(e, "protein");
+      }, 0)
+    : 0;
+  var cTot = calData
+    ? calData.reduce(function (a, e) {
+        return a + sumNum(e, "carbs");
+      }, 0)
+    : 0;
+  var fTot = calData
+    ? calData.reduce(function (a, e) {
+        return a + sumNum(e, "fat");
+      }, 0)
+    : 0;
+
+  var totalSets = l && l.sets
+    ? Object.values(l.sets).reduce(function (a, b) {
+        return a + b;
+      }, 0)
+    : 0;
+
+  var dayLabel = k === tk ? "Today" : new Date(k + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" });
+
+  return (
+    <div
+      style={{ position: "absolute", inset: 0, background: "rgba(45,59,46,0.45)", display: "flex", alignItems: "flex-end", zIndex: 200, animation: "fadeIn 0.18s ease both" }}
+      onClick={props.onClose}
+    >
+      <div
+        onClick={function (e) {
+          e.stopPropagation();
+        }}
+        style={{ background: C.bg, borderRadius: "28px 28px 0 0", padding: "20px 18px 44px", width: "100%", maxHeight: "85%", overflowY: "auto", animation: "slideUp 0.24s cubic-bezier(0.34,1.56,0.64,1) both" }}
+      >
+        <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 14px" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+          <div>
+            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{dayLabel}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{fmtDS(k)}</div>
+            {perfect && (
+              <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: "linear-gradient(135deg,#FFD27A,#E5B53C)", color: "#3D2F00", fontSize: 10, fontWeight: 700, letterSpacing: 0.3 }}>
+                {"\u2B50"} Perfect day
+              </div>
+            )}
+          </div>
+          <button onClick={props.onClose} style={{ background: "none", border: "none", fontSize: 22, color: C.muted, cursor: "pointer", padding: 0, lineHeight: 1 }}>
+            {"\u00D7"}
+          </button>
+        </div>
+
+        {cyc && col && (
+          <div style={{ background: col.bg, border: "1.5px solid " + col.border, borderRadius: 12, padding: "9px 12px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: col.bar, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: col.text }}>
+                {cyc.name} <span style={{ fontSize: 10, opacity: 0.7, fontWeight: 500 }}>{"\u00B7 " + cyc.type}</span>
+              </div>
+              <div style={{ fontSize: 10, color: col.text, opacity: 0.75 }}>
+                {cyc.calories ? cyc.calories + " kcal target" : "No kcal target"}
+                {cyc.supplements ? " \u00B7 " + cyc.supplements : ""}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Sleep</div>
+            <span style={{ fontSize: 16 }}>{"\uD83D\uDE34"}</span>
+          </div>
+          {s && s.score != null ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <ScoreRing score={s.score} size={66} />
+              <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 }}>
+                <div>
+                  <div style={{ color: C.muted, fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>Total</div>
+                  <div style={{ fontWeight: 700, color: C.text }}>{fmtDur(s.total_sleep_duration)}</div>
+                </div>
+                <div>
+                  <div style={{ color: C.muted, fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>REM</div>
+                  <div style={{ fontWeight: 700, color: C.text }}>{fmtDur(s.rem_sleep_duration)}</div>
+                </div>
+                <div>
+                  <div style={{ color: C.muted, fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>Deep</div>
+                  <div style={{ fontWeight: 700, color: C.text }}>{fmtDur(s.deep_sleep_duration)}</div>
+                </div>
+                <div>
+                  <div style={{ color: C.muted, fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>Avg HR</div>
+                  <div style={{ fontWeight: 700, color: C.text }}>{s.average_heart_rate != null ? s.average_heart_rate + " bpm" : "\u2013"}</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: C.muted }}>No sleep data for this day.</div>
+          )}
+        </div>
+
+        <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Workout</div>
+            <span style={{ fontSize: 16 }}>{"\uD83C\uDFCB"}</span>
+          </div>
+          {l ? (
+            <div>
+              <div style={{ display: "flex", gap: 18, marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 9, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>Bodyweight</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>
+                    {l.bodyweight}
+                    <span style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}> lb</span>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 9, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>Total sets</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: C.green, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>{totalSets}</div>
+                </div>
+              </div>
+              {l.muscles && l.muscles.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {l.muscles.map(function (m) {
+                    var sm = l.sets && l.sets[m] ? l.sets[m] : 0;
+                    return (
+                      <div key={m}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{m}</span>
+                          <span style={{ fontSize: 11, color: C.muted }}>{sm} sets</span>
+                        </div>
+                        <div style={{ height: 3, background: C.border, borderRadius: 99, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: Math.min(sm / 20, 1) * 100 + "%", background: C.green, borderRadius: 99 }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: C.muted }}>No workout logged.</div>
+          )}
+        </div>
+
+        <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Habits {hd.total > 0 ? "(" + hd.done + "/" + hd.total + ")" : ""}
+            </div>
+            <span style={{ fontSize: 16 }}>{"\u2705"}</span>
+          </div>
+          {sched.length === 0 ? (
+            <div style={{ fontSize: 12, color: C.muted }}>No habits scheduled this day.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+              {sched.map(function (h) {
+                var done = !!(comp[h.id] && comp[h.id][k]);
+                return (
+                  <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", background: done ? C.green : "transparent", border: done ? "none" : "2px solid " + C.border, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {done && (
+                        <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
+                          <path d="M4 10.5L8.5 15L16 6" stroke="white" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 14 }}>{h.emoji}</span>
+                    <span style={{ fontSize: 13, color: done ? C.gd : C.text, fontWeight: done ? 700 : 500, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", border: "1.5px solid " + C.border }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Calories</div>
+            <span style={{ fontSize: 16 }}>{"\uD83D\uDD25"}</span>
+          </div>
+          {!supaReady() ? (
+            <div style={{ fontSize: 12, color: C.muted }}>Supabase not configured.</div>
+          ) : calState.loading ? (
+            <div style={{ fontSize: 12, color: C.muted }}>Loading{"\u2026"}</div>
+          ) : calState.error ? (
+            <div style={{ fontSize: 12, color: C.redT }}>{calState.error}</div>
+          ) : !calData || calData.length === 0 ? (
+            <div style={{ fontSize: 12, color: C.muted }}>Nothing logged.</div>
+          ) : (
+            <div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
+                <span style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>{Math.round(calTotal).toLocaleString()}</span>
+                <span style={{ fontSize: 12, color: C.muted }}>kcal</span>
+                {cyc && cyc.calories ? (
+                  <span style={{ fontSize: 10, color: calTotal <= cyc.calories ? C.green : C.redT, fontWeight: 700, marginLeft: "auto" }}>
+                    {calTotal <= cyc.calories ? "\u2193" : "\u2191"} {Math.abs(Math.round(calTotal - cyc.calories))} vs target
+                  </span>
+                ) : null}
+              </div>
+              <div style={{ display: "flex", gap: 14, fontSize: 11, color: C.text, alignItems: "center" }}>
+                <div>
+                  <strong>{Math.round(pTot)}g</strong> <span style={{ color: C.muted }}>P</span>
+                </div>
+                <div>
+                  <strong>{Math.round(cTot)}g</strong> <span style={{ color: C.muted }}>C</span>
+                </div>
+                <div>
+                  <strong>{Math.round(fTot)}g</strong> <span style={{ color: C.muted }}>F</span>
+                </div>
+                <div style={{ marginLeft: "auto", color: C.muted, fontSize: 10 }}>
+                  {calData.length} {calData.length === 1 ? "item" : "items"}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function buildCoachContext(habits, comp, logs, sleep, cycles, calByDay) {
+  var tk = today();
+  var days30 = [];
+  for (var i = 29; i >= 0; i--) {
+    var d = new Date();
+    d.setDate(d.getDate() - i);
+    days30.push(dk(d));
+  }
+  var days7 = days30.slice(-7);
+
+  var sets30 = {};
+  MG.forEach(function (m) {
+    sets30[m] = 0;
+  });
+  var bw30 = [];
+  var workouts = [];
+  days30.forEach(function (k) {
+    var l = logs[k];
+    if (!l) return;
+    workouts.push(k);
+    if (l.bodyweight) bw30.push({ d: k, bw: l.bodyweight });
+    if (l.sets)
+      Object.keys(l.sets).forEach(function (m) {
+        sets30[m] = (sets30[m] || 0) + (l.sets[m] || 0);
+      });
+  });
+
+  var sleep7 = days7.map(function (k) {
+    var s = sleep[k];
+    if (!s) return { d: k };
+    return {
+      d: k,
+      score: s.score == null ? null : s.score,
+      total_sleep_min: s.total_sleep_duration ? Math.round(s.total_sleep_duration / 60) : null,
+      rem_min: s.rem_sleep_duration ? Math.round(s.rem_sleep_duration / 60) : null,
+      deep_min: s.deep_sleep_duration ? Math.round(s.deep_sleep_duration / 60) : null,
+      hr: s.average_heart_rate == null ? null : s.average_heart_rate,
+      hrv: s.average_hrv == null ? null : s.average_hrv,
+    };
+  });
+  var sleep30Scores = days30
+    .map(function (k) {
+      return sleep[k] && sleep[k].score;
+    })
+    .filter(function (s) {
+      return s != null;
+    });
+
+  var habitsSummary = habits.map(function (h) {
+    var done7 = 0,
+      sched7 = 0;
+    days7.forEach(function (k) {
+      var dow = new Date(k + "T00:00:00").getDay();
+      if (h.scheduledDays.includes(dow)) {
+        sched7++;
+        if (comp[h.id] && comp[h.id][k]) done7++;
+      }
+    });
+    return { name: h.name, emoji: h.emoji, scheduled_days: h.scheduledDays, done_7d: done7, scheduled_7d: sched7 };
+  });
+
+  var activeCyc = cycleAt(cycles, tk);
+  var cal14 = days30.slice(-14).map(function (k) {
+    var c = (calByDay || {})[k];
+    return c ? { d: k, kcal: c.kcal, protein: c.protein, carbs: c.carbs, fat: c.fat } : { d: k, kcal: null };
+  });
+
+  return {
+    today: tk,
+    timezone: typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : null,
+    workouts_30d: {
+      sessions: workouts.length,
+      sets_per_muscle: sets30,
+      bodyweight_log: bw30,
+      most_recent: workouts.slice(-3).map(function (k) {
+        return { d: k, muscles: logs[k].muscles, sets: logs[k].sets, bw: logs[k].bodyweight };
+      }),
+    },
+    sleep_7d: sleep7,
+    sleep_30d_avg_score: sleep30Scores.length
+      ? Math.round(
+          sleep30Scores.reduce(function (a, b) {
+            return a + b;
+          }, 0) / sleep30Scores.length
+        )
+      : null,
+    habits_7d: habitsSummary,
+    active_cycle: activeCyc
+      ? {
+          name: activeCyc.name,
+          type: activeCyc.type,
+          start: activeCyc.start,
+          end: activeCyc.end,
+          kcal_target: activeCyc.calories,
+          supplements: activeCyc.supplements || null,
+        }
+      : null,
+    calories_14d: cal14,
+  };
+}
+
+function analyzeCoachSignals(ctx) {
+  var sigs = [];
+  var s7 = (ctx.sleep_7d || []).filter(function (x) {
+    return x.score != null;
+  });
+  if (s7.length >= 3) {
+    var avg7 = Math.round(
+      s7.reduce(function (a, b) {
+        return a + b.score;
+      }, 0) / s7.length
+    );
+    sigs.push({ type: "sleep_7d_avg", value: avg7, label: avg7 < 70 ? "low" : avg7 < 80 ? "moderate" : "good" });
+    if (ctx.sleep_30d_avg_score && avg7 < ctx.sleep_30d_avg_score - 5) {
+      sigs.push({ type: "sleep_declining", recent_avg: avg7, monthly_avg: ctx.sleep_30d_avg_score });
+    }
+    var lastN = s7.slice(-3);
+    if (lastN.length === 3 && lastN.every(function (n) { return n.score < 70; })) {
+      sigs.push({ type: "sleep_3_bad_nights", scores: lastN.map(function (n) { return n.score; }) });
+    }
+  } else if (s7.length === 0) {
+    sigs.push({ type: "sleep_missing" });
+  }
+
+  var w = ctx.workouts_30d;
+  if (w) {
+    var sessionsPerWeek = Math.round((w.sessions / 30) * 7 * 10) / 10;
+    sigs.push({ type: "workout_frequency", sessions_per_week: sessionsPerWeek, sessions_30d: w.sessions });
+    var spm = w.sets_per_muscle || {};
+    var entries = Object.keys(spm)
+      .map(function (m) {
+        return { m: m, v: spm[m] };
+      })
+      .filter(function (e) {
+        return e.v > 0;
+      });
+    if (entries.length >= 2) {
+      entries.sort(function (a, b) {
+        return b.v - a.v;
+      });
+      var top = entries[0],
+        bot = entries[entries.length - 1];
+      if (top.v >= bot.v * 2 && bot.v > 0) {
+        sigs.push({ type: "muscle_imbalance", over: top.m, over_sets: top.v, under: bot.m, under_sets: bot.v });
+      }
+    }
+    var missing = MG.filter(function (m) {
+      return !spm[m] || spm[m] === 0;
+    });
+    if (missing.length && w.sessions > 0) sigs.push({ type: "missing_muscles_30d", missing: missing });
+    var bw = w.bodyweight_log || [];
+    if (bw.length >= 2) {
+      var first = bw[0].bw,
+        last = bw[bw.length - 1].bw;
+      sigs.push({ type: "bodyweight_change_30d", from: first, to: last, delta: Math.round((last - first) * 10) / 10 });
+    }
+  }
+
+  (ctx.habits_7d || []).forEach(function (h) {
+    if (h.scheduled_7d === 0) return;
+    var pct = Math.round((h.done_7d / h.scheduled_7d) * 100);
+    if (pct === 100) sigs.push({ type: "habit_perfect", name: h.name, scheduled: h.scheduled_7d });
+    else if (pct < 50) sigs.push({ type: "habit_lagging", name: h.name, done: h.done_7d, scheduled: h.scheduled_7d, pct: pct });
+  });
+
+  if (ctx.active_cycle) sigs.push({ type: "active_cycle", cycle: ctx.active_cycle });
+  var c14 = (ctx.calories_14d || []).filter(function (c) {
+    return c.kcal != null;
+  });
+  if (c14.length >= 3 && ctx.active_cycle && ctx.active_cycle.kcal_target) {
+    var target = ctx.active_cycle.kcal_target;
+    var over = c14.filter(function (c) {
+      return c.kcal > target + 100;
+    }).length;
+    var under = c14.filter(function (c) {
+      return c.kcal < target - 200;
+    }).length;
+    sigs.push({ type: "calorie_compliance_14d", days_logged: c14.length, days_over_target: over, days_under_target: under, target: target });
+  } else if (c14.length === 0) {
+    sigs.push({ type: "calories_missing" });
+  }
+
+  return sigs;
+}
+
+function hashJson(obj) {
+  var s = JSON.stringify(obj);
+  var h = 5381;
+  for (var i = 0; i < s.length; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36);
+}
+
+function fmtAgo(ts) {
+  if (!ts) return "never";
+  var s = Math.round((Date.now() - ts) / 1000);
+  if (s < 60) return s + "s ago";
+  if (s < 3600) return Math.round(s / 60) + "m ago";
+  if (s < 86400) return Math.round(s / 3600) + "h ago";
+  return Math.round(s / 86400) + "d ago";
+}
+
+function streamCoachChat(payload, onDelta, onDone, onError) {
+  fetch("/api/coach/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+    .then(function (r) {
+      if (!r.ok || !r.body) {
+        return r
+          .text()
+          .catch(function () {
+            return "";
+          })
+          .then(function (t) {
+            var msg = t;
+            try {
+              var j = JSON.parse(t);
+              if (j && j.error) msg = j.error;
+            } catch (_e) {}
+            onError(msg || "HTTP " + r.status);
+          });
+      }
+      var reader = r.body.getReader();
+      var decoder = new TextDecoder();
+      var buf = "";
+      function pump() {
+        return reader.read().then(function (chunk) {
+          if (chunk.done) {
+            onDone();
+            return;
+          }
+          buf += decoder.decode(chunk.value, { stream: true });
+          var idx;
+          while ((idx = buf.indexOf("\n\n")) !== -1) {
+            var evt = buf.slice(0, idx);
+            buf = buf.slice(idx + 2);
+            var lines = evt.split("\n");
+            var dataLine = null;
+            for (var i2 = 0; i2 < lines.length; i2++) {
+              if (lines[i2].indexOf("data:") === 0) {
+                dataLine = lines[i2];
+                break;
+              }
+            }
+            if (!dataLine) continue;
+            var json = dataLine.slice(5).trim();
+            if (!json || json === "[DONE]") continue;
+            try {
+              var parsed = JSON.parse(json);
+              if (parsed.type === "content_block_delta" && parsed.delta && parsed.delta.type === "text_delta") {
+                onDelta(parsed.delta.text || "");
+              } else if (parsed.type === "error") {
+                onError((parsed.error && parsed.error.message) || "stream error");
+              }
+            } catch (_e) {}
+          }
+          return pump();
+        });
+      }
+      return pump();
+    })
+    .catch(function (e) {
+      onError(String((e && e.message) || e));
+    });
+}
+
+function CoachTab(props) {
+  var habits = props.habits,
+    comp = props.comp,
+    logs = props.logs,
+    sleep = props.sleep,
+    cycles = props.cycles;
+
+  var calS = useState({});
+  var calByDay = calS[0],
+    setCalByDay = calS[1];
+  var calLoadedS = useState(false);
+  var calLoaded = calLoadedS[0],
+    setCalLoaded = calLoadedS[1];
+
+  useEffect(function () {
+    if (!supaReady()) {
+      setCalLoaded(true);
+      return;
+    }
+    var start = new Date();
+    start.setDate(start.getDate() - 29);
+    supabase
+      .from("food_log")
+      .select("log_date, calories, protein, carbs, fat")
+      .gte("log_date", dk(start))
+      .then(function (res) {
+        if (res.error) {
+          setCalLoaded(true);
+          return;
+        }
+        var map = {};
+        (res.data || []).forEach(function (r) {
+          if (!map[r.log_date]) map[r.log_date] = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+          map[r.log_date].kcal += Number(r.calories) || 0;
+          map[r.log_date].protein += Number(r.protein) || 0;
+          map[r.log_date].carbs += Number(r.carbs) || 0;
+          map[r.log_date].fat += Number(r.fat) || 0;
+        });
+        setCalByDay(map);
+        setCalLoaded(true);
+      });
+  }, []);
+
+  var ctx = buildCoachContext(habits, comp, logs, sleep, cycles, calByDay);
+  var signals = analyzeCoachSignals(ctx);
+  var ctxHash = hashJson({ s: signals, w: ctx.workouts_30d.sessions, c: ctx.active_cycle && ctx.active_cycle.name });
+
+  var hlS = useState(function () {
+    try {
+      var raw = localStorage.getItem("coachHighlights");
+      if (!raw) return { loading: false, items: [], hash: null, ts: null, error: null };
+      var p = JSON.parse(raw);
+      return { loading: false, items: p.items || [], hash: p.hash || null, ts: p.ts || null, error: null };
+    } catch (_e) {
+      return { loading: false, items: [], hash: null, ts: null, error: null };
+    }
+  });
+  var hl = hlS[0],
+    setHl = hlS[1];
+
+  function fetchHighlights(force) {
+    if (!calLoaded) return;
+    if (hl.loading) return;
+    if (!force && hl.hash === ctxHash && hl.items.length) return;
+    setHl(function (p) {
+      return Object.assign({}, p, { loading: true, error: null });
+    });
+    fetch("/api/coach/highlights", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ signals: signals, context: ctx }),
+    })
+      .then(function (r) {
+        return r.text().then(function (txt) {
+          var d = null;
+          try {
+            d = JSON.parse(txt);
+          } catch (_e) {}
+          if (!r.ok) throw new Error((d && d.error) || txt || "HTTP " + r.status);
+          return d || {};
+        });
+      })
+      .then(function (d) {
+        var items = d.highlights || [];
+        var rec = { loading: false, items: items, hash: ctxHash, ts: Date.now(), error: null };
+        setHl(rec);
+        try {
+          localStorage.setItem("coachHighlights", JSON.stringify({ items: items, hash: ctxHash, ts: rec.ts }));
+        } catch (_e) {}
+      })
+      .catch(function (e) {
+        setHl(function (p) {
+          return Object.assign({}, p, { loading: false, error: String((e && e.message) || e) });
+        });
+      });
+  }
+
+  useEffect(
+    function () {
+      fetchHighlights(false);
+    },
+    [calLoaded, ctxHash]
+  );
+
+  var msgsS = useState(function () {
+    try {
+      var raw = localStorage.getItem("coachChat");
+      if (raw) {
+        var arr = JSON.parse(raw);
+        if (Array.isArray(arr)) return arr;
+      }
+    } catch (_e) {}
+    return [];
+  });
+  var msgs = msgsS[0],
+    setMsgs = msgsS[1];
+  var inS = useState("");
+  var inp = inS[0],
+    setInp = inS[1];
+  var streamS = useState(false);
+  var streaming = streamS[0],
+    setStreaming = streamS[1];
+  var errS = useState(null);
+  var err = errS[0],
+    setErr = errS[1];
+  var chatScrollRef = useRef(null);
+
+  useEffect(
+    function () {
+      try {
+        localStorage.setItem("coachChat", JSON.stringify(msgs));
+      } catch (_e) {}
+    },
+    [msgs]
+  );
+
+  useEffect(
+    function () {
+      if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    },
+    [msgs, streaming]
+  );
+
+  function sendMessage(text) {
+    var t = (text || "").trim();
+    if (!t || streaming) return;
+    setErr(null);
+    var historyForApi = msgs.map(function (m) {
+      return { role: m.role, content: m.content };
+    });
+    historyForApi.push({ role: "user", content: t });
+    var nextLocal = msgs.concat([{ role: "user", content: t }, { role: "assistant", content: "", streaming: true }]);
+    setMsgs(nextLocal);
+    setInp("");
+    setStreaming(true);
+
+    streamCoachChat(
+      { messages: historyForApi, context: ctx },
+      function (delta) {
+        setMsgs(function (p) {
+          if (!p.length) return p;
+          var n = p.slice();
+          var last = n[n.length - 1];
+          n[n.length - 1] = Object.assign({}, last, { content: (last.content || "") + delta });
+          return n;
+        });
+      },
+      function () {
+        setMsgs(function (p) {
+          if (!p.length) return p;
+          var n = p.slice();
+          var last = n[n.length - 1];
+          n[n.length - 1] = Object.assign({}, last, { streaming: false });
+          return n;
+        });
+        setStreaming(false);
+      },
+      function (e) {
+        setErr(e);
+        setMsgs(function (p) {
+          if (!p.length) return p;
+          var n = p.slice();
+          if (n[n.length - 1] && n[n.length - 1].streaming && !n[n.length - 1].content) n.pop();
+          else if (n[n.length - 1]) n[n.length - 1] = Object.assign({}, n[n.length - 1], { streaming: false });
+          return n;
+        });
+        setStreaming(false);
+      }
+    );
+  }
+
+  function clearChat() {
+    setMsgs([]);
+    try {
+      localStorage.removeItem("coachChat");
+    } catch (_e) {}
+  }
+
+  var quickPrompts = ["Plan tomorrow's lift", "Why was my sleep low?", "Am I eating enough?", "What's lagging this week?"];
+  var keyMsgPattern = /NO_KEY|ANTHROPIC_API_KEY|not set/;
+  function renderErr(e) {
+    if (!e) return null;
+    if (keyMsgPattern.test(e)) return "Add ANTHROPIC_API_KEY to .env.local (then restart dev server) to enable Coach.";
+    return e;
+  }
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
+      <div style={{ padding: "12px 22px 6px", flexShrink: 0 }}>
+        <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Coach</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Insight & Chat</div>
+      </div>
+
+      <div style={{ padding: "0 14px 4px", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: 0.5 }}>
+          HIGHLIGHTS {"\u00B7"} {fmtAgo(hl.ts)}
+        </div>
+        <button
+          onClick={function () { fetchHighlights(true); }}
+          disabled={hl.loading || !calLoaded}
+          style={{
+            background: "none",
+            border: "1.5px solid " + C.border,
+            borderRadius: 99,
+            padding: "3px 11px",
+            fontSize: 11,
+            fontWeight: 600,
+            color: hl.loading ? C.muted : C.green,
+            cursor: hl.loading ? "default" : "pointer",
+            fontFamily: "'DM Sans',sans-serif",
+          }}
+        >
+          {hl.loading ? "\u2026" : "\u21BB Refresh"}
+        </button>
+      </div>
+
+      <div style={{ flex: "0 0 38%", minHeight: 0, overflowY: "auto", padding: "0 14px 6px" }}>
+        {hl.error && (
+          <div style={{ background: C.red, color: C.redT, padding: "8px 12px", borderRadius: 10, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>
+            {renderErr(hl.error)}
+          </div>
+        )}
+        {!hl.items.length && !hl.loading && !hl.error && (
+          <div style={{ background: C.white, border: "1.5px dashed " + C.border, borderRadius: 14, padding: "14px 14px", textAlign: "center" }}>
+            <div style={{ fontSize: 12, color: C.text, fontWeight: 600, marginBottom: 4 }}>No highlights yet</div>
+            <div style={{ fontSize: 11, color: C.muted }}>Log a few workouts and sleep nights, then tap Refresh.</div>
+          </div>
+        )}
+        {hl.loading && !hl.items.length && (
+          <div style={{ fontSize: 12, color: C.muted, padding: "12px 0", textAlign: "center" }}>Analyzing your data{"\u2026"}</div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+          {hl.items.map(function (c2, i) {
+            var kindCol =
+              c2.kind === "win"
+                ? { bg: "#E8F9EE", bd: "#A8E6BC", fg: "#2C7142", icon: "\u2728" }
+                : c2.kind === "fix"
+                ? { bg: "#FCE9E9", bd: "#F2C4C4", fg: "#9A4040", icon: "\u26A0\uFE0F" }
+                : { bg: "#FFF5E1", bd: "#F2DDA8", fg: "#7A5A0F", icon: "\uD83D\uDC41\uFE0F" };
+            return (
+              <div key={i} style={{ background: kindCol.bg, borderLeft: "3px solid " + kindCol.bd, borderRadius: 10, padding: "8px 12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                  <span style={{ fontSize: 12 }}>{kindCol.icon}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: kindCol.fg, textTransform: "uppercase", letterSpacing: 0.5 }}>{c2.kind}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{"\u00B7 " + c2.title}</span>
+                </div>
+                <div style={{ fontSize: 11, color: C.text, lineHeight: 1.45 }}>{c2.body}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ height: 1, background: C.border, flexShrink: 0, margin: "4px 0 0" }} />
+
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+        <div style={{ flexShrink: 0, padding: "8px 14px 4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: 0.5 }}>CHAT</div>
+          {msgs.length > 0 && (
+            <button onClick={clearChat} style={{ background: "none", border: "none", fontSize: 11, color: C.muted, cursor: "pointer", padding: 0 }}>
+              Clear
+            </button>
+          )}
+        </div>
+
+        <div ref={chatScrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "2px 14px 6px" }}>
+          {msgs.length === 0 && (
+            <div style={{ padding: "14px 12px", color: C.muted, fontSize: 12, textAlign: "center", lineHeight: 1.5 }}>
+              Ask anything about your training, sleep, or nutrition.
+              <br />
+              The coach reads your data live.
+            </div>
+          )}
+          {msgs.map(function (m, i) {
+            var isUser = m.role === "user";
+            return (
+              <div key={i} style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", marginBottom: 7 }}>
+                <div
+                  style={{
+                    maxWidth: "84%",
+                    padding: "8px 12px",
+                    borderRadius: 14,
+                    background: isUser ? C.green : C.white,
+                    color: isUser ? C.white : C.text,
+                    border: isUser ? "none" : "1.5px solid " + C.border,
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                    whiteSpace: "pre-wrap",
+                    wordWrap: "break-word",
+                  }}
+                >
+                  {m.content || (m.streaming ? "\u2026" : "")}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ flexShrink: 0, padding: "0 14px 96px" }}>
+          {!streaming && msgs.length < 6 && (
+            <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 6 }} className="tabstrip">
+              {quickPrompts.map(function (qp, i) {
+                return (
+                  <button
+                    key={i}
+                    onClick={function () { sendMessage(qp); }}
+                    style={{
+                      flexShrink: 0,
+                      background: C.white,
+                      border: "1.5px solid " + C.border,
+                      borderRadius: 99,
+                      padding: "5px 11px",
+                      fontSize: 11,
+                      color: C.muted,
+                      cursor: "pointer",
+                      fontFamily: "'DM Sans',sans-serif",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {qp}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {err && (
+            <div style={{ background: C.red, color: C.redT, padding: "6px 10px", borderRadius: 10, fontSize: 11, fontWeight: 600, marginBottom: 6 }}>
+              {renderErr(err)}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+            <textarea
+              value={inp}
+              onChange={function (e) { setInp(e.target.value); }}
+              onKeyDown={function (e) {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage(inp);
+                }
+              }}
+              placeholder={streaming ? "Thinking\u2026" : "Ask the coach\u2026"}
+              rows={1}
+              disabled={streaming}
+              style={{
+                flex: 1,
+                resize: "none",
+                padding: "10px 12px",
+                border: "1.5px solid " + C.border,
+                borderRadius: 18,
+                fontSize: 13,
+                fontFamily: "'DM Sans',sans-serif",
+                color: C.text,
+                background: C.white,
+                outline: "none",
+                maxHeight: 80,
+                lineHeight: 1.4,
+              }}
+            />
+            <button
+              onClick={function () { sendMessage(inp); }}
+              disabled={!inp.trim() || streaming}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                background: inp.trim() && !streaming ? C.green : C.border,
+                border: "none",
+                color: inp.trim() && !streaming ? C.white : C.muted,
+                fontSize: 16,
+                cursor: inp.trim() && !streaming ? "pointer" : "default",
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: inp.trim() && !streaming ? "0 4px 12px rgba(109,217,148,0.4)" : "none",
+                fontWeight: 700,
+              }}
+              aria-label="Send"
+            >
+              {streaming ? "\u2026" : "\u2191"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   var tk = today(),
     todayDOW = new Date().getDay(),
@@ -1582,8 +4214,24 @@ export default function App() {
   var h18 = useState(CYCLES);
   var cycles = h18[0],
     setCycles = h18[1];
+  var h19 = useState({});
+  var sleep = h19[0],
+    setSleep = h19[1];
+  var h20 = useState(false);
+  var tabsExp = h20[0],
+    setTabsExp = h20[1];
   var phoneRef = useRef(null),
-    scrollRef = useRef(null);
+    scrollRef = useRef(null),
+    pendingTabRef = useRef(null);
+
+  function closePicker(commit) {
+    if (commit) {
+      var pid = pendingTabRef.current;
+      if (pid && pid !== tab) switchTab(pid);
+    }
+    pendingTabRef.current = null;
+    setTabsExp(false);
+  }
   var gym = habits.find(function (h) {
     return h.emoji === "\uD83D\uDCAA";
   });
@@ -1739,8 +4387,11 @@ export default function App() {
   var TABS = [
     { id: "home", label: "Today", Icon: IToday },
     { id: "calendar", label: "Calendar", Icon: ICal },
+    { id: "coach", label: "Coach", Icon: ICoach },
     { id: "gainz", label: "Gainz", Icon: IGainz },
     { id: "cycles", label: "Cycles", Icon: ICycles },
+    { id: "sleep", label: "Sleep", Icon: ISleep },
+    { id: "calories", label: "Calories", Icon: IFlame },
     { id: "settings", label: "Settings", Icon: ISettings },
   ];
   var newEmojiPick = ["\u2B50", "\uD83C\uDFC3", "\uD83D\uDCD6", "\uD83D\uDCA7", "\uD83E\uDDD8", "\uD83D\uDCAA", "\uD83C\uDFAF", "\uD83C\uDF31", "\u270D", "\uD83C\uDFB8", "\uD83E\uDDE0", "\uD83C\uDF05", "\uD83E\uDD57", "\uD83D\uDECC", "\uD83D\uDEB4"];
@@ -1749,7 +4400,7 @@ export default function App() {
     <div>
       <style>
         {
-          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 2px 10px rgba(45,59,46,0.06)}40%{box-shadow:0 0 0 4px rgba(109,217,148,0.25)}100%{box-shadow:0 2px 16px rgba(109,217,148,0.18)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}"
+          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 2px 10px rgba(45,59,46,0.06)}40%{box-shadow:0 0 0 4px rgba(109,217,148,0.25)}100%{box-shadow:0 2px 16px rgba(109,217,148,0.18)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
         }
       </style>
       <div
@@ -1811,14 +4462,9 @@ export default function App() {
         <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
           {tab === "home" && !selHabit && (
             <div style={{ paddingBottom: 100 }}>
-              <div style={{ padding: "14px 22px 10px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }}>{new Date().toLocaleDateString("en-US", { weekday: "long" })}</div>
-                  <div style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.1 }}>{new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" })}</div>
-                </div>
-                <button className="chk" onClick={() => setShowAdd(true)} style={{ width: 40, height: 40, borderRadius: "50%", background: C.green, border: "none", color: C.white, fontSize: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(109,217,148,0.4)", lineHeight: 1, fontWeight: 300 }}>
-                  +
-                </button>
+              <div style={{ padding: "14px 22px 10px" }}>
+                <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }}>{new Date().toLocaleDateString("en-US", { weekday: "long" })}</div>
+                <div style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.1 }}>{new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" })}</div>
               </div>
               {habits.length > 0 && (
                 <div style={{ padding: "0 22px 12px" }}>
@@ -1951,68 +4597,95 @@ export default function App() {
               )}
             </div>
           )}
-          {tab === "calendar" && !selHabit && (
-            <div style={{ padding: "14px 0 100px" }}>
-              <div style={{ padding: "0 22px 14px" }}>
-                <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Calendar</div>
-                <div style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>My Habits</div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 9, padding: "0 14px" }}>
-                {habits.length === 0 && (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px", background: C.white, borderRadius: 20, border: "1.5px dashed " + C.border }}>
-                    <div style={{ fontSize: 36, marginBottom: 10 }}>{"\uD83D\uDCC5"}</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 4 }}>No habits yet</div>
-                    <div style={{ fontSize: 13, color: C.muted, textAlign: "center" }}>Add habits from the Today tab.</div>
-                  </div>
-                )}
-                {habits.map(function (h, i) {
-                  return (
-                    <button
-                      key={h.id}
-                      className="hab"
-                      onClick={function () {
-                        setSelHabit(h);
-                        setCalM(new Date().getMonth());
-                        setCalY(new Date().getFullYear());
-                      }}
-                      style={{ background: C.white, borderRadius: 18, padding: "14px 16px", border: "1.5px solid " + C.border, display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", width: "100%", animationDelay: i * 0.07 + "s" }}
-                    >
-                      <div style={{ width: 46, height: 46, borderRadius: 14, background: C.gl, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>{h.emoji}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 15, fontWeight: 600, color: C.text }}>{h.name}</div>
-                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                          {DL.filter(function (_, idx) {
-                            return h.scheduledDays.includes(idx);
-                          }).join(" ")}{" "}
-                          - {getStreak(h.id)} day streak
-                        </div>
-                      </div>
-                      <span style={{ color: C.border, fontSize: 18 }}>{">"}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+          {tab === "calendar" && (
+            <UnifiedCalendar
+              habits={habits}
+              comp={comp}
+              wl={logs}
+              sleep={sleep}
+              cycles={cycles}
+              todayKey={tk}
+              calY={calY}
+              calM={calM}
+              setCM={setCalM}
+              setCY={setCalY}
+            />
           )}
-          {tab === "calendar" && selHabit && (
-            <div style={{ padding: "14px 0" }}>
-              <CalView habit={selHabit} comp={comp} calYear={calY} calMonth={calM} todayKey={tk} setCM={setCalM} setCY={setCalY} onBack={() => setSelHabit(null)} getStreak={getStreak} getRate={getRate} wl={logs} cycles={cycles} onToggle={toggleDate} />
-            </div>
-          )}
+          {tab === "coach" && <CoachTab habits={habits} comp={comp} logs={logs} sleep={sleep} cycles={cycles} />}
           {tab === "gainz" && <GainzTab wl={logs} gym={gym} comp={comp} />}
           {tab === "cycles" && <CyclesTab cycles={cycles} setCycles={setCycles} />}
+          {tab === "sleep" && <SleepTab sleep={sleep} setSleep={setSleep} />}
+          {tab === "calories" && <CalorieTab />}
           {tab === "settings" && <SettingsTab habits={habits} setHabits={setHabits} />}
         </div>
-        <div style={{ position: "sticky", bottom: 0, background: C.white, borderTop: "1px solid " + C.border, display: "flex", justifyContent: "space-around", alignItems: "center", padding: "7px 0 22px", zIndex: 10 }}>
-          {TABS.map(function (t) {
-            var a = tab === t.id;
-            return (
-              <button key={t.id} className="tb" onClick={() => switchTab(t.id)} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, transform: a ? "scale(1.06)" : "scale(1)", padding: "0 2px" }}>
-                <t.Icon color={a ? C.green : C.muted} />
-                <span style={{ fontSize: 9, fontWeight: a ? 700 : 500, color: a ? C.green : C.muted, fontFamily: "'DM Sans',sans-serif" }}>{t.label}</span>
-              </button>
-            );
-          })}
+        {tabsExp && (
+          <div
+            onClick={() => closePicker(true)}
+            style={{ position: "absolute", inset: 0, background: "rgba(45,59,46,0.18)", zIndex: 9, animation: "fadeIn 0.18s ease both" }}
+          />
+        )}
+        <div style={{ position: "absolute", bottom: 18, left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 10, pointerEvents: "none" }}>
+          {!tabsExp ? (
+            (function () {
+              var curTab = TABS.find(function (t) { return t.id === tab; }) || TABS[0];
+              return (
+                <button
+                  onClick={() => setTabsExp(true)}
+                  style={{
+                    pointerEvents: "auto",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 9,
+                    background: "linear-gradient(135deg," + C.green + "," + C.gd + ")",
+                    border: "none",
+                    borderRadius: 99,
+                    padding: "12px 22px 12px 18px",
+                    boxShadow: "0 8px 24px rgba(76,199,116,0.45),0 0 0 4px rgba(255,255,255,0.55)",
+                    cursor: "pointer",
+                    color: C.white,
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    letterSpacing: 0.3,
+                  }}
+                  aria-label="Open tab switcher"
+                >
+                  <curTab.Icon color={C.white} />
+                  <span>{curTab.label}</span>
+                </button>
+              );
+            })()
+          ) : (
+            <div
+              style={{
+                pointerEvents: "auto",
+                width: 290,
+                background: C.white,
+                borderRadius: 32,
+                padding: "8px 0",
+                boxShadow: "0 14px 36px rgba(45,59,46,0.28)",
+                border: "1.5px solid " + C.border,
+                animation: "slideUp 0.22s cubic-bezier(0.34,1.56,0.64,1) both",
+                overflow: "hidden",
+              }}
+            >
+              <TabPicker
+                tabs={TABS}
+                activeId={tab}
+                onCenterChange={function (id) {
+                  pendingTabRef.current = id;
+                }}
+                onSettle={function (id) {
+                  pendingTabRef.current = id;
+                  switchTab(id);
+                }}
+                onSelect={function (id) {
+                  pendingTabRef.current = id;
+                  closePicker(true);
+                }}
+              />
+            </div>
+          )}
         </div>
         {showAdd && (
           <div style={{ position: "absolute", inset: 0, background: "rgba(45,59,46,0.35)", display: "flex", alignItems: "flex-end", zIndex: 100 }}>
