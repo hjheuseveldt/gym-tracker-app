@@ -729,7 +729,7 @@ function CalView(props) {
       })
     : [];
   return (
-    <div style={{ padding: "0 16px 100px", position: "relative" }}>
+    <div style={{ padding: "0 16px 16px", position: "relative" }}>
       {detK && wl[detK] && <WkDetail log={wl[detK]} dateKey={detK} onClose={() => setDetK(null)} />}
       <button onClick={() => props.onBack()} style={{ background: "none", border: "none", color: C.green, fontSize: 15, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", padding: "8px 0" }}>
         Back
@@ -940,7 +940,7 @@ function GainzTab(props) {
     return twMS[m] > 0 || lwMS[m] > 0;
   });
   return (
-    <div style={{ paddingBottom: 100 }}>
+    <div style={{ paddingBottom: 16 }}>
       <div style={{ padding: "16px 24px 14px" }}>
         <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Gainz</div>
         <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Your Progress</div>
@@ -1159,7 +1159,7 @@ function CyclesTab(props) {
   var tk = today(),
     active = cycleAt(cycles, tk);
   return (
-    <div style={{ paddingBottom: 100, position: "relative" }}>
+    <div style={{ paddingBottom: 16, position: "relative" }}>
       <div style={{ padding: "16px 24px 12px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Cycles</div>
@@ -1384,7 +1384,7 @@ function SettingsTab(props) {
   }
   var emojiPick = ["\u2B50", "\uD83C\uDFC3", "\uD83D\uDCD6", "\uD83D\uDCA7", "\uD83E\uDDD8", "\uD83D\uDCAA", "\uD83C\uDFAF", "\uD83C\uDF31", "\u270D", "\uD83C\uDFB8", "\uD83E\uDDE0", "\uD83C\uDF05", "\uD83E\uDD57", "\uD83D\uDECC", "\uD83D\uDEB4"];
   return (
-    <div style={{ paddingBottom: 100, position: "relative" }}>
+    <div style={{ paddingBottom: 16, position: "relative" }}>
       <div style={{ padding: "16px 24px 18px" }}>
         <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Settings</div>
         <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>My Habits</div>
@@ -1924,7 +1924,7 @@ function SleepTab(props) {
   var titleText = selected === tk ? "Last Night" : fmtDS(selected);
 
   return (
-    <div style={{ paddingBottom: 100 }}>
+    <div style={{ paddingBottom: 16 }}>
       <div style={{ padding: "16px 22px 8px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Sleep</div>
@@ -2472,7 +2472,7 @@ function CalorieTab() {
   var emptyLbl = diffSel === 0 ? "Nothing logged yet today." : diffSel === 1 ? "Nothing was logged yesterday." : "Nothing logged on this day.";
 
   return (
-    <div style={{ paddingBottom: 120 }}>
+    <div style={{ paddingBottom: 16 }}>
       <div style={{ padding: "16px 24px 14px" }}>
         <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Calories</div>
         <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Daily Intake</div>
@@ -3020,7 +3020,7 @@ function UnifiedCalendar(props) {
   var legend = LAYER_LEGENDS[layer] || LAYER_LEGENDS.sleep;
 
   return (
-    <div style={{ padding: "14px 0 110px", position: "relative" }}>
+    <div style={{ padding: "14px 0 16px", position: "relative" }}>
       {selDay && (
         <DaySummarySheet
           dayKey={selDay}
@@ -4626,9 +4626,9 @@ export default function App() {
             </div>
           </div>
         )}
-        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
+        <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", position: "relative", zIndex: 1 }}>
           {tab === "home" && !selHabit && (
-            <div style={{ paddingBottom: 100 }}>
+            <div style={{ paddingBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 12px 4px" }}>
                 <div ref={dayStripRef} className="tabstrip" style={{ flex: 1, display: "flex", gap: 5, overflowX: "auto", scrollSnapType: "x mandatory", padding: "4px 2px" }}>
                   {dayStrip.map(function (d) {
@@ -4865,6 +4865,7 @@ export default function App() {
           {tab === "calories" && <CalorieTab />}
           {tab === "settings" && <SettingsTab habits={habits} setHabits={setHabits} />}
         </div>
+        <div aria-hidden style={{ height: 80, flexShrink: 0, background: C.bg }} />
         {tabsExp && (
           <div
             onClick={() => closePicker(true)}
