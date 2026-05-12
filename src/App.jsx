@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase, supaReady } from "./supabase.js";
+import * as D from "./data.js";
 
 var C = {
   bg: "#FAF9F6",
@@ -107,12 +108,11 @@ function cc(hex) {
   };
 }
 
-var HABITS = [
-  { id: 3, name: "Gym", emoji: "\uD83D\uDCAA", scheduledDays: [1, 2, 3, 4, 5] },
-];
+var HABITS = [];
 var CYCLES = [];
-var COMP = { 3: {} };
+var COMP = {};
 var LOGS = {};
+var DEFAULT_GYM_HABIT = { id: 3, name: "Gym", emoji: "\uD83D\uDCAA", scheduledDays: [1, 2, 3, 4, 5] };
 
 function aRipple(ctx, cx, cy, f) {
   var rings = [
@@ -1145,6 +1145,7 @@ function CyclesTab(props) {
       if (ed) return p.map(function (c) { return c.id === ed ? e : c; });
       return p.concat([e]).sort(function (a, b) { return a.start < b.start ? -1 : 1; });
     });
+    D.fireAndForget(D.upsertCycle(e), "saveCycle");
     setSf(false);
   }
   var tk = today(),
@@ -1211,11 +1212,13 @@ function CyclesTab(props) {
                     </button>
                     <button
                       onClick={function () {
+                        var delId = cyc.id;
                         setCycles(function (p) {
                           return p.filter(function (c) {
-                            return c.id !== cyc.id;
+                            return c.id !== delId;
                           });
                         });
+                        D.fireAndForget(D.deleteCycle(delId), "deleteCycle");
                       }}
                       style={{ padding: "4px 10px", borderRadius: 8, background: C.red, border: "none", color: C.redT, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
                     >
@@ -1334,11 +1337,14 @@ function SettingsTab(props) {
   }
   function save() {
     if (!fn.trim() || !fd2.length) return;
+    var idx = habits.findIndex(function (h) { return h.id === ed; });
+    var updated = Object.assign({}, habits[idx] || {}, { id: ed, name: fn.trim(), emoji: fe, scheduledDays: fd2 });
     setHabits(function (p) {
       return p.map(function (h) {
         return h.id === ed ? Object.assign({}, h, { name: fn.trim(), emoji: fe, scheduledDays: fd2 }) : h;
       });
     });
+    D.fireAndForget(D.upsertHabit(updated, idx < 0 ? 0 : idx), "editHabit");
     setEd(null);
   }
   function togD(d) {
@@ -1353,6 +1359,7 @@ function SettingsTab(props) {
         tmp = n[i];
       n[i] = n[i - 1];
       n[i - 1] = tmp;
+      D.fireAndForget(D.reorderHabits(n), "moveUp");
       return n;
     });
   }
@@ -1363,6 +1370,7 @@ function SettingsTab(props) {
         tmp = n[i];
       n[i] = n[i + 1];
       n[i + 1] = tmp;
+      D.fireAndForget(D.reorderHabits(n), "moveDown");
       return n;
     });
   }
@@ -1441,11 +1449,13 @@ function SettingsTab(props) {
             </button>
             <button
               onClick={function () {
+                var delId = ed;
                 setHabits(function (p) {
                   return p.filter(function (h) {
-                    return h.id !== ed;
+                    return h.id !== delId;
                   });
                 });
+                D.fireAndForget(D.deleteHabit(delId), "deleteHabit");
                 setEd(null);
               }}
               style={{ width: "100%", padding: "12px", borderRadius: 16, background: C.red, border: "none", color: C.redT, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}
@@ -4220,9 +4230,48 @@ export default function App() {
   var h20 = useState(false);
   var tabsExp = h20[0],
     setTabsExp = h20[1];
+  var h21 = useState(false);
+  var booted = h21[0],
+    setBooted = h21[1];
+  var h22 = useState(null);
+  var bootErr = h22[0],
+    setBootErr = h22[1];
   var phoneRef = useRef(null),
     scrollRef = useRef(null),
     pendingTabRef = useRef(null);
+
+  useEffect(function () {
+    if (!supaReady()) {
+      setHabits([DEFAULT_GYM_HABIT]);
+      setBooted(true);
+      return;
+    }
+    D.loadAll()
+      .then(function (data) {
+        if (!data) {
+          setHabits([DEFAULT_GYM_HABIT]);
+          setBooted(true);
+          return;
+        }
+        var isFresh = data.habits.length === 0 && data.cycles.length === 0 && Object.keys(data.logs).length === 0;
+        if (isFresh) {
+          setHabits([DEFAULT_GYM_HABIT]);
+          D.fireAndForget(D.upsertHabit(DEFAULT_GYM_HABIT, 0), "seed-gym");
+        } else {
+          setHabits(data.habits);
+        }
+        setComp(data.comp);
+        setLogs(data.logs);
+        setCycles(data.cycles);
+        setBooted(true);
+      })
+      .catch(function (e) {
+        console.error("[boot] loadAll failed:", e);
+        setBootErr(String(e && e.message ? e.message : e));
+        setHabits([DEFAULT_GYM_HABIT]);
+        setBooted(true);
+      });
+  }, []);
 
   function closePicker(commit) {
     if (commit) {
@@ -4253,6 +4302,7 @@ export default function App() {
       n[id][tk] = !was;
       return n;
     });
+    D.fireAndForget(D.setCompletion(id, tk, !was), "toggleHabit");
     if (!was) {
       if (btn && phoneRef.current) {
         var br = btn.getBoundingClientRect(),
@@ -4298,6 +4348,7 @@ export default function App() {
     }
   }
   function toggleDate(hid, k) {
+    var was = !!(comp[hid] && comp[hid][k]);
     setComp(function (p) {
       var n = Object.assign({}, p);
       n[hid] = Object.assign({}, p[hid] || {});
@@ -4305,6 +4356,7 @@ export default function App() {
       else n[hid][k] = true;
       return n;
     });
+    D.fireAndForget(D.setCompletion(hid, k, !was), "toggleDate");
   }
 
   function getStreak(id) {
@@ -4359,14 +4411,17 @@ export default function App() {
     if (!newName.trim() || !newDays.length) return;
     if (newEmoji === "\uD83D\uDCAA" && gym) return;
     var id = Date.now();
+    var newH = { id: id, name: newName.trim(), emoji: newEmoji, scheduledDays: newDays };
+    var sortIdx = habits.length;
     setHabits(function (p) {
-      return p.concat([{ id: id, name: newName.trim(), emoji: newEmoji, scheduledDays: newDays }]);
+      return p.concat([newH]);
     });
     setComp(function (p) {
       var n = Object.assign({}, p);
       n[id] = {};
       return n;
     });
+    D.fireAndForget(D.upsertHabit(newH, sortIdx), "addHabit");
     setNewName("");
     setNewEmoji("\u2B50");
     setNewDays([0, 1, 2, 3, 4, 5, 6]);
@@ -4395,6 +4450,23 @@ export default function App() {
     { id: "settings", label: "Settings", Icon: ISettings },
   ];
   var newEmojiPick = ["\u2B50", "\uD83C\uDFC3", "\uD83D\uDCD6", "\uD83D\uDCA7", "\uD83E\uDDD8", "\uD83D\uDCAA", "\uD83C\uDFAF", "\uD83C\uDF31", "\u270D", "\uD83C\uDFB8", "\uD83E\uDDE0", "\uD83C\uDF05", "\uD83E\uDD57", "\uD83D\uDECC", "\uD83D\uDEB4"];
+
+  if (!booted) {
+    return (
+      <div>
+        <style>{"body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@keyframes pulseDot{0%,100%{opacity:0.35;transform:scale(0.9)}50%{opacity:1;transform:scale(1.1)}}"}</style>
+        <div style={{ width: 390, height: 844, background: C.bg, borderRadius: 48, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", color: C.text }}>
+          <div style={{ fontSize: 44, marginBottom: 18 }}>{"\uD83D\uDCAA"}</div>
+          <div style={{ fontSize: 14, color: C.muted, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }}>GymTrack</div>
+          <div style={{ marginTop: 18, display: "flex", gap: 6 }}>
+            {[0, 1, 2].map(function (i) {
+              return <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: C.green, animation: "pulseDot 1.1s ease-in-out infinite", animationDelay: i * 0.15 + "s" }} />;
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -4443,6 +4515,7 @@ export default function App() {
                 n[tk] = data;
                 return n;
               });
+              D.fireAndForget(D.upsertWorkoutLog(tk, data), "gymq-save");
               setPendGym(null);
             }}
             onSkip={function () {
