@@ -5,12 +5,17 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { path, ...query } = req.query;
-  const subPath = Array.isArray(path) ? path.join("/") : path || "";
-  const url = new URL(`https://api.ouraring.com/${subPath}`);
+  const { endpoint, ...query } = req.query;
+  if (!endpoint || typeof endpoint !== "string") {
+    res.status(400).json({ error: "Missing 'endpoint' query parameter" });
+    return;
+  }
+
+  const cleaned = endpoint.replace(/^\/+/, "");
+  const url = new URL(`https://api.ouraring.com/${cleaned}`);
   for (const [key, value] of Object.entries(query)) {
     if (Array.isArray(value)) value.forEach((v) => url.searchParams.append(key, v));
-    else url.searchParams.set(key, value);
+    else if (value != null) url.searchParams.set(key, value);
   }
 
   try {

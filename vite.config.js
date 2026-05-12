@@ -66,26 +66,41 @@ function coachDevPlugin(env) {
   };
 }
 
+function ouraDevPlugin(env) {
+  return {
+    name: "oura-dev-proxy",
+    configureServer(server) {
+      server.middlewares.use("/api/oura/proxy", async (req, res) => {
+        try {
+          if (env.OURA_TOKEN) process.env.OURA_TOKEN = env.OURA_TOKEN;
+          const url = new URL(req.url, "http://localhost");
+          const query = {};
+          url.searchParams.forEach((v, k) => {
+            if (query[k] === undefined) query[k] = v;
+            else if (Array.isArray(query[k])) query[k].push(v);
+            else query[k] = [query[k], v];
+          });
+          req.query = query;
+          const mod = await import("./api/oura/proxy.js?t=" + Date.now());
+          await mod.default(req, res);
+        } catch (err) {
+          if (!res.headersSent) {
+            res.statusCode = 500;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ error: String((err && err.message) || err) }));
+          }
+        }
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   return {
-    plugins: [react(), fatSecretDevPlugin(env), coachDevPlugin(env)],
+    plugins: [react(), fatSecretDevPlugin(env), coachDevPlugin(env), ouraDevPlugin(env)],
     server: {
       open: true,
-      proxy: {
-        "/api/oura": {
-          target: "https://api.ouraring.com",
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/oura/, ""),
-          configure: (proxy) => {
-            proxy.on("proxyReq", (proxyReq) => {
-              if (env.OURA_TOKEN) {
-                proxyReq.setHeader("Authorization", `Bearer ${env.OURA_TOKEN}`);
-              }
-            });
-          },
-        },
-      },
     },
   };
 });

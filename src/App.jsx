@@ -1859,9 +1859,12 @@ function SleepTab(props) {
     startD.setDate(startD.getDate() - 7);
     var startStr = dk(startD),
       endStr = dk(endD);
-    var base = "/api/oura/v2/usercollection/";
-    var u1 = base + "daily_sleep?start_date=" + startStr + "&end_date=" + endStr;
-    var u2 = base + "sleep?start_date=" + startStr + "&end_date=" + endStr;
+    function ouraUrl(endpoint, params) {
+      var qs = new URLSearchParams(Object.assign({ endpoint: endpoint }, params || {}));
+      return "/api/oura/proxy?" + qs.toString();
+    }
+    var u1 = ouraUrl("v2/usercollection/daily_sleep", { start_date: startStr, end_date: endStr });
+    var u2 = ouraUrl("v2/usercollection/sleep", { start_date: startStr, end_date: endStr });
     Promise.all([fetch(u1), fetch(u2)])
       .then(function (rs) {
         if (!rs[0].ok) throw new Error("daily_sleep " + rs[0].status);
