@@ -1,0 +1,46 @@
+:root {
+  --gt-bg: #faf9f6;
+  --gt-surface: #ffffff;
+  --gt-text: #1a2922;
+  --gt-muted: #526b60;
+  --gt-border: #d5e9df;
+  --gt-green: #4cc774;
+  --gt-green-deep: #3ab860;
+  --gt-gl: #e8f9ee;
+  --gt-gm: #a8e6bc;
+  --gt-focus-ring: rgba(76, 199, 116, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hab,
+  .tb {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+  .cardGlow {
+    animation: none !important;
+  }
+  .glow {
+    animation: none !important;
+  }
+  .boot-pulse {
+    animation: none !important;
+  }
+}
+
+.tabstrip button:focus-visible,
+.tabstrip.summary-strip button:focus-visible {
+  outline: 3px solid var(--gt-focus-ring);
+  outline-offset: 2px;
+}
+
+button.gt-focus-ring:focus-visible {
+  outline: 3px solid var(--gt-focus-ring);
+  outline-offset: 2px;
+}
+
+input.gt-input:focus-visible,
+textarea.gt-input:focus-visible {
+  outline: 3px solid var(--gt-focus-ring);
+  outline-offset: 2px;
+}

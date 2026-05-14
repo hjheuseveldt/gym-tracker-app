@@ -4,16 +4,16 @@ import * as D from "./data.js";
 
 var C = {
   bg: "#FAF9F6",
-  green: "#6DD994",
-  gd: "#4CC774",
+  green: "#4CC774",
+  gd: "#3AB860",
   gl: "#E8F9EE",
   gm: "#A8E6BC",
-  text: "#2D3B2E",
-  muted: "#7A8F7C",
-  border: "#E2EDE4",
+  text: "#1A2922",
+  muted: "#526B60",
+  border: "#D5E9DF",
   white: "#FFFFFF",
-  red: "#F2C4C4",
-  redT: "#B85C5C",
+  red: "#F2E8E8",
+  redT: "#9B4545",
 };
 var DL = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 var MN = [
@@ -45,7 +45,7 @@ var PAL = [
   "#A0A040",
 ];
 var AN = ["1 Ripple", "2 Sparks", "3 Confetti", "4 Starburst", "5 Bloom"];
-var G = ["#6DD994", "#4CC774", "#A8E6BC", "#ffffff", "#B8F0CE", "#3AB860"];
+var G = ["#4CC774", "#3AB860", "#A8E6BC", "#ffffff", "#B8F0CE", "#2EA653"];
 
 function dk(d) {
   return d.toISOString().split("T")[0];
@@ -116,8 +116,8 @@ var DEFAULT_GYM_HABIT = { id: 3, name: "Gym", emoji: "\uD83D\uDCAA", scheduledDa
 
 function aRipple(ctx, cx, cy, f) {
   var rings = [
-    { s: 0, sp: 1.1, dc: 0.018, lw: 3, rgb: "109,217,148" },
-    { s: 12, sp: 0.9, dc: 0.014, lw: 2, rgb: "76,199,116" },
+    { s: 0, sp: 1.1, dc: 0.018, lw: 3, rgb: "76,199,116" },
+    { s: 12, sp: 0.9, dc: 0.014, lw: 2, rgb: "58,184,96" },
     { s: 26, sp: 0.7, dc: 0.011, lw: 1.4, rgb: "168,230,188" },
   ];
   var alive = false;
@@ -228,7 +228,7 @@ function aStarburst(ctx, cx, cy, f) {
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(tx, ty);
-    ctx.strokeStyle = i % 2 === 0 ? "#6DD994" : "#A8E6BC";
+    ctx.strokeStyle = i % 2 === 0 ? "#4CC774" : "#A8E6BC";
     ctx.lineWidth = w;
     ctx.lineCap = "round";
     ctx.stroke();
@@ -246,9 +246,9 @@ function aBloom(ctx, cx, cy, f) {
   var oR = 4 + 50 * Math.pow(t, 0.5),
     oA = t < 0.25 ? t / 0.25 : Math.pow(1 - (t - 0.25) / 0.75, 1.6);
   var g = ctx.createRadialGradient(cx, cy, 0, cx, cy, oR);
-  g.addColorStop(0, "rgba(109,217,148," + oA * 0.55 + ")");
+  g.addColorStop(0, "rgba(76,199,116," + oA * 0.55 + ")");
   g.addColorStop(0.5, "rgba(76,199,116," + oA * 0.28 + ")");
-  g.addColorStop(1, "rgba(109,217,148,0)");
+  g.addColorStop(1, "rgba(76,199,116,0)");
   ctx.beginPath();
   ctx.arc(cx, cy, oR, 0, Math.PI * 2);
   ctx.fillStyle = g;
@@ -262,6 +262,10 @@ function AnimCanvas(props) {
     function () {
       var cv = ref.current;
       if (!cv) return;
+      if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        props.onDone();
+        return;
+      }
       var ctx = cv.getContext("2d"),
         f = 0,
         raf,
@@ -380,6 +384,95 @@ function ICoach(props) {
   );
 }
 
+function IconKpiSleep(props) {
+  var c = props.color || C.muted,
+    s = props.size || 18;
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20.5 14.2A8 8 0 0 1 9.8 3.5a8 8 0 1 0 10.7 10.7z" />
+      <path d="M15 4h4l-4 4h4" />
+    </svg>
+  );
+}
+
+function IconKpiWorkout(props) {
+  var c = props.color || C.muted,
+    s = props.size || 18;
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 13V9a3 3 0 016 0v4M18 13V9a3 3 0 016 0v4" />
+      <path d="M3 11h18" />
+      <path d="M3 17h18" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function IconKpiHabit(props) {
+  var c = props.color || C.muted,
+    s = props.size || 18;
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.2" />
+      <path d="M8.5 12.2l2.5 2.5 6-7" />
+    </svg>
+  );
+}
+
+function IconKpiStar(props) {
+  var c = props.color || C.muted,
+    s = props.size || 18;
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.55" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2.5l2.4 7.2h7.7l-6.2 4.7 2.4 7.1L12 16.6l-6.3 4.9 2.4-7.1-6.2-4.7h7.7z" />
+    </svg>
+  );
+}
+
+function IconSprout(props) {
+  var c = props.color || C.green,
+    s = props.size || 44;
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 22V13" />
+      <path d="M12 13c3-8 11-11 11-11s-3 8-11 12" />
+      <path d="M12 13C9 5 1 2 1 2s3 8 11 11" />
+    </svg>
+  );
+}
+
+function IconDumbbellMark(props) {
+  var c = props.color || C.green,
+    s = props.size || 40;
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12h14" />
+      <rect x="2" y="8" width="5" height="8" rx="1.5" />
+      <rect x="17" y="8" width="5" height="8" rx="1.5" />
+    </svg>
+  );
+}
+
+function CalDayDoneCheck(props) {
+  var c = props.color || C.white,
+    s = props.size || 11;
+  return (
+    <svg width={s} height={s} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M4 10l4 5 8-9" stroke={c} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconChevronCal(props) {
+  var c = props.color || C.green,
+    dir = props.dir === "right" ? "right" : "left",
+    sx = dir === "right" ? { transform: "scaleX(-1)" } : undefined;
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={sx}>
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
+}
+
 function BarChart(props) {
   var data = props.data,
     mx = Math.max.apply(
@@ -437,8 +530,8 @@ function BwChart(props) {
         return H - pd - ((v - mn) / rng) * (H - pd * 2);
       }
       var gr = ctx.createLinearGradient(0, 0, 0, H);
-      gr.addColorStop(0, "rgba(109,217,148,0.25)");
-      gr.addColorStop(1, "rgba(109,217,148,0)");
+      gr.addColorStop(0, "rgba(76,199,116,0.25)");
+      gr.addColorStop(1, "rgba(76,199,116,0)");
       ctx.beginPath();
       ctx.moveTo(px(0), py(pts[0].val));
       for (var i = 1; i < pts.length; i++) ctx.lineTo(px(i), py(pts[i].val));
@@ -731,7 +824,7 @@ function CalView(props) {
   return (
     <div style={{ padding: "0 16px 16px", position: "relative" }}>
       {detK && wl[detK] && <WkDetail log={wl[detK]} dateKey={detK} onClose={() => setDetK(null)} />}
-      <button onClick={() => props.onBack()} style={{ background: "none", border: "none", color: C.green, fontSize: 15, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", padding: "8px 0" }}>
+      <button type="button" className="gt-focus-ring" onClick={() => props.onBack()} style={{ background: "none", border: "none", color: C.green, fontSize: 15, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", padding: "8px 0" }}>
         Back
       </button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0 14px" }}>
@@ -742,7 +835,7 @@ function CalView(props) {
         </div>
       </div>
       {activeCycs.map(function (cyc) {
-        var col = cc(cyc.color || "#6DD994");
+        var col = cc(cyc.color || "#4CC774");
         return (
           <div key={cyc.id} style={{ background: col.bg, border: "1.5px solid " + col.border, borderRadius: 12, padding: "8px 12px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: col.bar, flexShrink: 0 }} />
@@ -759,23 +852,29 @@ function CalView(props) {
       })}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.white, borderRadius: 14, padding: "10px 14px", marginBottom: 12 }}>
         <button
+          type="button"
+          className="gt-focus-ring"
+          aria-label="Previous month"
           onClick={function () {
             cm === 0 ? (props.setCM(11), props.setCY(function (y) { return y - 1; })) : props.setCM(function (m) { return m - 1; });
           }}
-          style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.green }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: C.green, padding: "4px 10px", display: "flex", alignItems: "center", justifyContent: "center" }}
         >
-          {"<"}
+          <IconChevronCal dir="left" />
         </button>
         <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 17, color: C.text, fontWeight: 600 }}>
           {MN[cm]} {cy}
         </div>
         <button
+          type="button"
+          className="gt-focus-ring"
+          aria-label="Next month"
           onClick={function () {
             cm === 11 ? (props.setCM(0), props.setCY(function (y) { return y + 1; })) : props.setCM(function (m) { return m + 1; });
           }}
-          style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.green }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: C.green, padding: "4px 10px", display: "flex", alignItems: "center", justifyContent: "center" }}
         >
-          {">"}
+          <IconChevronCal dir="right" />
         </button>
       </div>
       <div style={{ background: C.white, borderRadius: 18, padding: 14 }}>
@@ -790,28 +889,33 @@ function CalView(props) {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3 }}>
           {cells.map(function (day, i) {
-            var k = day ? ck(day) : null;
-            var isDone = day && !!done[k],
-              isT = day && k === tk,
-              isFut = day && k > tk,
-              sched = day && isSched(day);
+            if (!day) return <div key={i} style={{ aspectRatio: "1" }} aria-hidden="true" />;
+            var k = ck(day),
+              isDone = !!done[k],
+              isT = k === tk,
+              isFut = k > tk,
+              sched = isSched(day);
             var hasLog = isGym && isDone && !!wl[k];
-            var cyc = isGym && day ? cycleAt(cycles, k) : null;
-            var col = cyc ? cc(cyc.color || "#6DD994") : null;
-            var canTog = day && !isFut && sched;
-            var capK = k,
-              capLog = hasLog,
-              capTog = canTog;
+            var cyc = isGym ? cycleAt(cycles, k) : null;
+            var col = cyc ? cc(cyc.color || "#4CC774") : null;
+            var cantUse = isFut || !sched;
             return (
-              <div
-                key={i}
+              <button
+                key={k + "-" + i}
+                type="button"
+                disabled={cantUse}
+                className="gt-focus-ring"
+                aria-pressed={cantUse ? undefined : isDone}
+                aria-label={
+                  !sched ? h.name + " not scheduled — " + k : isFut ? h.name + " — " + k + " (future)" : hasLog ? "Workout log " + k : (isDone ? "Unmark " + h.name + " " + k : "Mark " + h.name + " done " + k)
+                }
                 onClick={function () {
-                  if (!capTog) return;
-                  if (capLog) {
-                    setDetK(capK);
+                  if (cantUse) return;
+                  if (hasLog) {
+                    setDetK(k);
                     return;
                   }
-                  props.onToggle(h.id, capK);
+                  props.onToggle(h.id, k);
                 }}
                 style={{
                   aspectRatio: "1",
@@ -822,15 +926,21 @@ function CalView(props) {
                   justifyContent: "center",
                   background: isDone ? C.green : isT ? C.gl : col ? col.bg : "transparent",
                   border: isT && !isDone ? "2px solid " + C.green : col && !isDone ? "2px solid " + col.border : "2px solid transparent",
-                  opacity: !day ? 0 : isFut ? 0.28 : !sched ? 0.22 : 1,
+                  opacity: isFut ? 0.28 : !sched ? 0.22 : 1,
                   position: "relative",
-                  cursor: canTog ? "pointer" : "default",
+                  cursor: !cantUse ? "pointer" : "default",
                   transition: "background 0.2s",
+                  padding: 0,
+                  WebkitTapHighlightColor: "transparent",
                 }}
               >
-                {day && <span style={{ fontSize: 12, color: isDone ? C.white : C.text, fontWeight: isT ? 700 : 400 }}>{day}</span>}
-                {isDone && <span style={{ fontSize: 8, position: "absolute", bottom: 3, color: C.white }}>v</span>}
-              </div>
+                <span style={{ fontSize: 12, color: isDone ? C.white : C.text, fontWeight: isT ? 700 : 400 }}>{day}</span>
+                {isDone && (
+                  <span style={{ position: "absolute", bottom: 4, display: "flex", lineHeight: 0 }}>
+                    <CalDayDoneCheck color={C.white} size={11} />
+                  </span>
+                )}
+              </button>
             );
           })}
         </div>
@@ -948,7 +1058,7 @@ function GainzTab(props) {
       {!gym && (
         <div style={{ margin: "0 16px", background: C.white, borderRadius: 14, padding: "18px", textAlign: "center", border: "1.5px solid " + C.border }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>No gym habit yet</div>
-          <div style={{ fontSize: 12, color: C.muted }}>Add a habit with the emoji to start tracking.</div>
+          <div style={{ fontSize: 12, color: C.muted }}>Add a habit with the dumbbell (\u201CGym\u201D) icon to start tracking workouts.</div>
         </div>
       )}
       {gym && (
@@ -1165,7 +1275,7 @@ function CyclesTab(props) {
           <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Cycles</div>
           <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>My Cycles</div>
         </div>
-        <button onClick={openNew} style={{ width: 40, height: 40, borderRadius: "50%", background: C.green, border: "none", color: C.white, fontSize: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(109,217,148,0.4)", lineHeight: 1, fontWeight: 300 }}>
+        <button onClick={openNew} style={{ width: 40, height: 40, borderRadius: "50%", background: C.green, border: "none", color: C.white, fontSize: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(76,199,116,0.4)", lineHeight: 1, fontWeight: 300 }}>
           +
         </button>
       </div>
@@ -2884,8 +2994,11 @@ function TabPicker(props) {
         var isCenter = dist < 0.5;
         var opacity = isCenter ? 1 : Math.max(0.32, 1 - t * 0.65);
         var scale = isCenter ? 1.06 : Math.max(0.94, 1 - t * 0.08);
+        var TabIcon = item.tab.Icon;
         return (
           <button
+            type="button"
+            className="gt-focus-ring"
             key={item.key}
             onClick={function () { onSelect(item.tab.id); }}
             style={{
@@ -2911,7 +3024,7 @@ function TabPicker(props) {
             }}
           >
             <div style={{ transform: "scale(1.35)", lineHeight: 0 }}>
-              <item.tab.Icon color={isCenter ? C.white : C.muted} />
+              <TabIcon color={isCenter ? C.white : C.muted} />
             </div>
             <span style={{ fontSize: 11, fontWeight: isCenter ? 700 : 600, color: isCenter ? C.white : C.muted, whiteSpace: "nowrap" }}>{item.tab.label}</span>
           </button>
@@ -3080,16 +3193,16 @@ function UnifiedCalendar(props) {
   }
 
   var layerPills = [
-    { id: "sleep", label: "Sleep", emoji: "\uD83D\uDE34" },
-    { id: "workouts", label: "Workouts", emoji: "\uD83C\uDFCB" },
-    { id: "habits", label: "Habits", emoji: "\u2705" },
+    { id: "sleep", label: "Sleep", Icon: IconKpiSleep },
+    { id: "workouts", label: "Workouts", Icon: IconKpiWorkout },
+    { id: "habits", label: "Habits", Icon: IconKpiHabit },
   ];
 
   var kpis = [
-    { val: monthWorkouts, label: "Workouts", emoji: "\uD83C\uDFCB" },
-    { val: avgSleep != null ? avgSleep : "\u2013", label: "Avg sleep", emoji: "\uD83D\uDE34" },
-    { val: habitPct != null ? habitPct + "%" : "\u2013", label: "Habits", emoji: "\u2705" },
-    { val: perfectCount, label: "Perfect", emoji: "\u2B50" },
+    { val: monthWorkouts, label: "Workouts", Icon: IconKpiWorkout },
+    { val: avgSleep != null ? avgSleep : "\u2013", label: "Avg sleep", Icon: IconKpiSleep },
+    { val: habitPct != null ? habitPct + "%" : "\u2013", label: "Habits", Icon: IconKpiHabit },
+    { val: perfectCount, label: "Perfect", Icon: IconKpiStar },
   ];
 
   var legend = LAYER_LEGENDS[layer] || LAYER_LEGENDS.sleep;
@@ -3117,10 +3230,13 @@ function UnifiedCalendar(props) {
 
       <div style={{ padding: "0 14px 12px", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
         {kpis.map(function (k2, i) {
+          var KpiI = k2.Icon;
           return (
             <div key={i} style={{ background: C.white, borderRadius: 14, padding: "10px 6px", border: "1.5px solid " + C.border, textAlign: "center" }}>
-              <div style={{ fontSize: 14, lineHeight: 1 }}>{k2.emoji}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginTop: 4, lineHeight: 1 }}>{k2.val}</div>
+              <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
+                <KpiI size={17} color={C.green} />
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginTop: 6, lineHeight: 1 }}>{k2.val}</div>
               <div style={{ fontSize: 9, color: C.muted, marginTop: 3, letterSpacing: 0.3 }}>{k2.label}</div>
             </div>
           );
@@ -3152,22 +3268,37 @@ function UnifiedCalendar(props) {
       )}
 
       <div style={{ margin: "0 14px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.white, borderRadius: 14, padding: "8px 8px", border: "1.5px solid " + C.border }}>
-        <button onClick={function () { changeMonth(-1); }} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.green, padding: "0 14px" }}>
-          {"<"}
+        <button
+          type="button"
+          className="gt-focus-ring"
+          aria-label="Previous month"
+          onClick={function () { changeMonth(-1); }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: C.green, padding: "4px 12px", display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <IconChevronCal dir="left" />
         </button>
         <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 16, color: C.text, fontWeight: 600 }}>
           {MN[cm]} {cy}
         </div>
-        <button onClick={function () { changeMonth(1); }} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.green, padding: "0 14px" }}>
-          {">"}
+        <button
+          type="button"
+          className="gt-focus-ring"
+          aria-label="Next month"
+          onClick={function () { changeMonth(1); }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: C.green, padding: "4px 12px", display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <IconChevronCal dir="right" />
         </button>
       </div>
 
       <div style={{ padding: "0 14px 10px", display: "flex", gap: 6 }}>
         {layerPills.map(function (p) {
           var active = p.id === layer;
+          var LayI = p.Icon;
           return (
             <button
+              type="button"
+              className="gt-focus-ring"
               key={p.id}
               onClick={function () { setLayer(p.id); }}
               style={{
@@ -3188,7 +3319,9 @@ function UnifiedCalendar(props) {
                 transition: "all 0.18s ease",
               }}
             >
-              <span style={{ fontSize: 12 }}>{p.emoji}</span>
+              <span style={{ display: "flex", alignItems: "center" }}>
+                <LayI size={15} color={active ? C.white : C.muted} />
+              </span>
               <span>{p.label}</span>
             </button>
           );
@@ -4235,7 +4368,7 @@ function CoachTab(props) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: inp.trim() && !streaming ? "0 4px 12px rgba(109,217,148,0.4)" : "none",
+                boxShadow: inp.trim() && !streaming ? "0 4px 12px rgba(76,199,116,0.4)" : "none",
                 fontWeight: 700,
               }}
               aria-label="Send"
@@ -4618,11 +4751,19 @@ export default function App() {
       <div>
         <style>{"body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes pulseDot{0%,100%{opacity:0.35;transform:scale(0.9)}50%{opacity:1;transform:scale(1.1)}}"}</style>
         <div style={{ width: compact ? "100vw" : 390, height: compact ? "100dvh" : 844, background: C.bg, borderRadius: compact ? 0 : 48, overflow: "hidden", boxShadow: compact ? "none" : "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", color: C.text }}>
-          <div style={{ fontSize: 44, marginBottom: 18 }}>{"\uD83D\uDCAA"}</div>
+          <div style={{ marginBottom: 16, display: "flex", justifyContent: "center" }} aria-hidden="true">
+            <IconDumbbellMark size={52} color={C.green} />
+          </div>
           <div style={{ fontSize: 14, color: C.muted, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }}>GymTrack</div>
           <div style={{ marginTop: 18, display: "flex", gap: 6 }}>
             {[0, 1, 2].map(function (i) {
-              return <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: C.green, animation: "pulseDot 1.1s ease-in-out infinite", animationDelay: i * 0.15 + "s" }} />;
+              return (
+                <div
+                  key={i}
+                  className="boot-pulse"
+                  style={{ width: 8, height: 8, borderRadius: "50%", background: C.green, animation: "pulseDot 1.1s ease-in-out infinite", animationDelay: i * 0.15 + "s" }}
+                />
+              );
             })}
           </div>
         </div>
@@ -4634,7 +4775,7 @@ export default function App() {
     <div>
       <style>
         {
-          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 2px 10px rgba(45,59,46,0.06)}40%{box-shadow:0 0 0 4px rgba(109,217,148,0.25)}100%{box-shadow:0 2px 16px rgba(109,217,148,0.18)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
+          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 2px 10px rgba(45,59,46,0.06)}40%{box-shadow:0 0 0 4px rgba(76,199,116,0.25)}100%{box-shadow:0 2px 16px rgba(76,199,116,0.18)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
         }
       </style>
       <div
@@ -4705,7 +4846,7 @@ export default function App() {
           {tab === "home" && !selHabit && (
             <div style={{ paddingBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 12px 4px" }}>
-                <div ref={dayStripRef} className="tabstrip" style={{ flex: 1, display: "flex", gap: 5, overflowX: "auto", scrollSnapType: "x mandatory", padding: "4px 2px" }}>
+                <div ref={dayStripRef} className="tabstrip summary-strip" style={{ flex: 1, display: "flex", gap: 5, overflowX: "auto", scrollSnapType: "x mandatory", padding: "4px 2px" }}>
                   {dayStrip.map(function (d) {
                     var k = dk(d);
                     var isSel = k === selDay;
@@ -4717,6 +4858,8 @@ export default function App() {
                     var isPerfect = sched.length > 0 && done === sched.length;
                     return (
                       <button
+                        type="button"
+                        className="gt-focus-ring tb"
                         key={k}
                         onClick={function () { selectDay(k); }}
                         style={{
@@ -4734,7 +4877,7 @@ export default function App() {
                           flexDirection: "column",
                           alignItems: "center",
                           gap: 2,
-                          boxShadow: isSel ? "0 4px 12px rgba(109,217,148,0.35)" : "none",
+                          boxShadow: isSel ? "0 4px 12px rgba(76,199,116,0.35)" : "none",
                           transition: "background 0.18s ease,border-color 0.18s ease",
                         }}
                       >
@@ -4748,6 +4891,8 @@ export default function App() {
                   })}
                 </div>
                 <button
+                  type="button"
+                  className="gt-focus-ring"
                   onClick={function () { if (dateInputRef.current) { try { dateInputRef.current.showPicker(); } catch (e) { dateInputRef.current.click(); } } }}
                   style={{ flex: "0 0 auto", width: 36, height: 36, borderRadius: 11, background: C.white, border: "1.5px solid " + C.border, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.text }}
                   aria-label="Pick a date"
@@ -4773,7 +4918,7 @@ export default function App() {
                   </div>
                 </div>
                 {!selIsToday && (
-                  <button onClick={function () { selectDay(tk); scrollStripToEnd(); }} style={{ padding: "5px 11px", borderRadius: 99, background: C.gl, border: "1.5px solid " + C.gm, color: C.gd, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                  <button type="button" className="gt-focus-ring" onClick={function () { selectDay(tk); scrollStripToEnd(); }} style={{ padding: "5px 11px", borderRadius: 99, background: C.gl, border: "1.5px solid " + C.gm, color: C.gd, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                     Jump to today
                   </button>
                 )}
@@ -4793,7 +4938,7 @@ export default function App() {
               )}
               {habits.length > 0 && (
                 <div style={{ padding: "0 14px 12px" }}>
-                  <button onClick={() => setShowAP((p) => !p)} style={{ width: "100%", padding: "8px 12px", background: C.white, border: "1.5px solid " + C.border, borderRadius: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.muted }}>
+                  <button onClick={() => setShowAP((p) => !p)} type="button" className="gt-focus-ring tb" style={{ width: "100%", padding: "8px 12px", background: C.white, border: "1.5px solid " + C.border, borderRadius: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.muted }}>
                     <span>
                       Animation: <strong style={{ color: C.green }}>{AN[animT - 1]}</strong>
                     </span>
@@ -4804,6 +4949,8 @@ export default function App() {
                       {AN.map(function (name, i) {
                         return (
                           <button
+                            type="button"
+                            className="gt-focus-ring"
                             key={i}
                             onClick={function () {
                               setAnimT(i + 1);
@@ -4837,17 +4984,21 @@ export default function App() {
               )}
               {selH.length === 0 && habits.length === 0 && (
                 <div style={{ margin: "16px 14px 0", display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px", background: C.white, borderRadius: 22, border: "1.5px dashed " + C.border }}>
-                  <div style={{ fontSize: 44, marginBottom: 14 }}>{"\uD83C\uDF31"}</div>
+                  <div style={{ marginBottom: 14, display: "flex", justifyContent: "center", lineHeight: 0 }} aria-hidden="true">
+                    <IconSprout size={52} />
+                  </div>
                   <div style={{ fontSize: 17, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 6, textAlign: "center" }}>No habits yet</div>
                   <div style={{ fontSize: 13, color: C.muted, textAlign: "center", lineHeight: 1.6, marginBottom: 20 }}>Tap + to add your first habit.</div>
-                  <button onClick={() => setShowAdd(true)} style={{ padding: "11px 24px", borderRadius: 99, background: "linear-gradient(135deg," + C.green + "," + C.gd + ")", border: "none", color: C.white, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                  <button type="button" className="gt-focus-ring" onClick={() => setShowAdd(true)} style={{ padding: "11px 24px", borderRadius: 99, background: "linear-gradient(135deg," + C.green + "," + C.gd + ")", border: "none", color: C.white, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                     Add your first habit
                   </button>
                 </div>
               )}
               {selH.length === 0 && habits.length > 0 && (
                 <div style={{ margin: "10px 14px 0", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 16px", background: C.white, borderRadius: 18, border: "1.5px dashed " + C.border }}>
-                  <div style={{ fontSize: 28, marginBottom: 6 }}>{"\uD83D\uDECC"}</div>
+                  <div style={{ marginBottom: 10, opacity: 0.65 }} aria-hidden="true">
+                    <ICal color={C.muted} />
+                  </div>
                   <div style={{ fontSize: 13, color: C.muted, textAlign: "center", lineHeight: 1.5 }}>
                     No habits scheduled for {selIsToday ? "today" : selDate.toLocaleDateString("en-US", { weekday: "long" })}.
                   </div>
@@ -4860,19 +5011,35 @@ export default function App() {
                     wp = getWP(habit.id),
                     pop = justChk[habit.id];
                   return (
-                    <div key={habit.id} className={"hab" + (pop ? " glow" : "")} style={{ background: done ? C.gl : C.white, borderRadius: 18, padding: "13px 14px", display: "flex", alignItems: "center", gap: 11, boxShadow: done ? "0 2px 14px rgba(109,217,148,0.16)" : "0 2px 9px rgba(45,59,46,0.05)", border: "1.5px solid " + (done ? C.gm : C.border), transition: "background 0.4s ease,border-color 0.4s ease" }}>
-                      <button className="chk" onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "none" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "0 4px 12px rgba(109,217,148,0.45)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
+                    <div key={habit.id} className={"hab" + (pop ? " glow" : "")} style={{ background: done ? C.gl : C.white, borderRadius: 18, padding: "14px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: done ? "0 2px 14px rgba(76,199,116,0.16)" : "0 2px 9px rgba(45,59,46,0.05)", border: "1.5px solid " + (done ? C.gm : C.border), transition: "background 0.4s ease,border-color 0.4s ease" }}>
+                      <button type="button" aria-pressed={done} aria-label={(done ? "Unmark " : "Mark ") + habit.name + " for " + selDay} className="chk gt-focus-ring" onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "none" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "0 4px 12px rgba(76,199,116,0.45)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
                         {done && (
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ animation: pop ? "checkPop 0.8s cubic-bezier(0.34,1.56,0.64,1) both" : "none" }}>
                             <path d="M4 10.5L8.5 15L16 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
                       </button>
+                      <div
+                        aria-hidden="true"
+                        style={{
+                          width: 40,
+                          height: 40,
+                          flexShrink: 0,
+                          borderRadius: 13,
+                          background: done ? C.white : C.gl,
+                          border: "1.5px solid " + (done ? C.gm : C.border),
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 20,
+                          lineHeight: 1,
+                          boxShadow: done ? "0 1px 4px rgba(45,59,46,0.06)" : "none",
+                        }}
+                      >
+                        {habit.emoji}
+                      </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: done ? C.gd : C.text, display: "flex", alignItems: "center", gap: 5 }}>
-                          <span>{habit.emoji}</span>
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{habit.name}</span>
-                        </div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: done ? C.gd : C.text, letterSpacing: 0.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{habit.name}</div>
                         <div style={{ marginTop: 7 }}>
                           <div style={{ display: "flex", gap: 2, marginBottom: 2 }}>
                             {wd.map(function (d, i) {
@@ -4882,7 +5049,7 @@ export default function App() {
                                 dn = !!(comp[habit.id] && comp[habit.id][k]),
                                 fut = k > tk,
                                 ist = k === tk;
-                              var bg = !sc ? C.border : dn ? C.green : ist ? C.gm : fut ? C.border : "#F2C4C4";
+                              var bg = !sc ? C.border : dn ? C.green : ist ? C.gm : fut ? C.border : C.redT + "AA";
                               return <div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: bg, opacity: !sc ? 0.3 : 1, transition: "background 0.4s" }} />;
                             })}
                           </div>
@@ -4909,8 +5076,10 @@ export default function App() {
                 })}
               </div>
               {selDoneC === selH.length && selH.length > 0 && (
-                <div style={{ margin: "16px 14px 0", background: "linear-gradient(135deg," + C.green + "," + C.gd + ")", borderRadius: 18, padding: "14px 18px", textAlign: "center" }}>
-                  <div style={{ fontSize: 20, marginBottom: 3 }}>{"\uD83C\uDF31"}</div>
+                <div style={{ margin: "16px 14px 0", background: "linear-gradient(135deg," + C.green + "," + C.gd + ")", borderRadius: 18, padding: "16px 18px", textAlign: "center" }}>
+                  <div style={{ marginBottom: 6, display: "flex", justifyContent: "center", lineHeight: 0 }} aria-hidden="true">
+                    <IconSprout size={34} color={C.white} />
+                  </div>
                   <div style={{ fontSize: 14, color: C.white, fontFamily: "'DM Serif Display',serif", lineHeight: 1.4 }}>
                     All done for {selIsToday ? "today" : selDate.toLocaleDateString("en-US", { weekday: "long" })}.
                   </div>
@@ -4951,8 +5120,11 @@ export default function App() {
           {!tabsExp ? (
             (function () {
               var curTab = TABS.find(function (t) { return t.id === tab; }) || TABS[0];
+              var CurI = curTab.Icon;
               return (
                 <button
+                  type="button"
+                  className="gt-focus-ring"
                   onClick={() => setTabsExp(true)}
                   style={{
                     pointerEvents: "auto",
@@ -4973,7 +5145,7 @@ export default function App() {
                   }}
                   aria-label="Open tab switcher"
                 >
-                  <curTab.Icon color={C.white} />
+                  <CurI color={C.white} />
                   <span>{curTab.label}</span>
                 </button>
               );
@@ -5017,11 +5189,20 @@ export default function App() {
               <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 18 }}>New Habit</div>
               {gym && newEmoji === "\uD83D\uDCAA" && <div style={{ background: C.red, borderRadius: 9, padding: "7px 11px", marginBottom: 10, fontSize: 12, color: C.redT, fontWeight: 600 }}>You already have a gym habit.</div>}
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>Icon</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <div id="habit-icon-label" style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Icon
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }} aria-labelledby="habit-icon-label">
                   {newEmojiPick.map(function (e) {
                     return (
-                      <button key={e} type="button" onClick={() => setNewEmoji(e)} style={{ width: 40, height: 40, borderRadius: 11, fontSize: 19, background: newEmoji === e ? C.gl : C.white, border: "2px solid " + (newEmoji === e ? C.green : C.border), cursor: "pointer", opacity: e === "\uD83D\uDCAA" && gym ? 0.4 : 1 }}>
+                      <button
+                        key={e}
+                        type="button"
+                        className="gt-focus-ring"
+                        onClick={() => setNewEmoji(e)}
+                        aria-label={"Icon " + e}
+                        style={{ width: 40, height: 40, borderRadius: 11, fontSize: 19, background: newEmoji === e ? C.gl : C.white, border: "2px solid " + (newEmoji === e ? C.green : C.border), cursor: "pointer", opacity: e === "\uD83D\uDCAA" && gym ? 0.4 : 1 }}
+                      >
                         {e}
                       </button>
                     );
@@ -5029,16 +5210,29 @@ export default function App() {
                 </div>
               </div>
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>Name</div>
-                <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addHabit(); }} placeholder="e.g. Journal for 5 minutes" style={{ width: "100%", padding: "12px 13px", border: "1.5px solid " + C.border, borderRadius: 12, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.white, outline: "none" }} />
+                <label htmlFor="habit-new-name" style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 7, display: "block", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Name
+                </label>
+                <input
+                  id="habit-new-name"
+                  autoComplete="off"
+                  value={newName}
+                  className="gt-input"
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") addHabit(); }}
+                  placeholder="e.g. Journal for 5 minutes"
+                  style={{ width: "100%", padding: "12px 13px", border: "1.5px solid " + C.border, borderRadius: 12, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.white, outline: "none", boxSizing: "border-box" }}
+                />
               </div>
               <div style={{ marginBottom: 22 }}>
-                <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>Schedule</div>
-                <div style={{ display: "flex", gap: 4 }}>
+                <div id="habit-schedule-label" style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Schedule
+                </div>
+                <div style={{ display: "flex", gap: 4 }} role="group" aria-labelledby="habit-schedule-label">
                   {DL.map(function (label, i) {
                     var a = newDays.includes(i);
                     return (
-                      <button key={i} type="button" onClick={() => togNewDay(i)} style={{ flex: 1, height: 36, borderRadius: 9, background: a ? C.green : C.white, border: "1.5px solid " + (a ? C.green : C.border), color: a ? C.white : C.muted, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                      <button key={i} type="button" className="gt-focus-ring" onClick={() => togNewDay(i)} aria-pressed={a} style={{ flex: 1, height: 36, borderRadius: 9, background: a ? C.green : C.white, border: "1.5px solid " + (a ? C.green : C.border), color: a ? C.white : C.muted, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                         {label}
                       </button>
                     );
@@ -5048,10 +5242,10 @@ export default function App() {
                   {newDays.length === 7 ? "Every day" : newDays.length === 0 ? "Pick at least one day" : newDays.map(function (d) { return DL[d]; }).join(", ")}
                 </div>
               </div>
-              <button onClick={addHabit} style={{ width: "100%", padding: "14px", borderRadius: 16, background: newName.trim() && newDays.length && !(newEmoji === "\uD83D\uDCAA" && gym) ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border, border: "none", color: newName.trim() && newDays.length && !(newEmoji === "\uD83D\uDCAA" && gym) ? C.white : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
+              <button type="button" className="gt-focus-ring" onClick={addHabit} style={{ width: "100%", padding: "14px", borderRadius: 16, background: newName.trim() && newDays.length && !(newEmoji === "\uD83D\uDCAA" && gym) ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border, border: "none", color: newName.trim() && newDays.length && !(newEmoji === "\uD83D\uDCAA" && gym) ? C.white : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
                 Add Habit
               </button>
-              <button onClick={() => setShowAdd(false)} style={{ width: "100%", padding: "11px", borderRadius: 16, background: "none", border: "none", color: C.muted, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+              <button type="button" className="gt-focus-ring" onClick={() => setShowAdd(false)} style={{ width: "100%", padding: "11px", borderRadius: 16, background: "none", border: "none", color: C.muted, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                 Cancel
               </button>
             </div>
