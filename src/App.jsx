@@ -1,6 +1,33 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase, supaReady } from "./supabase.js";
 import * as D from "./data.js";
+import {
+  IToday,
+  ICal,
+  IGainz,
+  ICycles,
+  ISettings,
+  ISleep,
+  IFlame,
+  ICoach,
+  IconKpiSleep,
+  IconKpiWorkout,
+  IconKpiHabit,
+  IconKpiStar,
+  IconSprout,
+  IconDumbbellMark,
+  CalDayDoneCheck,
+  IconChevronCal,
+  HabitIcon,
+  ICON_GYM,
+  HABIT_ICON_ORDER,
+  IconUiScale,
+  IconUiChartTrend,
+  IconUiBowl,
+  IconUiSparkles,
+  IconUiAlert,
+  IconUiEye,
+} from "./icons.jsx";
 
 var C = {
   bg: "#FAF9F6",
@@ -112,7 +139,7 @@ var HABITS = [];
 var CYCLES = [];
 var COMP = {};
 var LOGS = {};
-var DEFAULT_GYM_HABIT = { id: 3, name: "Gym", emoji: "\uD83D\uDCAA", scheduledDays: [1, 2, 3, 4, 5] };
+var DEFAULT_GYM_HABIT = { id: 3, name: "Gym", icon: ICON_GYM, scheduledDays: [1, 2, 3, 4, 5] };
 
 function aRipple(ctx, cx, cy, f) {
   var rings = [
@@ -297,179 +324,6 @@ function AnimCanvas(props) {
       height={900}
       style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none", zIndex: 50 }}
     />
-  );
-}
-
-function IToday(props) {
-  var c = props.color || C.muted;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9" />
-      <circle cx="12" cy="12" r="2" fill={c} stroke="none" />
-      <line x1="12" y1="3" x2="12" y2="6" />
-      <line x1="12" y1="18" x2="12" y2="21" />
-      <line x1="3" y1="12" x2="6" y2="12" />
-      <line x1="18" y1="12" x2="21" y2="12" />
-    </svg>
-  );
-}
-function ICal(props) {
-  var c = props.color || C.muted;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="17" rx="3" />
-      <line x1="3" y1="9" x2="21" y2="9" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <rect x="7" y="13" width="3" height="3" rx="0.5" fill={c} stroke="none" />
-      <rect x="14" y="13" width="3" height="3" rx="0.5" fill={c} stroke="none" />
-    </svg>
-  );
-}
-function IGainz(props) {
-  var c = props.color || C.muted;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="10" width="2.5" height="4" rx="1" />
-      <rect x="4.5" y="8" width="2" height="8" rx="1" />
-      <line x1="6.5" y1="12" x2="17.5" y2="12" />
-      <rect x="17.5" y="8" width="2" height="8" rx="1" />
-      <rect x="19.5" y="10" width="2.5" height="4" rx="1" />
-    </svg>
-  );
-}
-function ICycles(props) {
-  var c = props.color || C.muted;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3,17 9,11 13,15 21,7" />
-      <polyline points="16,7 21,7 21,12" />
-    </svg>
-  );
-}
-function ISettings(props) {
-  var c = props.color || C.muted;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-    </svg>
-  );
-}
-function ISleep(props) {
-  var c = props.color || C.muted;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20.5 14.2A8 8 0 0 1 9.8 3.5a8 8 0 1 0 10.7 10.7z" />
-      <path d="M15 4h4l-4 4h4" />
-    </svg>
-  );
-}
-function IFlame(props) {
-  var c = props.color || C.muted;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2.5c1.2 2.4 3.2 3.6 4.4 5.6 1.6 2.6 1.7 5.9-.4 8.3a6.5 6.5 0 0 1-9.8-.2c-1.9-2.3-1.8-5.4-.1-7.7 1-1.4 2.2-2 2.7-3.2.5 1.6 1.6 2.5 2.7 2.8.4-2 0-3.7.5-5.6z" />
-      <path d="M12 20a3 3 0 0 0 3-3c0-1.2-.8-1.9-1.6-2.6-.6-.5-1-1-1.4-1.9-.3.9-.7 1.4-1.4 1.9C9.8 15.1 9 15.8 9 17a3 3 0 0 0 3 3z" />
-    </svg>
-  );
-}
-function ICoach(props) {
-  var c = props.color || C.muted;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 21l2.1-5.3A8.5 8.5 0 1 1 21 11.5z" />
-      <path d="M8.5 11.2l1.4 1.4 1.4-1.4M13.7 11.2l1.4 1.4 1.4-1.4" />
-    </svg>
-  );
-}
-
-function IconKpiSleep(props) {
-  var c = props.color || C.muted,
-    s = props.size || 18;
-  return (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M20.5 14.2A8 8 0 0 1 9.8 3.5a8 8 0 1 0 10.7 10.7z" />
-      <path d="M15 4h4l-4 4h4" />
-    </svg>
-  );
-}
-
-function IconKpiWorkout(props) {
-  var c = props.color || C.muted,
-    s = props.size || 18;
-  return (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M6 13V9a3 3 0 016 0v4M18 13V9a3 3 0 016 0v4" />
-      <path d="M3 11h18" />
-      <path d="M3 17h18" strokeWidth="2" />
-    </svg>
-  );
-}
-
-function IconKpiHabit(props) {
-  var c = props.color || C.muted,
-    s = props.size || 18;
-  return (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="8.2" />
-      <path d="M8.5 12.2l2.5 2.5 6-7" />
-    </svg>
-  );
-}
-
-function IconKpiStar(props) {
-  var c = props.color || C.muted,
-    s = props.size || 18;
-  return (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.55" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 2.5l2.4 7.2h7.7l-6.2 4.7 2.4 7.1L12 16.6l-6.3 4.9 2.4-7.1-6.2-4.7h7.7z" />
-    </svg>
-  );
-}
-
-function IconSprout(props) {
-  var c = props.color || C.green,
-    s = props.size || 44;
-  return (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 22V13" />
-      <path d="M12 13c3-8 11-11 11-11s-3 8-11 12" />
-      <path d="M12 13C9 5 1 2 1 2s3 8 11 11" />
-    </svg>
-  );
-}
-
-function IconDumbbellMark(props) {
-  var c = props.color || C.green,
-    s = props.size || 40;
-  return (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 12h14" />
-      <rect x="2" y="8" width="5" height="8" rx="1.5" />
-      <rect x="17" y="8" width="5" height="8" rx="1.5" />
-    </svg>
-  );
-}
-
-function CalDayDoneCheck(props) {
-  var c = props.color || C.white,
-    s = props.size || 11;
-  return (
-    <svg width={s} height={s} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M4 10l4 5 8-9" stroke={c} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function IconChevronCal(props) {
-  var c = props.color || C.green,
-    dir = props.dir === "right" ? "right" : "left",
-    sx = dir === "right" ? { transform: "scaleX(-1)" } : undefined;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={sx}>
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
   );
 }
 
@@ -792,7 +646,7 @@ function CalView(props) {
     tk = props.todayKey;
   var wl = props.wl || {},
     cycles = props.cycles || [];
-  var isGym = h.emoji === "\uD83D\uDCAA";
+  var isGym = h.icon === ICON_GYM;
   var dkS = useState(null);
   var detK = dkS[0],
     setDetK = dkS[1];
@@ -828,7 +682,9 @@ function CalView(props) {
         Back
       </button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0 14px" }}>
-        <span style={{ fontSize: 32 }}>{h.emoji}</span>
+        <span style={{ display: "flex", alignItems: "center" }}>
+          <HabitIcon id={h.icon} size={36} color={C.text} />
+        </span>
         <div>
           <div style={{ fontSize: 21, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{h.name}</div>
           <div style={{ fontSize: 12, color: C.muted }}>Tap days to toggle</div>
@@ -1058,26 +914,31 @@ function GainzTab(props) {
       {!gym && (
         <div style={{ margin: "0 16px", background: C.white, borderRadius: 14, padding: "18px", textAlign: "center", border: "1.5px solid " + C.border }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>No gym habit yet</div>
-          <div style={{ fontSize: 12, color: C.muted }}>Add a habit with the dumbbell (\u201CGym\u201D) icon to start tracking workouts.</div>
+          <div style={{ fontSize: 12, color: C.muted }}>Add a habit using the Gym (dumbbell) icon to start tracking workouts.</div>
         </div>
       )}
       {gym && (
         <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 10 }}>
             {[
-              { icon: "\uD83D\uDD25", val: gStr + " days", label: "Streak" },
-              { icon: "\uD83C\uDFCB", val: allK.length, label: "Sessions" },
+              { Icon: IFlame, val: gStr + " days", label: "Streak" },
+              { Icon: IconKpiWorkout, val: allK.length, label: "Sessions" },
             ].map(function (s, i) {
+              var GCardI = s.Icon;
               return (
                 <div key={i} style={{ flex: 1, background: C.white, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
-                  <div style={{ fontSize: 20 }}>{s.icon}</div>
+                  <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
+                    <GCardI size={20} color={C.green} />
+                  </div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginTop: 3 }}>{s.val}</div>
                   <div style={{ fontSize: 10, color: C.muted }}>{s.label}</div>
                 </div>
               );
             })}
             <div style={{ flex: 1, background: C.white, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
-              <div style={{ fontSize: 20 }}>{"\u2696"}</div>
+              <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
+                <IconUiScale size={20} color={C.green} />
+              </div>
               <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginTop: 3 }}>{latBw ? latBw + "lb" : "\u2013"}</div>
               {bwChg !== null && (
                 <div style={{ fontSize: 10, color: bwChg < 0 ? C.green : C.redT, fontWeight: 600 }}>
@@ -1296,7 +1157,9 @@ function CyclesTab(props) {
       <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}>
         {cycles.length === 0 && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px", background: C.white, borderRadius: 20, border: "1.5px dashed " + C.border }}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>{"\uD83D\uDCC8"}</div>
+            <div style={{ marginBottom: 10, display: "flex", justifyContent: "center", lineHeight: 0 }}>
+              <IconUiChartTrend size={40} color={C.green} />
+            </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 4 }}>No cycles yet</div>
             <div style={{ fontSize: 13, color: C.muted, textAlign: "center", marginBottom: 18 }}>Track bulk, cut, or recomp phases.</div>
             <button onClick={openNew} style={{ padding: "11px 24px", borderRadius: 99, background: "linear-gradient(135deg," + C.green + "," + C.gd + ")", border: "none", color: C.white, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
@@ -1439,27 +1302,27 @@ function SettingsTab(props) {
   var ed = edS[0],
     setEd = edS[1];
   var fnS = useState(""),
-    feS = useState("\u2B50"),
+    iconS = useState("star"),
     fdS = useState([0, 1, 2, 3, 4, 5, 6]);
   var fn = fnS[0],
     setFn = fnS[1],
-    fe = feS[0],
-    setFe = feS[1],
+    iconEdit = iconS[0],
+    setIconEdit = iconS[1],
     fd2 = fdS[0],
     setFd = fdS[1];
   function openEdit(h) {
     setEd(h.id);
     setFn(h.name);
-    setFe(h.emoji);
+    setIconEdit(h.icon);
     setFd(h.scheduledDays.slice());
   }
   function save() {
     if (!fn.trim() || !fd2.length) return;
     var idx = habits.findIndex(function (h) { return h.id === ed; });
-    var updated = Object.assign({}, habits[idx] || {}, { id: ed, name: fn.trim(), emoji: fe, scheduledDays: fd2 });
+    var updated = Object.assign({}, habits[idx] || {}, { id: ed, name: fn.trim(), icon: iconEdit, scheduledDays: fd2 });
     setHabits(function (p) {
       return p.map(function (h) {
-        return h.id === ed ? Object.assign({}, h, { name: fn.trim(), emoji: fe, scheduledDays: fd2 }) : h;
+        return h.id === ed ? Object.assign({}, h, { name: fn.trim(), icon: iconEdit, scheduledDays: fd2 }) : h;
       });
     });
     D.fireAndForget(D.upsertHabit(updated, idx < 0 ? 0 : idx), "editHabit");
@@ -1492,7 +1355,6 @@ function SettingsTab(props) {
       return n;
     });
   }
-  var emojiPick = ["\u2B50", "\uD83C\uDFC3", "\uD83D\uDCD6", "\uD83D\uDCA7", "\uD83E\uDDD8", "\uD83D\uDCAA", "\uD83C\uDFAF", "\uD83C\uDF31", "\u270D", "\uD83C\uDFB8", "\uD83E\uDDE0", "\uD83C\uDF05", "\uD83E\uDD57", "\uD83D\uDECC", "\uD83D\uDEB4"];
   return (
     <div style={{ paddingBottom: 16, position: "relative" }}>
       <div style={{ padding: "16px 24px 18px" }}>
@@ -1504,7 +1366,9 @@ function SettingsTab(props) {
         {habits.map(function (h, i) {
           return (
             <div key={h.id} style={{ background: C.white, borderRadius: 18, border: "1.5px solid " + C.border, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: C.gl, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{h.emoji}</div>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: C.gl, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <HabitIcon id={h.icon} size={24} color={C.green} />
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</div>
                 <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>
@@ -1536,10 +1400,10 @@ function SettingsTab(props) {
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Icon</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {emojiPick.map(function (em) {
+                {HABIT_ICON_ORDER.map(function (hid) {
                   return (
-                    <button key={em} type="button" onClick={() => setFe(em)} style={{ width: 40, height: 40, borderRadius: 11, fontSize: 19, background: fe === em ? C.gl : C.white, border: "2px solid " + (fe === em ? C.green : C.border), cursor: "pointer" }}>
-                      {em}
+                    <button key={hid} type="button" onClick={() => setIconEdit(hid)} style={{ width: 40, height: 40, borderRadius: 11, background: iconEdit === hid ? C.gl : C.white, border: "2px solid " + (iconEdit === hid ? C.green : C.border), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <HabitIcon id={hid} size={22} color={iconEdit === hid ? C.green : C.muted} />
                     </button>
                   );
                 })}
@@ -2778,7 +2642,9 @@ function CalorieTab() {
         {loading && <div style={{ padding: "18px 14px", fontSize: 13, color: C.muted, textAlign: "center" }}>Loading{"\u2026"}</div>}
         {!loading && entries.length === 0 && (
           <div style={{ padding: "28px 20px", background: C.white, borderRadius: 16, border: "1.5px dashed " + C.border, textAlign: "center" }}>
-            <div style={{ fontSize: 30, marginBottom: 8 }}>{"\uD83E\uDD57"}</div>
+            <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", lineHeight: 0 }}>
+              <IconUiBowl size={36} color={C.green} />
+            </div>
             <div style={{ fontSize: 13, color: C.muted }}>{emptyLbl}</div>
           </div>
         )}
@@ -3398,7 +3264,9 @@ function UnifiedCalendar(props) {
                   </div>
                 )}
                 {perfect && (
-                  <div style={{ position: "absolute", top: 0, right: 1, fontSize: 9, lineHeight: 1, pointerEvents: "none" }}>{"\u2B50"}</div>
+                  <div style={{ position: "absolute", top: 0, right: 1, lineHeight: 0, pointerEvents: "none" }}>
+                    <IconKpiStar size={11} color="#E5B53C" />
+                  </div>
                 )}
               </div>
             );
@@ -3528,7 +3396,8 @@ function DaySummarySheet(props) {
             <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{fmtDS(k)}</div>
             {perfect && (
               <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: "linear-gradient(135deg,#FFD27A,#E5B53C)", color: "#3D2F00", fontSize: 10, fontWeight: 700, letterSpacing: 0.3 }}>
-                {"\u2B50"} Perfect day
+                <IconKpiStar size={12} color="#3D2F00" />
+                <span>Perfect day</span>
               </div>
             )}
           </div>
@@ -3555,7 +3424,9 @@ function DaySummarySheet(props) {
         <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Sleep</div>
-            <span style={{ fontSize: 16 }}>{"\uD83D\uDE34"}</span>
+            <span style={{ display: "flex", lineHeight: 0 }}>
+              <IconKpiSleep size={20} color={C.green} />
+            </span>
           </div>
           {s && s.score != null ? (
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -3587,7 +3458,9 @@ function DaySummarySheet(props) {
         <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Workout</div>
-            <span style={{ fontSize: 16 }}>{"\uD83C\uDFCB"}</span>
+            <span style={{ display: "flex", lineHeight: 0 }}>
+              <IconKpiWorkout size={20} color={C.green} />
+            </span>
           </div>
           {l ? (
             <div>
@@ -3633,7 +3506,9 @@ function DaySummarySheet(props) {
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
               Habits {hd.total > 0 ? "(" + hd.done + "/" + hd.total + ")" : ""}
             </div>
-            <span style={{ fontSize: 16 }}>{"\u2705"}</span>
+            <span style={{ display: "flex", lineHeight: 0 }}>
+              <IconKpiHabit size={20} color={C.green} />
+            </span>
           </div>
           {sched.length === 0 ? (
             <div style={{ fontSize: 12, color: C.muted }}>No habits scheduled this day.</div>
@@ -3650,7 +3525,9 @@ function DaySummarySheet(props) {
                         </svg>
                       )}
                     </div>
-                    <span style={{ fontSize: 14 }}>{h.emoji}</span>
+                    <span style={{ display: "flex", alignItems: "center" }}>
+                      <HabitIcon id={h.icon} size={18} color={C.text} />
+                    </span>
                     <span style={{ fontSize: 13, color: done ? C.gd : C.text, fontWeight: done ? 700 : 500, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</span>
                   </div>
                 );
@@ -3662,7 +3539,9 @@ function DaySummarySheet(props) {
         <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", border: "1.5px solid " + C.border }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Calories</div>
-            <span style={{ fontSize: 16 }}>{"\uD83D\uDD25"}</span>
+            <span style={{ display: "flex", lineHeight: 0 }}>
+              <IFlame size={20} color={C.green} />
+            </span>
           </div>
           {!supaReady() ? (
             <div style={{ fontSize: 12, color: C.muted }}>Supabase not configured.</div>
@@ -3763,7 +3642,7 @@ function buildCoachContext(habits, comp, logs, sleep, cycles, calByDay) {
         if (comp[h.id] && comp[h.id][k]) done7++;
       }
     });
-    return { name: h.name, emoji: h.emoji, scheduled_days: h.scheduledDays, done_7d: done7, scheduled_7d: sched7 };
+    return { name: h.name, icon: h.icon, scheduled_days: h.scheduledDays, done_7d: done7, scheduled_7d: sched7 };
   });
 
   var activeCyc = cycleAt(cycles, tk);
@@ -4229,14 +4108,15 @@ function CoachTab(props) {
           {hl.items.map(function (c2, i) {
             var kindCol =
               c2.kind === "win"
-                ? { bg: "#E8F9EE", bd: "#A8E6BC", fg: "#2C7142", icon: "\u2728" }
+                ? { bg: "#E8F9EE", bd: "#A8E6BC", fg: "#2C7142" }
                 : c2.kind === "fix"
-                ? { bg: "#FCE9E9", bd: "#F2C4C4", fg: "#9A4040", icon: "\u26A0\uFE0F" }
-                : { bg: "#FFF5E1", bd: "#F2DDA8", fg: "#7A5A0F", icon: "\uD83D\uDC41\uFE0F" };
+                ? { bg: "#FCE9E9", bd: "#F2C4C4", fg: "#9A4040" }
+                : { bg: "#FFF5E1", bd: "#F2DDA8", fg: "#7A5A0F" };
+            var KindIco = c2.kind === "win" ? IconUiSparkles : c2.kind === "fix" ? IconUiAlert : IconUiEye;
             return (
               <div key={i} style={{ background: kindCol.bg, borderLeft: "3px solid " + kindCol.bd, borderRadius: 10, padding: "8px 12px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                  <span style={{ fontSize: 12 }}>{kindCol.icon}</span>
+                  <KindIco size={14} color={kindCol.fg} />
                   <span style={{ fontSize: 10, fontWeight: 700, color: kindCol.fg, textTransform: "uppercase", letterSpacing: 0.5 }}>{c2.kind}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{"\u00B7 " + c2.title}</span>
                 </div>
@@ -4449,9 +4329,9 @@ export default function App() {
   var h9 = useState("");
   var newName = h9[0],
     setNewName = h9[1];
-  var h10 = useState("\u2B50");
-  var newEmoji = h10[0],
-    setNewEmoji = h10[1];
+  var h10 = useState("star");
+  var newIconId = h10[0],
+    setNewIconId = h10[1];
   var h11 = useState([0, 1, 2, 3, 4, 5, 6]);
   var newDays = h11[0],
     setNewDays = h11[1];
@@ -4551,7 +4431,7 @@ export default function App() {
     setTabsExp(false);
   }
   var gym = habits.find(function (h) {
-    return h.emoji === "\uD83D\uDCAA";
+    return h.icon === ICON_GYM;
   });
 
   function isComp(id) {
@@ -4611,7 +4491,7 @@ export default function App() {
       var hab = habits.find(function (h) {
         return h.id === id;
       });
-      if (hab && hab.emoji === "\uD83D\uDCAA") {
+      if (hab && hab.icon === ICON_GYM) {
         var capturedDay = k;
         setTimeout(function () {
           setPendGym({ id: id, day: capturedDay });
@@ -4687,9 +4567,9 @@ export default function App() {
   }
   function addHabit() {
     if (!newName.trim() || !newDays.length) return;
-    if (newEmoji === "\uD83D\uDCAA" && gym) return;
+    if (newIconId === ICON_GYM && gym) return;
     var id = Date.now();
-    var newH = { id: id, name: newName.trim(), emoji: newEmoji, scheduledDays: newDays };
+    var newH = { id: id, name: newName.trim(), icon: newIconId, scheduledDays: newDays };
     var sortIdx = habits.length;
     setHabits(function (p) {
       return p.concat([newH]);
@@ -4701,7 +4581,7 @@ export default function App() {
     });
     D.fireAndForget(D.upsertHabit(newH, sortIdx), "addHabit");
     setNewName("");
-    setNewEmoji("\u2B50");
+    setNewIconId("star");
     setNewDays([0, 1, 2, 3, 4, 5, 6]);
     setShowAdd(false);
   }
@@ -4744,7 +4624,7 @@ export default function App() {
     { id: "calories", label: "Calories", Icon: IFlame },
     { id: "settings", label: "Settings", Icon: ISettings },
   ];
-  var newEmojiPick = ["\u2B50", "\uD83C\uDFC3", "\uD83D\uDCD6", "\uD83D\uDCA7", "\uD83E\uDDD8", "\uD83D\uDCAA", "\uD83C\uDFAF", "\uD83C\uDF31", "\u270D", "\uD83C\uDFB8", "\uD83E\uDDE0", "\uD83C\uDF05", "\uD83E\uDD57", "\uD83D\uDECC", "\uD83D\uDEB4"];
+
 
   if (!booted) {
     return (
@@ -5036,7 +4916,7 @@ export default function App() {
                           boxShadow: done ? "0 1px 4px rgba(45,59,46,0.06)" : "none",
                         }}
                       >
-                        {habit.emoji}
+                        <HabitIcon id={habit.icon} size={22} color={done ? C.gd : C.green} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 15, fontWeight: 700, color: done ? C.gd : C.text, letterSpacing: 0.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{habit.name}</div>
@@ -5187,23 +5067,34 @@ export default function App() {
             <div onClick={(e) => e.stopPropagation()} style={{ background: C.bg, borderRadius: "28px 28px 0 0", padding: "22px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
               <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 18px" }} />
               <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 18 }}>New Habit</div>
-              {gym && newEmoji === "\uD83D\uDCAA" && <div style={{ background: C.red, borderRadius: 9, padding: "7px 11px", marginBottom: 10, fontSize: 12, color: C.redT, fontWeight: 600 }}>You already have a gym habit.</div>}
+              {gym && newIconId === ICON_GYM && <div style={{ background: C.red, borderRadius: 9, padding: "7px 11px", marginBottom: 10, fontSize: 12, color: C.redT, fontWeight: 600 }}>You already have a gym habit.</div>}
               <div style={{ marginBottom: 16 }}>
                 <div id="habit-icon-label" style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Icon
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }} aria-labelledby="habit-icon-label">
-                  {newEmojiPick.map(function (e) {
+                  {HABIT_ICON_ORDER.map(function (hid) {
                     return (
                       <button
-                        key={e}
+                        key={hid}
                         type="button"
                         className="gt-focus-ring"
-                        onClick={() => setNewEmoji(e)}
-                        aria-label={"Icon " + e}
-                        style={{ width: 40, height: 40, borderRadius: 11, fontSize: 19, background: newEmoji === e ? C.gl : C.white, border: "2px solid " + (newEmoji === e ? C.green : C.border), cursor: "pointer", opacity: e === "\uD83D\uDCAA" && gym ? 0.4 : 1 }}
+                        onClick={() => setNewIconId(hid)}
+                        aria-label={"Icon " + hid}
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 11,
+                          background: newIconId === hid ? C.gl : C.white,
+                          border: "2px solid " + (newIconId === hid ? C.green : C.border),
+                          cursor: "pointer",
+                          opacity: hid === ICON_GYM && gym ? 0.4 : 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
                       >
-                        {e}
+                        <HabitIcon id={hid} size={22} color={newIconId === hid ? C.green : C.muted} />
                       </button>
                     );
                   })}
@@ -5242,7 +5133,7 @@ export default function App() {
                   {newDays.length === 7 ? "Every day" : newDays.length === 0 ? "Pick at least one day" : newDays.map(function (d) { return DL[d]; }).join(", ")}
                 </div>
               </div>
-              <button type="button" className="gt-focus-ring" onClick={addHabit} style={{ width: "100%", padding: "14px", borderRadius: 16, background: newName.trim() && newDays.length && !(newEmoji === "\uD83D\uDCAA" && gym) ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border, border: "none", color: newName.trim() && newDays.length && !(newEmoji === "\uD83D\uDCAA" && gym) ? C.white : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
+              <button type="button" className="gt-focus-ring" onClick={addHabit} style={{ width: "100%", padding: "14px", borderRadius: 16, background: newName.trim() && newDays.length && !(newIconId === ICON_GYM && gym) ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border, border: "none", color: newName.trim() && newDays.length && !(newIconId === ICON_GYM && gym) ? C.white : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
                 Add Habit
               </button>
               <button type="button" className="gt-focus-ring" onClick={() => setShowAdd(false)} style={{ width: "100%", padding: "11px", borderRadius: 16, background: "none", border: "none", color: C.muted, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>

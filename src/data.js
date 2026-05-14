@@ -1,4 +1,5 @@
 import { supabase, supaReady } from "./supabase.js";
+import { normalizeHabitIcon, toDbHabitIcon } from "./icons.jsx";
 
 // Row <-> client shape converters
 
@@ -6,7 +7,7 @@ function rowToHabit(r) {
   return {
     id: Number(r.id),
     name: r.name,
-    emoji: r.emoji,
+    icon: normalizeHabitIcon(r.emoji),
     scheduledDays: Array.isArray(r.scheduled_days) ? r.scheduled_days.map(Number) : [0, 1, 2, 3, 4, 5, 6],
     _sort: typeof r.sort_order === "number" ? r.sort_order : 0,
   };
@@ -16,7 +17,7 @@ function habitToRow(h, sortIndex) {
   return {
     id: h.id,
     name: h.name,
-    emoji: h.emoji,
+    emoji: toDbHabitIcon(h.icon),
     scheduled_days: h.scheduledDays,
     sort_order: typeof sortIndex === "number" ? sortIndex : h._sort || 0,
   };
