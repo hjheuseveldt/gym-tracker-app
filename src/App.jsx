@@ -4366,6 +4366,9 @@ export default function App() {
   var h4 = useState("home");
   var tab = h4[0],
     setTab = h4[1];
+  var h4b = useState(null);
+  var tabSwipeAnim = h4b[0],
+    setTabSwipeAnim = h4b[1];
   var h5 = useState(null);
   var selHabit = h5[0],
     setSelHabit = h5[1];
@@ -4496,7 +4499,12 @@ export default function App() {
   function isToday(k) {
     return k === tk;
   }
-  function switchTab(id) {
+  function switchTab(id, swipeDir) {
+    if (swipeDir === 1 || swipeDir === -1) {
+      setTabSwipeAnim(swipeDir);
+    } else {
+      setTabSwipeAnim(null);
+    }
     setTab(id);
     setSelHabit(null);
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
@@ -4548,7 +4556,7 @@ export default function App() {
         });
         if (idx < 0) return;
         var n = dx < 0 ? (idx + 1) % L : (idx - 1 + L) % L;
-        r.go(APP_NAV_TABS[n].id);
+        r.go(APP_NAV_TABS[n].id, dx < 0 ? 1 : -1);
       }
       function onCancel() {
         armed = false;
@@ -4760,7 +4768,7 @@ export default function App() {
     <div>
       <style>
         {
-          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 2px 10px rgba(45,59,46,0.06)}40%{box-shadow:0 0 0 4px rgba(76,199,116,0.25)}100%{box-shadow:0 2px 16px rgba(76,199,116,0.18)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
+          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes gtTabInFromRight{from{opacity:0.86;transform:translate3d(22px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}@keyframes gtTabInFromLeft{from{opacity:0.86;transform:translate3d(-22px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}@keyframes cardGlow{0%{box-shadow:0 2px 10px rgba(45,59,46,0.06)}40%{box-shadow:0 0 0 4px rgba(76,199,116,0.25)}100%{box-shadow:0 2px 16px rgba(76,199,116,0.18)}}@media (prefers-reduced-motion:reduce){.gt-tab-swipe-pane{animation:none!important}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
         }
       </style>
       <div
@@ -4828,6 +4836,19 @@ export default function App() {
           </div>
         )}
         <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", position: "relative", zIndex: 1 }}>
+          <div
+            key={tab}
+            className="gt-tab-swipe-pane"
+            style={{
+              minHeight: "100%",
+              animation:
+                tabSwipeAnim === 1
+                  ? "gtTabInFromRight 0.36s cubic-bezier(0.22, 1, 0.36, 1) both"
+                  : tabSwipeAnim === -1
+                  ? "gtTabInFromLeft 0.355s cubic-bezier(0.22, 1, 0.36, 1) both"
+                  : undefined,
+            }}
+          >
           {tab === "home" && !selHabit && (
             <div style={{ paddingBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 12px 4px" }}>
@@ -5093,6 +5114,7 @@ export default function App() {
           {tab === "sleep" && <SleepTab sleep={sleep} setSleep={setSleep} />}
           {tab === "calories" && <CalorieTab portalRoot={phoneRef} />}
           {tab === "settings" && <SettingsTab habits={habits} setHabits={setHabits} />}
+          </div>
         </div>
         <div aria-hidden style={{ height: 80, flexShrink: 0, background: C.bg }} />
         {tabsExp && (
