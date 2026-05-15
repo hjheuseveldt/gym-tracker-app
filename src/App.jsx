@@ -4843,9 +4843,9 @@ export default function App() {
               minHeight: "100%",
               animation:
                 tabSwipeAnim === 1
-                  ? "gtTabInFromRight 0.46s cubic-bezier(0.22, 1, 0.36, 1) both"
+                  ? "gtTabInFromRight 0.75s cubic-bezier(0.22, 1, 0.36, 1) both"
                   : tabSwipeAnim === -1
-                  ? "gtTabInFromLeft 0.46s cubic-bezier(0.22, 1, 0.36, 1) both"
+                  ? "gtTabInFromLeft 0.75s cubic-bezier(0.22, 1, 0.36, 1) both"
                   : undefined,
             }}
           >
