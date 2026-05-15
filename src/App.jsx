@@ -2759,7 +2759,7 @@ function TabPicker(props) {
   var onSelect = props.onSelect;
   var onCenterChange = props.onCenterChange;
   var onSettle = props.onSettle;
-  var settleMs = props.settleMs || 500;
+  var settleMs = props.settleMs != null ? props.settleMs : 100;
   var REPEAT = 5;
   var L = tabs.length;
   var midBlock = Math.floor(REPEAT / 2);
@@ -2880,9 +2880,19 @@ function TabPicker(props) {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
       settleTimerRef.current = setTimeout(fireSettle, settleMs);
     }
+    function onScrollEnd() {
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = null;
+      requestAnimationFrame(function () {
+        recompute();
+        fireSettle();
+      });
+    }
     c.addEventListener("scroll", onScroll, { passive: true });
+    c.addEventListener("scrollend", onScrollEnd, { passive: true });
     return function () {
       c.removeEventListener("scroll", onScroll);
+      c.removeEventListener("scrollend", onScrollEnd);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (teleTimerRef.current) clearTimeout(teleTimerRef.current);
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
@@ -2937,7 +2947,7 @@ function TabPicker(props) {
               gap: 6,
               borderRadius: 18,
               opacity: opacity,
-              transition: "background 0.18s ease, opacity 0.12s ease",
+              transition: "background 0.1s ease, opacity 0.1s ease",
               fontFamily: "'DM Sans',sans-serif",
             }}
           >
