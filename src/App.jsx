@@ -1310,6 +1310,10 @@ function CyclesTab(props) {
 function SettingsTab(props) {
   var habits = props.habits,
     setHabits = props.setHabits;
+  var animT = props.animT,
+    setAnimT = props.setAnimT;
+  var showAP = props.showAP,
+    setShowAP = props.setShowAP;
   var edS = useState(null);
   var ed = edS[0],
     setEd = edS[1];
@@ -1372,6 +1376,56 @@ function SettingsTab(props) {
       <div style={{ padding: "16px 24px 18px" }}>
         <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Settings</div>
         <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>My Habits</div>
+      </div>
+      <div style={{ padding: "0 16px 14px" }}>
+        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 7 }}>Habit check-off animation</div>
+        <button
+          onClick={() => setShowAP((p) => !p)}
+          type="button"
+          className="gt-focus-ring tb"
+          style={{ width: "100%", padding: "8px 12px", background: C.white, border: "1.5px solid " + C.border, borderRadius: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.muted }}
+        >
+          <span>
+            Animation: <strong style={{ color: C.green }}>{AN[animT - 1]}</strong>
+          </span>
+          <span>{showAP ? "^" : "v"}</span>
+        </button>
+        {showAP && (
+          <div style={{ marginTop: 5, background: C.white, borderRadius: 12, border: "1.5px solid " + C.border, overflow: "hidden" }}>
+            {AN.map(function (name, i) {
+              return (
+                <button
+                  type="button"
+                  className="gt-focus-ring"
+                  key={i}
+                  onClick={function () {
+                    setAnimT(i + 1);
+                    setShowAP(false);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: animT === i + 1 ? C.gl : "transparent",
+                    border: "none",
+                    borderBottom: i < AN.length - 1 ? "1px solid " + C.border : "none",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontSize: 13,
+                    color: animT === i + 1 ? C.gd : C.text,
+                    fontWeight: animT === i + 1 ? 700 : 400,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 7,
+                  }}
+                >
+                  {animT === i + 1 && <span style={{ color: C.green }}>v</span>}
+                  {name}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
       <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}>
         {habits.length === 0 && <div style={{ textAlign: "center", padding: "36px 20px", color: C.muted, fontSize: 13 }}>No habits yet.</div>}
@@ -3018,6 +3072,23 @@ function isPerfectDay(habits, comp, sleep, k, tk) {
   if (hd.total === 0) return false;
   return hd.done === hd.total;
 }
+function gymStreakScheduled(gym, comp, todayKey) {
+  if (!gym) return null;
+  var done = comp[gym.id] || {};
+  var anchor = new Date(todayKey + "T12:00:00");
+  if (isNaN(anchor.getTime())) return null;
+  var str = 0;
+  for (var i = 0; i < 800; i++) {
+    var d = new Date(anchor);
+    d.setDate(anchor.getDate() - i);
+    var k = dk(d);
+    if (k > todayKey) continue;
+    if (!gym.scheduledDays.includes(d.getDay())) continue;
+    if (done[k]) str++;
+    else if (i > 0) break;
+  }
+  return str;
+}
 function cellColorForLayer(layer, k, ctx) {
   if (layer === "sleep") {
     var s = ctx.sleep[k];
@@ -3034,16 +3105,6 @@ function cellColorForLayer(layer, k, ctx) {
     if (sets >= 12) return "rgba(108,217,148,0.50)";
     if (sets >= 6) return "rgba(168,230,188,0.65)";
     return "rgba(232,249,238,0.95)";
-  }
-  if (layer === "habits") {
-    var hd = habitsDoneOn(ctx.habits, ctx.comp, k);
-    if (hd.total === 0) return null;
-    var p = hd.pct;
-    if (p === 1) return "rgba(76,199,116,0.62)";
-    if (p >= 0.66) return "rgba(108,217,148,0.46)";
-    if (p >= 0.33) return "rgba(168,230,188,0.55)";
-    if (p > 0) return "rgba(232,249,238,0.95)";
-    return null;
   }
   return null;
 }
@@ -3063,7 +3124,6 @@ function cycleTintFor(cycles, k) {
 var LAYER_LEGENDS = {
   sleep: ["rgba(224,80,80,0.32)", "rgba(229,181,60,0.38)", "rgba(108,217,148,0.44)", "rgba(76,199,116,0.58)"],
   workouts: ["rgba(232,249,238,0.95)", "rgba(168,230,188,0.65)", "rgba(108,217,148,0.50)", "rgba(76,199,116,0.66)"],
-  habits: ["rgba(232,249,238,0.95)", "rgba(168,230,188,0.55)", "rgba(108,217,148,0.46)", "rgba(76,199,116,0.62)"],
 };
 
 function UnifiedCalendar(props) {
@@ -3078,6 +3138,12 @@ function UnifiedCalendar(props) {
   var layS = useState("sleep");
   var layer = layS[0],
     setLayer = layS[1];
+  useEffect(
+    function () {
+      if (layer === "habits") setLayer("sleep");
+    },
+    [layer]
+  );
   var dS = useState(null);
   var selDay = dS[0],
     setSelDay = dS[1];
@@ -3117,20 +3183,16 @@ function UnifiedCalendar(props) {
         }, 0) / sleepScores.length
       )
     : null;
-  var habitPctSum = 0,
-    habitPctDays = 0,
-    perfectCount = 0;
+  var perfectCount = 0;
   for (var di = 1; di <= days; di++) {
     var dKey = ck(di);
     if (dKey > tk) break;
-    var hd0 = habitsDoneOn(habits, comp, dKey);
-    if (hd0.total > 0) {
-      habitPctSum += hd0.pct;
-      habitPctDays++;
-    }
     if (isPerfectDay(habits, comp, sleep, dKey, tk)) perfectCount++;
   }
-  var habitPct = habitPctDays ? Math.round((habitPctSum / habitPctDays) * 100) : null;
+  var gymHabit = habits.find(function (h) {
+    return h.icon === ICON_GYM;
+  });
+  var gymStreak = gymStreakScheduled(gymHabit, comp, tk);
 
   function changeMonth(dir) {
     var m = cm + dir,
@@ -3149,13 +3211,12 @@ function UnifiedCalendar(props) {
   var layerPills = [
     { id: "sleep", label: "Sleep", Icon: IconKpiSleep },
     { id: "workouts", label: "Workouts", Icon: IconKpiWorkout },
-    { id: "habits", label: "Habits", Icon: IconKpiHabit },
   ];
 
   var kpis = [
     { val: monthWorkouts, label: "Workouts", Icon: IconKpiWorkout },
     { val: avgSleep != null ? avgSleep : "\u2013", label: "Avg sleep", Icon: IconKpiSleep },
-    { val: habitPct != null ? habitPct + "%" : "\u2013", label: "Habits", Icon: IconKpiHabit },
+    { val: gymStreak != null ? gymStreak : "\u2013", label: "Gym streak", Icon: IconDumbbellMark },
     { val: perfectCount, label: "Perfect", Icon: IconKpiStar },
   ];
 
@@ -3303,8 +3364,6 @@ function UnifiedCalendar(props) {
             var perfect = !isFut && isPerfectDay(habits, comp, sleep, k, tk);
             var hasWk = !!wl[k];
             var hasSl = !!(sleep[k] && sleep[k].score != null);
-            var hdInner = habitsDoneOn(habits, comp, k);
-            var hasHa = hdInner.total > 0 && hdInner.done > 0;
             var ringBorder = isT
               ? "2px solid " + C.green
               : perfect
@@ -3344,11 +3403,10 @@ function UnifiedCalendar(props) {
                 >
                   <span style={{ fontSize: 12, fontWeight: isT ? 700 : 500, color: C.text }}>{day}</span>
                 </div>
-                {!isFut && (hasWk || hasSl || hasHa) && (
+                {!isFut && (hasWk || hasSl) && (
                   <div style={{ position: "absolute", bottom: 2, left: 0, right: 0, display: "flex", gap: 2, justifyContent: "center", pointerEvents: "none" }}>
                     {hasWk && <div style={{ width: 3, height: 3, borderRadius: "50%", background: "#4FA8E0" }} />}
                     {hasSl && <div style={{ width: 3, height: 3, borderRadius: "50%", background: "#9060E0" }} />}
-                    {hasHa && <div style={{ width: 3, height: 3, borderRadius: "50%", background: C.green }} />}
                   </div>
                 )}
                 {perfect && (
@@ -3371,15 +3429,11 @@ function UnifiedCalendar(props) {
           <div style={{ display: "flex", gap: 7 }}>
             <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
               <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#4FA8E0" }} />
-              wk
+              gym
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
               <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#9060E0" }} />
               sleep
-            </span>
-            <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-              <div style={{ width: 5, height: 5, borderRadius: "50%", background: C.green }} />
-              habits
             </span>
           </div>
         </div>
@@ -5045,52 +5099,6 @@ export default function App() {
                   </div>
                 </div>
               )}
-              {habits.length > 0 && (
-                <div style={{ padding: "0 14px 12px" }}>
-                  <button onClick={() => setShowAP((p) => !p)} type="button" className="gt-focus-ring tb" style={{ width: "100%", padding: "8px 12px", background: C.white, border: "1.5px solid " + C.border, borderRadius: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.muted }}>
-                    <span>
-                      Animation: <strong style={{ color: C.green }}>{AN[animT - 1]}</strong>
-                    </span>
-                    <span>{showAP ? "^" : "v"}</span>
-                  </button>
-                  {showAP && (
-                    <div style={{ marginTop: 5, background: C.white, borderRadius: 12, border: "1.5px solid " + C.border, overflow: "hidden" }}>
-                      {AN.map(function (name, i) {
-                        return (
-                          <button
-                            type="button"
-                            className="gt-focus-ring"
-                            key={i}
-                            onClick={function () {
-                              setAnimT(i + 1);
-                              setShowAP(false);
-                            }}
-                            style={{
-                              width: "100%",
-                              padding: "10px 14px",
-                              background: animT === i + 1 ? C.gl : "transparent",
-                              border: "none",
-                              borderBottom: i < 4 ? "1px solid " + C.border : "none",
-                              cursor: "pointer",
-                              textAlign: "left",
-                              fontFamily: "'DM Sans',sans-serif",
-                              fontSize: 13,
-                              color: animT === i + 1 ? C.gd : C.text,
-                              fontWeight: animT === i + 1 ? 700 : 400,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 7,
-                            }}
-                          >
-                            {animT === i + 1 && <span style={{ color: C.green }}>v</span>}
-                            {name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
               {selH.length === 0 && habits.length === 0 && (
                 <div style={{ margin: "16px 14px 0", display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px", background: C.white, borderRadius: 22, border: "1.5px dashed " + C.border }}>
                   <div style={{ marginBottom: 14, display: "flex", justifyContent: "center", lineHeight: 0 }} aria-hidden="true">
@@ -5216,7 +5224,16 @@ export default function App() {
           {tab === "cycles" && <CyclesTab cycles={cycles} setCycles={setCycles} />}
           {tab === "sleep" && <SleepTab sleep={sleep} setSleep={setSleep} />}
           {tab === "calories" && <CalorieTab portalRoot={phoneRef} />}
-          {tab === "settings" && <SettingsTab habits={habits} setHabits={setHabits} />}
+          {tab === "settings" && (
+            <SettingsTab
+              habits={habits}
+              setHabits={setHabits}
+              animT={animT}
+              setAnimT={setAnimT}
+              showAP={showAP}
+              setShowAP={setShowAP}
+            />
+          )}
           </div>
         </div>
         <div aria-hidden style={{ height: 80, flexShrink: 0, background: C.bg }} />
