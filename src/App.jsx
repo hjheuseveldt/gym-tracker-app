@@ -30,6 +30,17 @@ import {
   IconUiEye,
 } from "./icons.jsx";
 
+var APP_NAV_TABS = [
+  { id: "home", label: "Today", Icon: IToday },
+  { id: "calendar", label: "Calendar", Icon: ICal },
+  { id: "coach", label: "Coach", Icon: ICoach },
+  { id: "gainz", label: "Gainz", Icon: IGainz },
+  { id: "cycles", label: "Cycles", Icon: ICycles },
+  { id: "sleep", label: "Sleep", Icon: ISleep },
+  { id: "calories", label: "Calories", Icon: IFlame },
+  { id: "settings", label: "Settings", Icon: ISettings },
+];
+
 var C = {
   bg: "#FAF9F6",
   green: "#4CC774",
@@ -2884,8 +2895,12 @@ function TabPicker(props) {
       className="tabstrip"
       style={{
         display: "flex",
+        alignItems: "center",
         gap: 6,
         overflowX: "auto",
+        overflowY: "hidden",
+        touchAction: "pan-x",
+        overscrollBehaviorX: "contain",
         scrollSnapType: "x mandatory",
         WebkitOverflowScrolling: "touch",
         padding: "0 103px",
@@ -2898,7 +2913,6 @@ function TabPicker(props) {
         var t = Math.min(1, dist);
         var isCenter = dist < 0.5;
         var opacity = isCenter ? 1 : Math.max(0.32, 1 - t * 0.65);
-        var scale = isCenter ? 1.06 : Math.max(0.94, 1 - t * 0.08);
         var TabIcon = item.tab.Icon;
         return (
           <button
@@ -2923,8 +2937,7 @@ function TabPicker(props) {
               gap: 6,
               borderRadius: 18,
               opacity: opacity,
-              transform: "scale(" + scale + ")",
-              transition: "background 0.18s ease, opacity 0.12s ease, transform 0.12s ease",
+              transition: "background 0.18s ease, opacity 0.12s ease",
               fontFamily: "'DM Sans',sans-serif",
             }}
           >
@@ -4414,7 +4427,8 @@ export default function App() {
     scrollRef = useRef(null),
     pendingTabRef = useRef(null),
     dayStripRef = useRef(null),
-    dateInputRef = useRef(null);
+    dateInputRef = useRef(null),
+    swipeNavRef = useRef({ tab: "home", blocked: false, go: function () {} });
 
   useEffect(function () {
     if (!supaReady()) {
@@ -4487,6 +4501,69 @@ export default function App() {
     setSelHabit(null);
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }
+
+  swipeNavRef.current.tab = tab;
+  swipeNavRef.current.blocked = !!(tabsExp || showAdd || pendGym);
+  swipeNavRef.current.go = switchTab;
+
+  useEffect(
+    function () {
+      if (!booted) return;
+      var el = scrollRef.current;
+      if (!el) return;
+      var sx = 0,
+        sy = 0,
+        st = 0,
+        armed = false;
+      function onStart(e) {
+        var r = swipeNavRef.current;
+        if (r.blocked) return;
+        var target = e.target;
+        if (target && target.closest) {
+          if (target.closest(".tabstrip, .summary-strip")) return;
+          if (target.closest("input, textarea, select, [data-no-tab-swipe]")) return;
+        }
+        var touch = e.touches[0];
+        if (!touch) return;
+        sx = touch.clientX;
+        sy = touch.clientY;
+        st = Date.now();
+        armed = true;
+      }
+      function onEnd(e) {
+        if (!armed) return;
+        armed = false;
+        var r = swipeNavRef.current;
+        if (r.blocked) return;
+        var touch = e.changedTouches[0];
+        if (!touch) return;
+        var dx = touch.clientX - sx;
+        var dy = touch.clientY - sy;
+        if (Date.now() - st > 850) return;
+        if (Math.abs(dx) < 64) return;
+        if (Math.abs(dx) < Math.abs(dy) * 1.25) return;
+        var L = APP_NAV_TABS.length;
+        var idx = APP_NAV_TABS.findIndex(function (x) {
+          return x.id === r.tab;
+        });
+        if (idx < 0) return;
+        var n = dx < 0 ? (idx + 1) % L : (idx - 1 + L) % L;
+        r.go(APP_NAV_TABS[n].id);
+      }
+      function onCancel() {
+        armed = false;
+      }
+      el.addEventListener("touchstart", onStart, { passive: true });
+      el.addEventListener("touchend", onEnd, { passive: true });
+      el.addEventListener("touchcancel", onCancel, { passive: true });
+      return function () {
+        el.removeEventListener("touchstart", onStart);
+        el.removeEventListener("touchend", onEnd);
+        el.removeEventListener("touchcancel", onCancel);
+      };
+    },
+    [booted]
+  );
 
   function toggleHabit(id, btn) {
     var k = selDay;
@@ -4653,17 +4730,6 @@ export default function App() {
     setSelDay(k);
     setSortRdy({});
   }
-  var TABS = [
-    { id: "home", label: "Today", Icon: IToday },
-    { id: "calendar", label: "Calendar", Icon: ICal },
-    { id: "coach", label: "Coach", Icon: ICoach },
-    { id: "gainz", label: "Gainz", Icon: IGainz },
-    { id: "cycles", label: "Cycles", Icon: ICycles },
-    { id: "sleep", label: "Sleep", Icon: ISleep },
-    { id: "calories", label: "Calories", Icon: IFlame },
-    { id: "settings", label: "Settings", Icon: ISettings },
-  ];
-
 
   if (!booted) {
     return (
@@ -5038,7 +5104,7 @@ export default function App() {
         <div style={{ position: "absolute", bottom: 18, left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 10, pointerEvents: "none" }}>
           {!tabsExp ? (
             (function () {
-              var curTab = TABS.find(function (t) { return t.id === tab; }) || TABS[0];
+              var curTab = APP_NAV_TABS.find(function (t) { return t.id === tab; }) || APP_NAV_TABS[0];
               var CurI = curTab.Icon;
               return (
                 <button
@@ -5084,7 +5150,7 @@ export default function App() {
               }}
             >
               <TabPicker
-                tabs={TABS}
+                tabs={APP_NAV_TABS}
                 activeId={tab}
                 onCenterChange={function (id) {
                   pendingTabRef.current = id;
