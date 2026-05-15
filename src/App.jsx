@@ -4543,8 +4543,21 @@ export default function App() {
     }
     setTab(id);
     setSelHabit(null);
-    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+      scrollRef.current.scrollLeft = 0;
+    }
   }
+
+  useLayoutEffect(
+    function () {
+      if (!booted) return;
+      var el = scrollRef.current;
+      if (!el) return;
+      el.scrollLeft = 0;
+    },
+    [booted, tab]
+  );
 
   swipeNavRef.current.tab = tab;
   swipeNavRef.current.blocked = !!(tabsExp || showAdd || pendGym);
@@ -4559,6 +4572,9 @@ export default function App() {
         sy = 0,
         st = 0,
         armed = false;
+      var axisLock = 0;
+      var AXIS_MIN = 14;
+      var AXIS_RATIO = 1.22;
       function onStart(e) {
         var r = swipeNavRef.current;
         if (r.blocked) return;
@@ -4573,12 +4589,39 @@ export default function App() {
         sy = touch.clientY;
         st = Date.now();
         armed = true;
+        axisLock = 0;
+      }
+      function onMove(e) {
+        if (!armed) return;
+        var r = swipeNavRef.current;
+        if (r.blocked) return;
+        var touch = e.touches[0];
+        if (!touch) return;
+        var dx = touch.clientX - sx;
+        var dy = touch.clientY - sy;
+        var adx = Math.abs(dx);
+        var ady = Math.abs(dy);
+        if (axisLock === 0 && Math.max(adx, ady) >= AXIS_MIN) {
+          if (adx > ady * AXIS_RATIO) {
+            axisLock = 1;
+          } else if (ady > adx * AXIS_RATIO) {
+            axisLock = 2;
+          }
+        }
+        if (axisLock === 1) {
+          e.preventDefault();
+          if (el.scrollLeft) el.scrollLeft = 0;
+        }
       }
       function onEnd(e) {
         if (!armed) return;
         armed = false;
+        var locked = axisLock;
+        axisLock = 0;
+        el.scrollLeft = 0;
         var r = swipeNavRef.current;
         if (r.blocked) return;
+        if (locked === 2) return;
         var touch = e.changedTouches[0];
         if (!touch) return;
         var dx = touch.clientX - sx;
@@ -4596,12 +4639,16 @@ export default function App() {
       }
       function onCancel() {
         armed = false;
+        axisLock = 0;
+        el.scrollLeft = 0;
       }
       el.addEventListener("touchstart", onStart, { passive: true });
+      el.addEventListener("touchmove", onMove, { passive: false });
       el.addEventListener("touchend", onEnd, { passive: true });
       el.addEventListener("touchcancel", onCancel, { passive: true });
       return function () {
         el.removeEventListener("touchstart", onStart);
+        el.removeEventListener("touchmove", onMove);
         el.removeEventListener("touchend", onEnd);
         el.removeEventListener("touchcancel", onCancel);
       };
@@ -4779,7 +4826,7 @@ export default function App() {
     return (
       <div>
         <style>{"body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes pulseDot{0%,100%{opacity:0.35;transform:scale(0.9)}50%{opacity:1;transform:scale(1.1)}}"}</style>
-        <div style={{ width: compact ? "100vw" : 390, height: compact ? "100dvh" : 844, background: C.bg, borderRadius: compact ? 0 : 48, overflow: "hidden", boxShadow: compact ? "none" : "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", color: C.text }}>
+        <div style={{ width: compact ? "100%" : 390, maxWidth: compact ? "100%" : undefined, height: compact ? "100dvh" : 844, background: C.bg, borderRadius: compact ? 0 : 48, overflow: "hidden", boxShadow: compact ? "none" : "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", color: C.text }}>
           <div style={{ marginBottom: 16, display: "flex", justifyContent: "center" }} aria-hidden="true">
             <IconDumbbellMark size={52} color={C.green} />
           </div>
@@ -4810,7 +4857,8 @@ export default function App() {
       <div
         ref={phoneRef}
         style={{
-          width: compact ? "100vw" : 390,
+          width: compact ? "100%" : 390,
+          maxWidth: compact ? "100%" : undefined,
           height: compact ? "100dvh" : 844,
           background: C.bg,
           borderRadius: compact ? 0 : 48,
@@ -4871,12 +4919,31 @@ export default function App() {
             </div>
           </div>
         )}
-        <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", position: "relative", zIndex: 1 }}>
+        <div
+          ref={scrollRef}
+          style={{
+            flex: 1,
+            minHeight: 0,
+            minWidth: 0,
+            width: "100%",
+            overflowX: "hidden",
+            overflowY: "auto",
+            overscrollBehaviorX: "none",
+            touchAction: "pan-y",
+            WebkitOverflowScrolling: "touch",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
           <div
             key={tab}
             className="gt-tab-swipe-pane"
             style={{
               minHeight: "100%",
+              minWidth: 0,
+              width: "100%",
+              maxWidth: "100%",
+              overflowX: "hidden",
               animation:
                 tabSwipeAnim === 1
                   ? "gtTabInFromRight 0.75s cubic-bezier(0.22, 1, 0.36, 1) both"
