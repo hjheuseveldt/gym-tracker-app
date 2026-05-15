@@ -2777,10 +2777,14 @@ function TabPicker(props) {
   var supressUntilRef = useRef(0);
   var lastLogicalRef = useRef(-1);
   var lastSettledRef = useRef(null);
+  var lastScrollPosRef = useRef(null);
 
   var cpS = useState(midBlock * L);
   var centerPos = cpS[0],
     setCenterPos = cpS[1];
+  var hiS = useState(midBlock * L);
+  var highlightPhysIdx = hiS[0],
+    setHighlightPhysIdx = hiS[1];
 
   function reportCenter(pos) {
     var rounded = ((Math.round(pos) % L) + L) % L;
@@ -2807,7 +2811,24 @@ function TabPicker(props) {
     var w = itemWRef.current || measureItemW();
     if (!w) return;
     var pos = (c.scrollLeft + c.clientWidth / 2 - firstCenter) / w;
+    var prev = lastScrollPosRef.current;
+    var dir = 0;
+    if (prev != null && Math.abs(pos - prev) > 0.008) {
+      dir = pos > prev ? 1 : -1;
+    }
+    lastScrollPosRef.current = pos;
+    var hi;
+    if (dir > 0) {
+      hi = Math.ceil(pos - 0.22);
+    } else if (dir < 0) {
+      hi = Math.floor(pos + 0.22);
+    } else {
+      hi = Math.round(pos);
+    }
+    if (hi < 0) hi = 0;
+    else if (hi >= totalLen) hi = totalLen - 1;
     setCenterPos(pos);
+    setHighlightPhysIdx(hi);
     reportCenter(pos);
   }
   function maybeTeleport() {
@@ -2843,6 +2864,8 @@ function TabPicker(props) {
         c.scrollLeft = btn.offsetLeft + btn.offsetWidth / 2 - c.clientWidth / 2;
       }
       setCenterPos(physIdx);
+      setHighlightPhysIdx(physIdx);
+      lastScrollPosRef.current = physIdx;
       lastLogicalRef.current = actIdx;
       lastSettledRef.current = tabs[actIdx].id;
     });
@@ -2869,14 +2892,17 @@ function TabPicker(props) {
       }
     }
     function onScroll() {
-      if (Date.now() < supressUntilRef.current) return;
-      if (rafRef.current) return;
-      rafRef.current = requestAnimationFrame(function () {
-        rafRef.current = null;
-        recompute();
-      });
-      if (teleTimerRef.current) clearTimeout(teleTimerRef.current);
-      teleTimerRef.current = setTimeout(maybeTeleport, 160);
+      var sup = Date.now() < supressUntilRef.current;
+      if (!rafRef.current) {
+        rafRef.current = requestAnimationFrame(function () {
+          rafRef.current = null;
+          recompute();
+        });
+      }
+      if (!sup) {
+        if (teleTimerRef.current) clearTimeout(teleTimerRef.current);
+        teleTimerRef.current = setTimeout(maybeTeleport, 160);
+      }
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
       settleTimerRef.current = setTimeout(fireSettle, settleMs);
     }
@@ -2921,7 +2947,7 @@ function TabPicker(props) {
       {looped.map(function (item, idx) {
         var dist = Math.abs(idx - centerPos);
         var t = Math.min(1, dist);
-        var isCenter = dist < 0.5;
+        var isCenter = idx === highlightPhysIdx;
         var opacity = isCenter ? 1 : Math.max(0.32, 1 - t * 0.65);
         var TabIcon = item.tab.Icon;
         return (
@@ -2947,7 +2973,7 @@ function TabPicker(props) {
               gap: 6,
               borderRadius: 18,
               opacity: opacity,
-              transition: "background 0.1s ease, opacity 0.1s ease",
+              transition: "opacity 0.08s ease",
               fontFamily: "'DM Sans',sans-serif",
             }}
           >
