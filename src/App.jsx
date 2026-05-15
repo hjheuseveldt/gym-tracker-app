@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { supabase, supaReady } from "./supabase.js";
 import * as D from "./data.js";
 import {
@@ -2045,53 +2046,89 @@ function parseFsDesc(desc) {
 
 function AddFoodSheet(props) {
   var food = props.food;
-  var p = parseFsDesc(food.food_description) || { serving: "serving", calories: 0, fat: null, carbs: null, protein: null };
+  var portalRootRef = props.portalRoot;
+  var hostS = useState(function () {
+    return portalRootRef && portalRootRef.current;
+  });
+  var portalHost = hostS[0],
+    setPortalHost = hostS[1];
+  useLayoutEffect(
+    function () {
+      var el = portalRootRef && portalRootRef.current;
+      setPortalHost(function (prev) {
+        var next = el || null;
+        return Object.is(prev, next) ? prev : next;
+      });
+    },
+    [portalRootRef, food && food.food_id]
+  );
   var qS = useState(1);
   var qty = qS[0],
     setQty = qS[1];
+  useEffect(
+    function () {
+      setQty(1);
+    },
+    [food && food.food_id]
+  );
   function bump(d) {
     var v = +(qty + d).toFixed(2);
     if (v < 0.25) v = 0.25;
     setQty(v);
   }
-  return (
+  if (!portalHost) return null;
+  var p = parseFsDesc(food.food_description) || { serving: "serving", calories: 0, fat: null, carbs: null, protein: null };
+  return createPortal(
     <div
       onClick={props.onCancel}
+      role="presentation"
       style={{
-        position: "fixed",
+        position: "absolute",
         inset: 0,
         background: "rgba(45,59,46,0.42)",
         display: "flex",
-        alignItems: "flex-end",
+        alignItems: "center",
         justifyContent: "center",
-        zIndex: 200,
+        paddingTop: "max(12px, env(safe-area-inset-top))",
+        paddingRight: "max(12px, env(safe-area-inset-right))",
+        paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+        paddingLeft: "max(12px, env(safe-area-inset-left))",
+        boxSizing: "border-box",
+        zIndex: 240,
         animation: "fadeIn 0.18s ease both",
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-food-sheet-title"
         onClick={function (e) { e.stopPropagation(); }}
         style={{
           background: C.bg,
           width: "100%",
-          maxWidth: 420,
-          borderRadius: "28px 28px 0 0",
-          padding: "18px 22px 32px",
+          maxWidth: "min(336px, 100%)",
+          borderRadius: 20,
+          padding: "16px 16px 18px",
           animation: "slideUp 0.24s cubic-bezier(0.34,1.56,0.64,1) both",
           fontFamily: "'DM Sans',sans-serif",
+          maxHeight: "calc(100% - 24px)",
+          overflowY: "auto",
+          boxShadow: "0 16px 36px rgba(45,59,46,0.18)",
+          border: "1.5px solid " + C.border,
+          flexShrink: 0,
         }}
       >
-        <div style={{ width: 38, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 18px" }} />
-        <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.25 }}>{food.food_name}</div>
+        <div id="add-food-sheet-title" style={{ fontSize: 17, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.25 }}>{food.food_name}</div>
         {food.brand_name && <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{food.brand_name}</div>}
-        <div style={{ marginTop: 12, padding: "10px 14px", background: C.white, borderRadius: 12, border: "1px solid " + C.border, fontSize: 12, color: C.muted }}>
+        <div style={{ marginTop: 10, padding: "9px 12px", background: C.white, borderRadius: 12, border: "1px solid " + C.border, fontSize: 11, color: C.muted }}>
           Per <span style={{ color: C.text, fontWeight: 600 }}>{p.serving}</span> {"\u00B7"} <span style={{ color: C.text, fontWeight: 600 }}>{Math.round(p.calories)} cal</span>
           {p.protein != null && <span> {"\u00B7"} P {p.protein}g</span>}
           {p.carbs != null && <span> {"\u00B7"} C {p.carbs}g</span>}
           {p.fat != null && <span> {"\u00B7"} F {p.fat}g</span>}
         </div>
-        <div style={{ fontSize: 12, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 16, marginBottom: 8 }}>Servings</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={function () { bump(-0.5); }} style={{ width: 44, height: 44, borderRadius: 14, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer" }}>{"\u2212"}</button>
+        <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.55, marginTop: 14, marginBottom: 6 }}>Servings</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={function () { bump(-0.5); }} style={{ width: 40, height: 40, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 18, fontWeight: 700, color: C.text, cursor: "pointer" }}>{"\u2212"}</button>
           <input
             type="number"
             step="0.25"
@@ -2102,25 +2139,26 @@ function AddFoodSheet(props) {
               if (isNaN(v) || v < 0) v = 0;
               setQty(v);
             }}
-            style={{ flex: 1, padding: "12px 14px", borderRadius: 14, border: "1.5px solid " + C.border, fontSize: 18, fontWeight: 700, textAlign: "center", color: C.text, outline: "none", fontFamily: "'DM Sans',sans-serif", background: C.white }}
+            style={{ flex: 1, padding: "10px 12px", borderRadius: 12, border: "1.5px solid " + C.border, fontSize: 17, fontWeight: 700, textAlign: "center", color: C.text, outline: "none", fontFamily: "'DM Sans',sans-serif", background: C.white }}
           />
-          <button onClick={function () { bump(0.5); }} style={{ width: 44, height: 44, borderRadius: 14, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer" }}>+</button>
+          <button onClick={function () { bump(0.5); }} style={{ width: 40, height: 40, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 18, fontWeight: 700, color: C.text, cursor: "pointer" }}>+</button>
         </div>
-        <div style={{ fontSize: 13, color: C.muted, marginTop: 10, textAlign: "center" }}>
+        <div style={{ fontSize: 12, color: C.muted, marginTop: 8, textAlign: "center" }}>
           = <span style={{ color: C.text, fontWeight: 700 }}>{Math.round(p.calories * qty)} cal</span>
         </div>
-        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-          <button onClick={props.onCancel} style={{ flex: 1, padding: "13px", borderRadius: 14, border: "1.5px solid " + C.border, background: C.white, fontSize: 14, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Cancel</button>
+        <div style={{ display: "flex", gap: 9, marginTop: 17 }}>
+          <button onClick={props.onCancel} style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.white, fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Cancel</button>
           <button
             onClick={function () { props.onConfirm(qty); }}
             disabled={!qty}
-            style={{ flex: 1.4, padding: "13px", borderRadius: 14, border: "none", background: "linear-gradient(135deg," + C.green + "," + C.gd + ")", color: C.white, fontSize: 14, fontWeight: 700, cursor: qty ? "pointer" : "default", opacity: qty ? 1 : 0.6, fontFamily: "'DM Sans',sans-serif", boxShadow: "0 6px 18px rgba(76,199,116,0.32)" }}
+            style={{ flex: 1.4, padding: "11px", borderRadius: 12, border: "none", background: "linear-gradient(135deg," + C.green + "," + C.gd + ")", color: C.white, fontSize: 13, fontWeight: 700, cursor: qty ? "pointer" : "default", opacity: qty ? 1 : 0.6, fontFamily: "'DM Sans',sans-serif", boxShadow: "0 5px 14px rgba(76,199,116,0.28)" }}
           >
             Add to log
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    portalHost
   );
 }
 
@@ -2329,7 +2367,7 @@ function CalCalendar(props) {
   );
 }
 
-function CalorieTab() {
+function CalorieTab(props) {
   var dS = useState(todayLocal());
   var selDate = dS[0],
     setSelDate = dS[1];
@@ -2694,6 +2732,7 @@ function CalorieTab() {
 
       {pending && (
         <AddFoodSheet
+          portalRoot={props.portalRoot}
           food={pending}
           onCancel={function () { setPending(null); }}
           onConfirm={function (s) { logFood(pending, s); }}
@@ -4986,7 +5025,7 @@ export default function App() {
           {tab === "gainz" && <GainzTab wl={logs} gym={gym} comp={comp} />}
           {tab === "cycles" && <CyclesTab cycles={cycles} setCycles={setCycles} />}
           {tab === "sleep" && <SleepTab sleep={sleep} setSleep={setSleep} />}
-          {tab === "calories" && <CalorieTab />}
+          {tab === "calories" && <CalorieTab portalRoot={phoneRef} />}
           {tab === "settings" && <SettingsTab habits={habits} setHabits={setHabits} />}
         </div>
         <div aria-hidden style={{ height: 80, flexShrink: 0, background: C.bg }} />
