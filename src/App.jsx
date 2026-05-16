@@ -4604,9 +4604,9 @@ export default function App() {
   var h4 = useState("home");
   var tab = h4[0],
     setTab = h4[1];
-  var h4b = useState(null);
-  var tabSwipeAnim = h4b[0],
-    setTabSwipeAnim = h4b[1];
+  var hVwSwipe = useState(0);
+  var viewportSwipeW = hVwSwipe[0],
+    setViewportSwipeW = hVwSwipe[1];
   var h5 = useState(null);
   var selHabit = h5[0],
     setSelHabit = h5[1];
@@ -4666,6 +4666,8 @@ export default function App() {
     setSelDay = h23[1];
   var phoneRef = useRef(null),
     scrollRef = useRef(null),
+    tabSwipeRowRef = useRef(null),
+    swipeInteractRef = useRef(false),
     pendingTabRef = useRef(null),
     dayStripRef = useRef(null),
     dateInputRef = useRef(null),
@@ -4737,12 +4739,7 @@ export default function App() {
   function isToday(k) {
     return k === tk;
   }
-  function switchTab(id, swipeDir) {
-    if (swipeDir === 1 || swipeDir === -1) {
-      setTabSwipeAnim(swipeDir);
-    } else {
-      setTabSwipeAnim(null);
-    }
+  function switchTab(id) {
     setTab(id);
     setSelHabit(null);
     if (scrollRef.current) {
@@ -4761,6 +4758,43 @@ export default function App() {
     [booted, tab]
   );
 
+  useLayoutEffect(
+    function () {
+      if (!booted) return;
+      var sr = scrollRef.current;
+      var row = tabSwipeRowRef.current;
+      if (!sr || !row) return;
+      if (swipeInteractRef.current) return;
+      var w = sr.clientWidth;
+      if (!w) return;
+      row.style.transition = "none";
+      row.style.transform = "translate3d(" + -w + "px,0,0)";
+      sr.scrollLeft = 0;
+    },
+    [booted, tab, viewportSwipeW]
+  );
+
+  useEffect(
+    function () {
+      if (!booted || typeof ResizeObserver === "undefined") return;
+      var sr = scrollRef.current;
+      if (!sr) return;
+      function measure() {
+        var w = sr.clientWidth;
+        if (w) setViewportSwipeW(w);
+      }
+      measure();
+      var ro = new ResizeObserver(function () {
+        measure();
+      });
+      ro.observe(sr);
+      return function () {
+        ro.disconnect();
+      };
+    },
+    [booted]
+  );
+
   swipeNavRef.current.tab = tab;
   swipeNavRef.current.blocked = !!(tabsExp || showAdd || pendGym);
   swipeNavRef.current.go = switchTab;
@@ -4770,13 +4804,36 @@ export default function App() {
       if (!booted) return;
       var el = scrollRef.current;
       if (!el) return;
+      var prefersReduce =
+        typeof window !== "undefined" &&
+        window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       var sx = 0,
         sy = 0,
-        st = 0,
         armed = false;
       var axisLock = 0;
       var AXIS_MIN = 14;
       var AXIS_RATIO = 1.22;
+      var lockHorizX = null;
+      var lastXm = 0,
+        lastTm = 0,
+        vx = 0;
+      var COMMIT_FRAC = 0.26;
+      var V_COMMIT = 0.42;
+      var SNAP_CSS = "transform 0.34s cubic-bezier(0.32, 0.72, 0.25, 1)";
+
+      function rowW() {
+        return el.clientWidth || viewportSwipeW || 0;
+      }
+      function setRowTx(txPx, transitionCss) {
+        if (!tabSwipeRowRef.current) return;
+        var nd = tabSwipeRowRef.current;
+        nd.style.transition = transitionCss || "none";
+        nd.style.transform = "translate3d(" + txPx + "px,0,0)";
+      }
+      function finishSwipeInteract() {
+        swipeInteractRef.current = false;
+      }
       function onStart(e) {
         var r = swipeNavRef.current;
         if (r.blocked) return;
@@ -4789,9 +4846,12 @@ export default function App() {
         if (!touch) return;
         sx = touch.clientX;
         sy = touch.clientY;
-        st = Date.now();
         armed = true;
         axisLock = 0;
+        lockHorizX = null;
+        vx = 0;
+        lastXm = sx;
+        lastTm = Date.now();
       }
       function onMove(e) {
         if (!armed) return;
@@ -4803,17 +4863,71 @@ export default function App() {
         var dy = touch.clientY - sy;
         var adx = Math.abs(dx);
         var ady = Math.abs(dy);
+        var now = Date.now();
         if (axisLock === 0 && Math.max(adx, ady) >= AXIS_MIN) {
           if (adx > ady * AXIS_RATIO) {
             axisLock = 1;
+            lockHorizX = touch.clientX;
+            vx = 0;
+            swipeInteractRef.current = true;
+            lastXm = touch.clientX;
+            lastTm = now;
           } else if (ady > adx * AXIS_RATIO) {
             axisLock = 2;
           }
         }
-        if (axisLock === 1) {
+        if (axisLock === 1 && lockHorizX != null) {
           e.preventDefault();
           if (el.scrollLeft) el.scrollLeft = 0;
+          var w = rowW();
+          if (!w) return;
+          var delta = touch.clientX - lockHorizX;
+          var txRaw = -w + delta;
+          var txClamp = txRaw;
+          if (txRaw > 0) txClamp = Math.min(txRaw * 0.22, w * 0.06);
+          else if (txRaw < -2 * w) txClamp = -2 * w + (txRaw + 2 * w) * 0.22;
+          if (txClamp > 0) txClamp = 0;
+          if (txClamp < -2 * w) txClamp = -2 * w;
+          setRowTx(txClamp, "none");
+          var dt = now - lastTm;
+          if (dt > 0) {
+            vx = (touch.clientX - lastXm) / dt;
+          }
+          lastXm = touch.clientX;
+          lastTm = now;
         }
+      }
+      function animateTo(txTarget, done) {
+        var wSnap = rowW();
+        if (!wSnap || !tabSwipeRowRef.current) {
+          finishSwipeInteract();
+          if (done) done();
+          return;
+        }
+        if (prefersReduce) {
+          setRowTx(txTarget, "none");
+          finishSwipeInteract();
+          if (done) done();
+          return;
+        }
+        swipeInteractRef.current = true;
+        var nd = tabSwipeRowRef.current;
+        var settled = false;
+        function finalize() {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(failSafe);
+          nd.removeEventListener("transitionend", ended);
+          finishSwipeInteract();
+          if (done) done();
+        }
+        function ended(ev) {
+          if (ev && ev.propertyName && ev.propertyName !== "transform") return;
+          finalize();
+        }
+        var failSafe = window.setTimeout(finalize, 420);
+        nd.addEventListener("transitionend", ended);
+        setRowTx(txTarget, SNAP_CSS);
       }
       function onEnd(e) {
         if (!armed) return;
@@ -4821,28 +4935,75 @@ export default function App() {
         var locked = axisLock;
         axisLock = 0;
         el.scrollLeft = 0;
-        var r = swipeNavRef.current;
-        if (r.blocked) return;
-        if (locked === 2) return;
         var touch = e.changedTouches[0];
-        if (!touch) return;
-        var dx = touch.clientX - sx;
-        var dy = touch.clientY - sy;
-        if (Date.now() - st > 850) return;
-        if (Math.abs(dx) < 64) return;
-        if (Math.abs(dx) < Math.abs(dy) * 1.25) return;
+        var r = swipeNavRef.current;
+        if (!touch || r.blocked) {
+          lockHorizX = null;
+          if (locked === 1) animateTo(-rowW(), null);
+          else swipeInteractRef.current && finishSwipeInteract();
+          return;
+        }
+        if (locked === 2) {
+          lockHorizX = null;
+          swipeInteractRef.current && finishSwipeInteract();
+          var wRest = rowW();
+          if (wRest && tabSwipeRowRef.current) setRowTx(-wRest, "none");
+          return;
+        }
+        if (locked !== 1 || lockHorizX == null) {
+          swipeInteractRef.current && finishSwipeInteract();
+          lockHorizX = null;
+          var wIdle = rowW();
+          if (wIdle && tabSwipeRowRef.current) setRowTx(-wIdle, "none");
+          return;
+        }
+        var w = rowW();
+        if (!w) {
+          finishSwipeInteract();
+          lockHorizX = null;
+          return;
+        }
+        var delta = touch.clientX - lockHorizX;
         var L = APP_NAV_TABS.length;
         var idx = APP_NAV_TABS.findIndex(function (x) {
           return x.id === r.tab;
         });
-        if (idx < 0) return;
-        var n = dx < 0 ? (idx + 1) % L : (idx - 1 + L) % L;
-        r.go(APP_NAV_TABS[n].id, dx < 0 ? 1 : -1);
+        if (idx < 0) idx = 0;
+        var commitNext = delta < -COMMIT_FRAC * w || vx < -V_COMMIT;
+        var commitPrev = delta > COMMIT_FRAC * w || vx > V_COMMIT;
+        lockHorizX = null;
+
+        if (commitNext && commitPrev) {
+          if (Math.abs(delta) < 4) {
+            commitNext = commitPrev = false;
+          } else if (delta > 0) commitNext = false;
+          else commitPrev = false;
+        }
+        if (commitNext) {
+          swipeInteractRef.current = true;
+          var nid = APP_NAV_TABS[(idx + 1) % L].id;
+          animateTo(-2 * w, function () {
+            r.go(nid);
+          });
+          return;
+        }
+        if (commitPrev) {
+          swipeInteractRef.current = true;
+          var pid = APP_NAV_TABS[(idx - 1 + L) % L].id;
+          animateTo(0, function () {
+            r.go(pid);
+          });
+          return;
+        }
+        swipeInteractRef.current = true;
+        animateTo(-w, null);
       }
       function onCancel() {
         armed = false;
         axisLock = 0;
+        lockHorizX = null;
         el.scrollLeft = 0;
+        animateTo(-rowW(), null);
       }
       el.addEventListener("touchstart", onStart, { passive: true });
       el.addEventListener("touchmove", onMove, { passive: false });
@@ -4855,7 +5016,7 @@ export default function App() {
         el.removeEventListener("touchcancel", onCancel);
       };
     },
-    [booted]
+    [booted, viewportSwipeW]
   );
 
   function toggleHabit(id, btn) {
@@ -5048,116 +5209,34 @@ export default function App() {
       </div>
     );
   }
+  var navSwipeIdx = APP_NAV_TABS.findIndex(function (x) {
+    return x.id === tab;
+  });
+  if (navSwipeIdx < 0) navSwipeIdx = 0;
+  var LNavTabs = APP_NAV_TABS.length;
+  var navPrevId = APP_NAV_TABS[(navSwipeIdx - 1 + LNavTabs) % LNavTabs].id;
+  var navNextId = APP_NAV_TABS[(navSwipeIdx + 1) % LNavTabs].id;
 
-  return (
-    <div>
-      <style>
-        {
-          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes gtTabInFromRight{0%{opacity:0.86;transform:translate3d(28px,0,0)}100%{opacity:1;transform:translate3d(0,0,0)}}@keyframes gtTabInFromLeft{0%{opacity:0.86;transform:translate3d(-28px,0,0)}100%{opacity:1;transform:translate3d(0,0,0)}}@keyframes cardGlow{0%{box-shadow:0 2px 10px rgba(45,59,46,0.06)}40%{box-shadow:0 0 0 4px rgba(76,199,116,0.25)}100%{box-shadow:0 2px 16px rgba(76,199,116,0.18)}}@media (prefers-reduced-motion:reduce){.gt-tab-swipe-pane{animation:none!important}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
-        }
-      </style>
+  function renderMainNavPane(paneTab) {
+    return (
       <div
-        ref={phoneRef}
+        key={"gt-nav-pane-" + paneTab}
+        className="gt-tab-swipe-pane"
         style={{
-          width: compact ? "100%" : 390,
-          maxWidth: compact ? "100%" : undefined,
-          height: compact ? "100dvh" : 844,
-          background: C.bg,
-          borderRadius: compact ? 0 : 48,
-          overflow: "hidden",
-          boxShadow: compact ? "none" : "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a",
+          flex: "1 1 0",
+          minWidth: 0,
+          minHeight: "100%",
+          width: "100%",
+          maxWidth: "100%",
+          overflowX: "hidden",
+          boxSizing: "border-box",
           position: "relative",
-          display: "flex",
-          flexDirection: "column",
-          fontFamily: "'DM Sans',sans-serif",
-          paddingTop: compact ? "env(safe-area-inset-top)" : 0,
-          paddingBottom: compact ? "env(safe-area-inset-bottom)" : 0,
         }}
       >
-        {anims.map(function (a) {
-          return (
-            <AnimCanvas
-              key={a.id}
-              ox={a.ox}
-              oy={a.oy}
-              animType={animT}
-              onDone={function () {
-                setAnims(function (x) {
-                  return x.filter(function (v) {
-                    return v.id !== a.id;
-                  });
-                });
-              }}
-            />
-          );
-        })}
-        {pendGym && (
-          <GymQ
-            day={pendGym.day || tk}
-            initial={logs[pendGym.day || tk]}
-            onSave={function (data) {
-              var d = (pendGym && pendGym.day) || tk;
-              setLogs(function (p) {
-                var n = Object.assign({}, p);
-                n[d] = data;
-                return n;
-              });
-              D.fireAndForget(D.upsertWorkoutLog(d, data), "gymq-save");
-              setPendGym(null);
-            }}
-            onSkip={function () {
-              setPendGym(null);
-            }}
-          />
-        )}
-        {!compact && (
-          <div style={{ height: 50, background: C.bg, display: "flex", alignItems: "flex-end", justifyContent: "space-between", padding: "0 28px 8px", position: "relative", zIndex: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>9:41</span>
-            <div style={{ width: 120, height: 32, background: "#1a1a1a", borderRadius: 20, position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }} />
-            <div style={{ display: "flex", gap: 5, alignItems: "center", fontSize: 11, color: C.text }}>
-              <span>{"\u2026"}</span>
-              <span>WiFi</span>
-              <span>100%</span>
-            </div>
-          </div>
-        )}
-        <div
-          ref={scrollRef}
-          style={{
-            flex: 1,
-            minHeight: 0,
-            minWidth: 0,
-            width: "100%",
-            overflowX: "hidden",
-            overflowY: "auto",
-            overscrollBehaviorX: "none",
-            touchAction: "pan-y",
-            WebkitOverflowScrolling: "touch",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          <div
-            key={tab}
-            className="gt-tab-swipe-pane"
-            style={{
-              minHeight: "100%",
-              minWidth: 0,
-              width: "100%",
-              maxWidth: "100%",
-              overflowX: "hidden",
-              animation:
-                tabSwipeAnim === 1
-                  ? "gtTabInFromRight 2.5s cubic-bezier(0.42, 0, 0.58, 1) both"
-                  : tabSwipeAnim === -1
-                  ? "gtTabInFromLeft 2.5s cubic-bezier(0.42, 0, 0.58, 1) both"
-                  : undefined,
-            }}
-          >
-          {tab === "home" && !selHabit && (
+          {paneTab === "home" && !selHabit && (
             <div style={{ paddingBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 12px 4px" }}>
-                <div ref={dayStripRef} className="tabstrip summary-strip" style={{ flex: 1, display: "flex", gap: 5, overflowX: "auto", scrollSnapType: "x mandatory", padding: "4px 2px" }}>
+                <div ref={paneTab === tab ? dayStripRef : null} className="tabstrip summary-strip" style={{ flex: 1, display: "flex", gap: 5, overflowX: "auto", scrollSnapType: "x mandatory", padding: "4px 2px" }}>
                   {dayStrip.map(function (d) {
                     var k = dk(d);
                     var isSel = k === selDay;
@@ -5211,7 +5290,7 @@ export default function App() {
                   <ICal color={C.text} />
                 </button>
                 <input
-                  ref={dateInputRef}
+                  ref={paneTab === tab ? dateInputRef : null}
                   type="date"
                   value={selDay}
                   max={tk}
@@ -5365,7 +5444,7 @@ export default function App() {
               )}
             </div>
           )}
-          {tab === "calendar" && (
+          {paneTab === "calendar" && (
             <UnifiedCalendar
               habits={habits}
               comp={comp}
@@ -5379,12 +5458,12 @@ export default function App() {
               setCY={setCalY}
             />
           )}
-          {tab === "coach" && <CoachTab habits={habits} comp={comp} logs={logs} sleep={sleep} cycles={cycles} />}
-          {tab === "gainz" && <GainzTab wl={logs} gym={gym} comp={comp} />}
-          {tab === "cycles" && <CyclesTab cycles={cycles} setCycles={setCycles} />}
-          {tab === "sleep" && <SleepTab sleep={sleep} setSleep={setSleep} />}
-          {tab === "calories" && <CalorieTab portalRoot={phoneRef} />}
-          {tab === "settings" && (
+          {paneTab === "coach" && <CoachTab habits={habits} comp={comp} logs={logs} sleep={sleep} cycles={cycles} />}
+          {paneTab === "gainz" && <GainzTab wl={logs} gym={gym} comp={comp} />}
+          {paneTab === "cycles" && <CyclesTab cycles={cycles} setCycles={setCycles} />}
+          {paneTab === "sleep" && <SleepTab sleep={sleep} setSleep={setSleep} />}
+          {paneTab === "calories" && <CalorieTab portalRoot={phoneRef} />}
+          {paneTab === "settings" && (
             <SettingsTab
               habits={habits}
               setHabits={setHabits}
@@ -5394,6 +5473,113 @@ export default function App() {
               setShowAP={setShowAP}
             />
           )}
+      </div>
+    );
+  }
+
+
+  return (
+    <div>
+      <style>
+        {
+          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 2px 10px rgba(45,59,46,0.06)}40%{box-shadow:0 0 0 4px rgba(76,199,116,0.25)}100%{box-shadow:0 2px 16px rgba(76,199,116,0.18)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
+        }
+      </style>
+      <div
+        ref={phoneRef}
+        style={{
+          width: compact ? "100%" : 390,
+          maxWidth: compact ? "100%" : undefined,
+          height: compact ? "100dvh" : 844,
+          background: C.bg,
+          borderRadius: compact ? 0 : 48,
+          overflow: "hidden",
+          boxShadow: compact ? "none" : "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a",
+          position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          fontFamily: "'DM Sans',sans-serif",
+          paddingTop: compact ? "env(safe-area-inset-top)" : 0,
+          paddingBottom: compact ? "env(safe-area-inset-bottom)" : 0,
+        }}
+      >
+        {anims.map(function (a) {
+          return (
+            <AnimCanvas
+              key={a.id}
+              ox={a.ox}
+              oy={a.oy}
+              animType={animT}
+              onDone={function () {
+                setAnims(function (x) {
+                  return x.filter(function (v) {
+                    return v.id !== a.id;
+                  });
+                });
+              }}
+            />
+          );
+        })}
+        {pendGym && (
+          <GymQ
+            day={pendGym.day || tk}
+            initial={logs[pendGym.day || tk]}
+            onSave={function (data) {
+              var d = (pendGym && pendGym.day) || tk;
+              setLogs(function (p) {
+                var n = Object.assign({}, p);
+                n[d] = data;
+                return n;
+              });
+              D.fireAndForget(D.upsertWorkoutLog(d, data), "gymq-save");
+              setPendGym(null);
+            }}
+            onSkip={function () {
+              setPendGym(null);
+            }}
+          />
+        )}
+        {!compact && (
+          <div style={{ height: 50, background: C.bg, display: "flex", alignItems: "flex-end", justifyContent: "space-between", padding: "0 28px 8px", position: "relative", zIndex: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>9:41</span>
+            <div style={{ width: 120, height: 32, background: "#1a1a1a", borderRadius: 20, position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }} />
+            <div style={{ display: "flex", gap: 5, alignItems: "center", fontSize: 11, color: C.text }}>
+              <span>{"\u2026"}</span>
+              <span>WiFi</span>
+              <span>100%</span>
+            </div>
+          </div>
+        )}
+        <div
+          ref={scrollRef}
+          style={{
+            flex: 1,
+            minHeight: 0,
+            minWidth: 0,
+            width: "100%",
+            overflowX: "hidden",
+            overflowY: "auto",
+            overscrollBehaviorX: "none",
+            touchAction: "pan-y",
+            WebkitOverflowScrolling: "touch",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <div
+            ref={tabSwipeRowRef}
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              width: "300%",
+              minHeight: "100%",
+              willChange: "transform",
+              transition: "none",
+            }}
+          >
+            {renderMainNavPane(navPrevId)}
+            {renderMainNavPane(tab)}
+            {renderMainNavPane(navNextId)}
           </div>
         </div>
         <div aria-hidden style={{ height: 80, flexShrink: 0, background: C.bg }} />
