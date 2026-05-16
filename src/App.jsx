@@ -3007,23 +3007,15 @@ function TabPicker(props) {
     var w = itemWRef.current || measureItemW();
     if (!w) return;
     var pos = (c.scrollLeft + c.clientWidth / 2 - firstCenter) / w;
-    var prev = lastScrollPosRef.current;
-    var dir = 0;
-    if (prev != null && Math.abs(pos - prev) > 0.008) {
-      dir = pos > prev ? 1 : -1;
-    }
+    /* Skip highlight/center updates while scroll position stabilizes after loop teleport */
+    if (Date.now() < supressUntilRef.current) return;
     lastScrollPosRef.current = pos;
-    var hi;
-    if (dir > 0) {
-      hi = Math.ceil(pos - 0.22);
-    } else if (dir < 0) {
-      hi = Math.floor(pos + 0.22);
-    } else {
-      hi = Math.round(pos);
-    }
+    /* Nearest-slot highlight (avoids dir-based ceil/floor snapping past the teleport edge). */
+    var hi = Math.round(pos);
     if (hi < 0) hi = 0;
     else if (hi >= totalLen) hi = totalLen - 1;
-    setCenterPos(pos);
+    /* Integer center aligns opacity ring with green pill and stays stable vs float drift. */
+    setCenterPos(hi);
     setHighlightPhysIdx(hi);
     reportCenter(pos);
   }
@@ -3038,12 +3030,12 @@ function TabPicker(props) {
     var idx = Math.round(pos);
     if (idx < L) {
       c.scrollLeft += midBlock * L * w;
-      supressUntilRef.current = Date.now() + 80;
       recompute();
+      supressUntilRef.current = Date.now() + 120;
     } else if (idx >= totalLen - L) {
       c.scrollLeft -= midBlock * L * w;
-      supressUntilRef.current = Date.now() + 80;
       recompute();
+      supressUntilRef.current = Date.now() + 120;
     }
   }
 
@@ -5156,9 +5148,9 @@ export default function App() {
               overflowX: "hidden",
               animation:
                 tabSwipeAnim === 1
-                  ? "gtTabInFromRight 0.75s cubic-bezier(0.22, 1, 0.36, 1) both"
+                  ? "gtTabInFromRight 1.35s cubic-bezier(0.22, 1, 0.36, 1) both"
                   : tabSwipeAnim === -1
-                  ? "gtTabInFromLeft 0.75s cubic-bezier(0.22, 1, 0.36, 1) both"
+                  ? "gtTabInFromLeft 1.35s cubic-bezier(0.22, 1, 0.36, 1) both"
                   : undefined,
             }}
           >
