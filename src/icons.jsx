@@ -1,4 +1,5 @@
 var DEF_PRI = "#4CC774";
+var DEF = DEF_PRI;
 
 export var ICON_GYM = "gym";
 
