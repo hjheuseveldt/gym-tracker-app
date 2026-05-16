@@ -5053,7 +5053,7 @@ export default function App() {
     <div>
       <style>
         {
-          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes gtTabInFromRight{from{opacity:0.86;transform:translate3d(22px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}@keyframes gtTabInFromLeft{from{opacity:0.86;transform:translate3d(-22px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}@keyframes cardGlow{0%{box-shadow:0 2px 10px rgba(45,59,46,0.06)}40%{box-shadow:0 0 0 4px rgba(76,199,116,0.25)}100%{box-shadow:0 2px 16px rgba(76,199,116,0.18)}}@media (prefers-reduced-motion:reduce){.gt-tab-swipe-pane{animation:none!important}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
+          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes gtTabInFromRight{0%{opacity:0.86;transform:translate3d(28px,0,0)}100%{opacity:1;transform:translate3d(0,0,0)}}@keyframes gtTabInFromLeft{0%{opacity:0.86;transform:translate3d(-28px,0,0)}100%{opacity:1;transform:translate3d(0,0,0)}}@keyframes cardGlow{0%{box-shadow:0 2px 10px rgba(45,59,46,0.06)}40%{box-shadow:0 0 0 4px rgba(76,199,116,0.25)}100%{box-shadow:0 2px 16px rgba(76,199,116,0.18)}}@media (prefers-reduced-motion:reduce){.gt-tab-swipe-pane{animation:none!important}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
         }
       </style>
       <div
@@ -5148,9 +5148,9 @@ export default function App() {
               overflowX: "hidden",
               animation:
                 tabSwipeAnim === 1
-                  ? "gtTabInFromRight 1.35s cubic-bezier(0.22, 1, 0.36, 1) both"
+                  ? "gtTabInFromRight 2.5s cubic-bezier(0.42, 0, 0.58, 1) both"
                   : tabSwipeAnim === -1
-                  ? "gtTabInFromLeft 1.35s cubic-bezier(0.22, 1, 0.36, 1) both"
+                  ? "gtTabInFromLeft 2.5s cubic-bezier(0.42, 0, 0.58, 1) both"
                   : undefined,
             }}
           >
