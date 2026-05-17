@@ -86,15 +86,15 @@ var PAL = [
 var AN = ["1 Ripple", "2 Sparks", "3 Confetti", "4 Starburst", "5 Bloom"];
 var G = ["#4CC774", "#3AB860", "#A8E6BC", "#ffffff", "#B8F0CE", "#2EA653"];
 
+/** Local calendar date YYYY-MM-DD (do not use UTC / toISOString — breaks timezones behind UTC). */
 function dk(d) {
-  return d.toISOString().split("T")[0];
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 }
 function today() {
   return dk(new Date());
 }
 function todayLocal() {
-  var d = new Date();
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  return today();
 }
 function addDays(ymd, n) {
   var d = new Date(ymd + "T00:00:00");
