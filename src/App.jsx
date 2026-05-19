@@ -845,11 +845,13 @@ function CalView(props) {
 function GainzTab(props) {
   var wl = props.wl,
     gym = props.gym,
-    comp = props.comp;
+    comp = props.comp,
+    cycles = props.cycles || [];
+  var todayKey = props.todayKey != null ? props.todayKey : today();
   var rS = useState("1M");
   var range = rS[0],
     setRange = rS[1];
-  var tk = today(),
+  var tk = todayKey,
     allK = Object.keys(wl).sort();
   var cutoff = new Date();
   if (range === "1M") cutoff.setMonth(cutoff.getMonth() - 1);
@@ -922,9 +924,26 @@ function GainzTab(props) {
     if (gDone[kk]) gStr++;
     else if (i > 0) break;
   }
-  var latBw = bwPts.length ? bwPts[bwPts.length - 1].val : null,
-    fstBw = bwPts.length > 1 ? bwPts[0].val : null;
-  var bwChg = latBw && fstBw ? latBw - fstBw : null;
+  var bwKeysAll = allK.filter(function (k) {
+    return wl[k] && wl[k].bodyweight != null && wl[k].bodyweight !== "";
+  });
+  var latBw = bwKeysAll.length ? wl[bwKeysAll[bwKeysAll.length - 1]].bodyweight : null;
+  var latBwKey = bwKeysAll.length ? bwKeysAll[bwKeysAll.length - 1] : null;
+  var bwMoChg = null;
+  if (latBwKey != null && latBw != null) {
+    var latD3 = new Date(latBwKey + "T12:00:00");
+    var winStartD3 = new Date(latD3);
+    winStartD3.setDate(winStartD3.getDate() - 30);
+    var winStartK3 = dk(winStartD3);
+    var inWinBw = bwKeysAll.filter(function (k) {
+      return k >= winStartK3 && k <= latBwKey;
+    });
+    if (inWinBw.length >= 2) {
+      bwMoChg = latBw - wl[inWinBw[0]].bodyweight;
+    }
+  }
+  var activeCycGw = cycleAt(cycles, todayKey);
+  var bwSummaryCol = bwDeltaColorForCycle(bwMoChg, activeCycGw);
   var mwd = MG.filter(function (m) {
     return twMS[m] > 0 || lwMS[m] > 0;
   });
@@ -962,11 +981,16 @@ function GainzTab(props) {
               <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
                 <IconUiScale size={20} color={C.green} />
               </div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginTop: 3 }}>{latBw ? latBw + "lb" : "\u2013"}</div>
-              {bwChg !== null && (
-                <div style={{ fontSize: 10, color: bwChg < 0 ? C.green : C.redT, fontWeight: 600 }}>
-                  {bwChg > 0 ? "+" : ""}
-                  {bwChg.toFixed(1)} lb
+              <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginTop: 3 }}>
+                {latBw != null ? latBw + " lb" : "\u2013"}
+              </div>
+              {bwMoChg !== null && (
+                <div>
+                  <div style={{ fontSize: 10, color: bwSummaryCol, fontWeight: 600 }}>
+                    {bwMoChg > 0 ? "+" : ""}
+                    {bwMoChg.toFixed(1)} lb
+                  </div>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 500, marginTop: 2, lineHeight: 1.2 }}>since last month</div>
                 </div>
               )}
             </div>
@@ -2225,6 +2249,63 @@ function parseFsDesc(desc) {
   };
 }
 
+/** Per-serving macros derived from a stored food_log row (for rescaling on edit & search rebuild). */
+function perServingMacrosFromLogRow(row) {
+  var s = Math.max(0.25, Number(row.servings) || 0.25);
+  return {
+    serving: row.serving_description || "serving",
+    calories: (Number(row.calories) || 0) / s,
+    protein: row.protein != null ? (Number(row.protein) || 0) / s : null,
+    carbs: row.carbs != null ? (Number(row.carbs) || 0) / s : null,
+    fat: row.fat != null ? (Number(row.fat) || 0) / s : null,
+  };
+}
+function foodDescriptionFromPerServing(p) {
+  var cal = Math.round(p.calories * 10) / 10;
+  var parts = ["Per " + p.serving + " - Calories: " + cal + " kcal"];
+  if (p.fat != null) parts.push("Fat: " + (Math.round(p.fat * 10) / 10) + " g");
+  if (p.carbs != null) parts.push("Carbs: " + (Math.round(p.carbs * 10) / 10) + " g");
+  if (p.protein != null) parts.push("Protein: " + (Math.round(p.protein * 10) / 10) + " g");
+  return parts.join(" | ");
+}
+/** FatSecret-shaped object from DB row for AddFoodSheet / logFood. */
+function foodFromLogRow(row) {
+  var ps = perServingMacrosFromLogRow(row);
+  return {
+    food_id: String(row.food_id),
+    food_name: row.food_name,
+    brand_name: row.brand_name || null,
+    food_description: foodDescriptionFromPerServing(ps),
+    __fromLog: true,
+    __lastServings: row.servings,
+  };
+}
+function scaleMacrosPerServing(p, servings) {
+  var mul = function (n) {
+    return n == null ? null : Math.round(n * servings * 10) / 10;
+  };
+  return {
+    calories: mul(p.calories) || 0,
+    protein: mul(p.protein),
+    carbs: mul(p.carbs),
+    fat: mul(p.fat),
+  };
+}
+
+/** Gainz summary: color signed delta (lb) from active cycle type. */
+function bwDeltaColorForCycle(deltaLb, activeCycle) {
+  if (deltaLb == null || Math.abs(deltaLb) < 0.05) return C.muted;
+  if (!activeCycle || !activeCycle.type) return C.muted;
+  var t = activeCycle.type;
+  if (t === "Bulk") return deltaLb > 0 ? C.green : C.redT;
+  if (t === "Cut") return deltaLb < 0 ? C.green : C.redT;
+  if (t === "Maintain" || t === "Recomp" || t === "Custom") {
+    if (Math.abs(deltaLb) <= 1) return C.muted;
+    return C.muted;
+  }
+  return C.muted;
+}
+
 function AddFoodSheet(props) {
   var food = props.food;
   var portalRootRef = props.portalRoot;
@@ -2662,22 +2743,50 @@ function CalorieTab(props) {
       setSearching(true);
       var aborted = false;
       var to = setTimeout(function () {
-        fetch("/api/fatsecret/proxy?method=foods.search&max_results=10&search_expression=" + encodeURIComponent(trimmed))
-          .then(function (r) {
-            return r.json().then(function (data) {
-              if (!r.ok) throw new Error((data && data.error) || "Search failed (" + r.status + ")");
-              return data;
-            });
-          })
-          .then(function (data) {
+        var fsP = fetch("/api/fatsecret/proxy?method=foods.search&max_results=10&search_expression=" + encodeURIComponent(trimmed)).then(function (r) {
+          return r.json().then(function (data) {
+            if (!r.ok) throw new Error((data && data.error) || "Search failed (" + r.status + ")");
+            return data;
+          });
+        });
+        var logP = supaReady()
+          ? supabase
+              .from("food_log")
+              .select("food_id, food_name, brand_name, serving_description, calories, protein, carbs, fat, servings, created_at")
+              .ilike("food_name", "%" + trimmed + "%")
+              .order("created_at", { ascending: false })
+              .limit(80)
+          : Promise.resolve({ data: [], error: null });
+
+        Promise.all([fsP, logP])
+          .then(function (pair) {
             if (aborted) return;
+            var data = pair[0];
+            var logRes = pair[1];
             var foods = data && data.foods && data.foods.food;
-            if (!foods) {
-              setResults([]);
-            } else {
-              if (!Array.isArray(foods)) foods = [foods];
-              setResults(foods);
+            if (!foods) foods = [];
+            else if (!Array.isArray(foods)) foods = [foods];
+
+            var loggedById = {};
+            if (!logRes.error && logRes.data) {
+              (logRes.data || []).forEach(function (row) {
+                var fid = String(row.food_id);
+                if (!loggedById[fid]) loggedById[fid] = row;
+              });
             }
+            var seen = {};
+            var merged = [];
+            Object.keys(loggedById).forEach(function (fid) {
+              seen[fid] = true;
+              merged.push(foodFromLogRow(loggedById[fid]));
+            });
+            foods.forEach(function (f) {
+              var id = String(f.food_id);
+              if (seen[id]) return;
+              seen[id] = true;
+              merged.push(Object.assign({}, f, { __fromLog: false }));
+            });
+            setResults(merged);
             setSearching(false);
           })
           .catch(function (e) {
@@ -2697,7 +2806,7 @@ function CalorieTab(props) {
 
   function logFood(food, servings) {
     var p = parseFsDesc(food.food_description) || { serving: "serving", calories: 0, fat: null, carbs: null, protein: null };
-    var mul = function (n) { return n == null ? null : Math.round(n * servings * 10) / 10; };
+    var sm = scaleMacrosPerServing(p, servings);
     var row = {
       log_date: selDate,
       food_id: String(food.food_id),
@@ -2705,10 +2814,10 @@ function CalorieTab(props) {
       brand_name: food.brand_name || null,
       serving_description: p.serving,
       servings: servings,
-      calories: mul(p.calories) || 0,
-      protein: mul(p.protein),
-      carbs: mul(p.carbs),
-      fat: mul(p.fat),
+      calories: sm.calories,
+      protein: sm.protein,
+      carbs: sm.carbs,
+      fat: sm.fat,
     };
     supabase
       .from("food_log")
@@ -2724,6 +2833,40 @@ function CalorieTab(props) {
         setPending(null);
         setQ("");
         setResults([]);
+      });
+  }
+
+  function updateEntryServings(entry, newServings) {
+    var s = Math.max(0.25, +newServings);
+    if (isNaN(s)) return;
+    var ps = perServingMacrosFromLogRow(entry);
+    var sm = scaleMacrosPerServing(
+      { calories: ps.calories, protein: ps.protein, carbs: ps.carbs, fat: ps.fat },
+      s
+    );
+    supabase
+      .from("food_log")
+      .update({
+        servings: s,
+        calories: sm.calories,
+        protein: sm.protein,
+        carbs: sm.carbs,
+        fat: sm.fat,
+        serving_description: ps.serving,
+      })
+      .eq("id", entry.id)
+      .select()
+      .single()
+      .then(function (res) {
+        if (res.error) {
+          setError(res.error.message);
+          return;
+        }
+        setEntries(function (prev) {
+          return prev.map(function (e) {
+            return e.id === entry.id ? res.data : e;
+          });
+        });
       });
   }
 
@@ -2839,7 +2982,7 @@ function CalorieTab(props) {
               var p = parseFsDesc(f.food_description) || { calories: 0, serving: "" };
               return (
                 <button
-                  key={f.food_id}
+                  key={String(f.food_id) + "-r-" + i}
                   onClick={function () { setPending(f); }}
                   style={{
                     width: "100%",
@@ -2859,9 +3002,15 @@ function CalorieTab(props) {
                     <div style={{ fontSize: 14, fontWeight: 600, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {f.food_name}
                       {f.brand_name && <span style={{ color: C.muted, fontWeight: 500 }}> {"\u00B7"} {f.brand_name}</span>}
+                      {f.__fromLog && (
+                        <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: C.gd, textTransform: "uppercase", letterSpacing: 0.35 }}>Logged before</span>
+                      )}
                     </div>
                     <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
                       {Math.round(p.calories)} cal {"\u00B7"} per {p.serving || "serving"}
+                      {f.__lastServings != null && f.__fromLog && (
+                        <span>{' \u00B7 last '} {f.__lastServings} sv</span>
+                      )}
                     </div>
                   </div>
                   <div style={{ width: 28, height: 28, borderRadius: 10, background: C.gl, color: C.gd, fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>+</div>
@@ -2884,6 +3033,14 @@ function CalorieTab(props) {
           </div>
         )}
         {entries.map(function (e) {
+          var pVal = e.protein != null ? Math.round(Number(e.protein) || 0) : null;
+          var cVal = e.carbs != null ? Math.round(Number(e.carbs) || 0) : null;
+          var fVal = e.fat != null ? Math.round(Number(e.fat) || 0) : null;
+          var macroParts = [];
+          if (pVal != null) macroParts.push(pVal + "g P");
+          if (cVal != null) macroParts.push(cVal + "g C");
+          if (fVal != null) macroParts.push(fVal + "g F");
+          var macroStr = macroParts.join(" \u00B7 ");
           return (
             <div
               key={e.id}
@@ -2894,8 +3051,8 @@ function CalorieTab(props) {
                 border: "1px solid " + C.border,
                 marginBottom: 8,
                 display: "flex",
-                alignItems: "center",
-                gap: 12,
+                alignItems: "flex-start",
+                gap: 10,
                 animation: "slideUp 0.22s ease both",
               }}
             >
@@ -2904,8 +3061,46 @@ function CalorieTab(props) {
                   {e.food_name}
                   {e.brand_name && <span style={{ color: C.muted, fontWeight: 500 }}> {"\u00B7"} {e.brand_name}</span>}
                 </div>
-                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-                  {e.servings} {"\u00D7"} {e.serving_description || "serving"} {"\u00B7"} <span style={{ color: C.text, fontWeight: 600 }}>{Math.round(Number(e.calories) || 0)} cal</span>
+                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="gt-focus-ring gt-min-tap"
+                    aria-label="Decrease servings"
+                    onClick={function () {
+                      updateEntryServings(e, Math.max(0.25, +(Number(e.servings) || 0) - 0.5));
+                    }}
+                    style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                  >
+                    {"\u2212"}
+                  </button>
+                  <input
+                    type="number"
+                    step="0.25"
+                    min="0.25"
+                    value={e.servings}
+                    aria-label="Servings"
+                    className="gt-input"
+                    onChange={function (ev) {
+                      updateEntryServings(e, ev.target.value);
+                    }}
+                    style={{ width: 72, padding: "8px 6px", borderRadius: 12, border: "1.5px solid " + C.border, fontSize: 15, fontWeight: 700, textAlign: "center", color: C.text, outline: "none", fontFamily: "'DM Sans',sans-serif", background: C.white, flexShrink: 0 }}
+                  />
+                  <button
+                    type="button"
+                    className="gt-focus-ring gt-min-tap"
+                    aria-label="Increase servings"
+                    onClick={function () {
+                      updateEntryServings(e, +(Number(e.servings) || 0) + 0.5);
+                    }}
+                    style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                  >
+                    +
+                  </button>
+                  <span style={{ fontSize: 11, color: C.muted, fontWeight: 500 }}>{e.serving_description || "serving"}</span>
+                </div>
+                <div style={{ fontSize: 12, marginTop: 8, lineHeight: 1.35 }}>
+                  {macroStr && <span style={{ color: C.muted }}>{macroStr + " \u00B7 "}</span>}
+                  <span style={{ color: C.text, fontWeight: 700 }}>{Math.round(Number(e.calories) || 0)} cal</span>
                 </div>
               </div>
               <button
@@ -2913,7 +3108,7 @@ function CalorieTab(props) {
                 className="gt-focus-ring gt-min-tap"
                 onClick={function () { delEntry(e.id); }}
                 aria-label={"Remove " + e.food_name + " from log"}
-                style={{ width: 44, height: 44, borderRadius: 12, background: C.bg, border: "1px solid " + C.border, cursor: "pointer", color: C.muted, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, flexShrink: 0 }}
+                style={{ width: 44, height: 44, borderRadius: 12, background: C.bg, border: "1px solid " + C.border, cursor: "pointer", color: C.muted, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, flexShrink: 0, marginTop: 2 }}
               >
                 {"\u00D7"}
               </button>
@@ -3500,8 +3695,6 @@ function UnifiedCalendar(props) {
             var hasSl = !!(sleep[k] && sleep[k].score != null);
             var ringBorder = isT
               ? "2px solid " + C.green
-              : perfect
-              ? "2px solid #E5B53C"
               : heat
               ? "1px solid rgba(45,59,46,0.06)"
               : "1.5px solid " + C.border;
@@ -3531,7 +3724,7 @@ function UnifiedCalendar(props) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: perfect ? "0 0 0 1px rgba(229,181,60,0.30), 0 2px 8px rgba(229,181,60,0.35)" : "none",
+                    boxShadow: "none",
                     transition: "background 0.3s ease, border-color 0.2s ease",
                   }}
                 >
@@ -3545,7 +3738,7 @@ function UnifiedCalendar(props) {
                 )}
                 {perfect && (
                   <div style={{ position: "absolute", top: 0, right: 1, lineHeight: 0, pointerEvents: "none" }}>
-                    <IconKpiStar size={11} color="#E5B53C" />
+                    <IconKpiStar size={11} color="#F5C518" />
                   </div>
                 )}
               </div>
@@ -3671,8 +3864,8 @@ function DaySummarySheet(props) {
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{dayLabel}</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{fmtDS(k)}</div>
             {perfect && (
-              <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: "linear-gradient(135deg,#FFD27A,#E5B53C)", color: "#3D2F00", fontSize: 10, fontWeight: 700, letterSpacing: 0.3 }}>
-                <IconKpiStar size={12} color="#3D2F00" />
+              <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: "linear-gradient(135deg,#FFF4C8,#F5C518)", color: "#5C4500", fontSize: 10, fontWeight: 700, letterSpacing: 0.3, border: "1px solid rgba(245,197,24,0.45)" }}>
+                <IconKpiStar size={12} color="#C9A008" />
                 <span>Perfect day</span>
               </div>
             )}
@@ -5459,7 +5652,7 @@ export default function App() {
             />
           )}
           {paneTab === "coach" && <CoachTab habits={habits} comp={comp} logs={logs} sleep={sleep} cycles={cycles} />}
-          {paneTab === "gainz" && <GainzTab wl={logs} gym={gym} comp={comp} />}
+          {paneTab === "gainz" && <GainzTab wl={logs} gym={gym} comp={comp} cycles={cycles} todayKey={tk} />}
           {paneTab === "cycles" && <CyclesTab cycles={cycles} setCycles={setCycles} />}
           {paneTab === "sleep" && <SleepTab sleep={sleep} setSleep={setSleep} />}
           {paneTab === "calories" && <CalorieTab portalRoot={phoneRef} />}
