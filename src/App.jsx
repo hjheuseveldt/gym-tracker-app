@@ -1050,7 +1050,7 @@ function GainzTab(props) {
       )}
       {gym && (
         <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(104px, 1fr))", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
             {[
               { Icon: IFlame, val: gStr + " days", label: "Streak" },
               { Icon: IconKpiWorkout, val: allK.length, label: "Sessions" },
@@ -1083,7 +1083,17 @@ function GainzTab(props) {
                 </div>
               )}
             </div>
-            <div style={{ background: C.white, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
+            <div
+              style={{
+                background: C.white,
+                borderRadius: 14,
+                padding: "12px",
+                border: "1.5px solid " + C.border,
+                textAlign: "center",
+                gridColumn: "2 / 3",
+                justifySelf: "stretch",
+              }}
+            >
               <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
                 <HabitIcon id="run" size={20} color={C.green} />
               </div>
