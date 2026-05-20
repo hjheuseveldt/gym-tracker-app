@@ -442,13 +442,24 @@ function GymQ(props) {
       (Array.isArray(init.muscles) ? init.muscles : []).forEach(function (mg) { m[mg] = true; });
       return m;
     }),
-    sS = useState(init.sets || {});
+    sS = useState(init.sets || {}),
+    cmS = useState(init.cardio_minutes != null && init.cardio_minutes !== "" ? String(init.cardio_minutes) : "");
   var bw = bS[0],
     setBw = bS[1],
     selM = mS[0],
     setSelM = mS[1],
     sets = sS[0],
-    setSets = sS[1];
+    setSets = sS[1],
+    cardio = cmS[0],
+    setCardio = cmS[1];
+  function adjCardio(d5) {
+    setCardio(function (prev) {
+      var parsed = parseGymCardioMinutesInput(prev || "");
+      var base = parsed.ok ? parsed.n : 0;
+      var n = Math.max(0, Math.min(300, base + d5));
+      return String(n);
+    });
+  }
   function togM(m) {
     setSelM(function (p) {
       var n = Object.assign({}, p);
@@ -481,6 +492,9 @@ function GymQ(props) {
   var dayKey = props.day || today();
   var isLogToday = dayKey === today();
   var dayLabel = isLogToday ? "today" : new Date(dayKey + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  var cardioParsed = parseGymCardioMinutesInput(cardio);
+  var canSaveGym = !!bw.trim() && cardioParsed.ok;
+  var cardioFieldErr = cardio.trim() && !cardioParsed.ok ? cardioParsed.error : null;
   return (
     <div style={{ position: "absolute", inset: 0, background: "rgba(45,59,46,0.45)", display: "flex", alignItems: "flex-end", zIndex: 200 }}>
       <div style={{ background: C.bg, borderRadius: "28px 28px 0 0", padding: "24px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
@@ -513,6 +527,66 @@ function GymQ(props) {
               outline: "none",
             }}
           />
+        </div>
+        <div style={{ marginBottom: 18 }}>
+          <label htmlFor="gymq-cardio" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8, display: "block" }}>
+            Cardio (minutes)
+          </label>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <input
+              id="gymq-cardio"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={300}
+              step={1}
+              value={cardio}
+              onChange={function (e) {
+                setCardio(e.target.value);
+              }}
+              placeholder="0–300"
+              className="gt-input"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: "12px 14px",
+                border: "1.5px solid " + (cardioFieldErr ? C.redT : C.border),
+                borderRadius: 12,
+                fontSize: 16,
+                fontFamily: "'DM Sans',sans-serif",
+                color: C.text,
+                background: C.white,
+                outline: "none",
+              }}
+            />
+            <button
+              type="button"
+              className="gt-focus-ring gt-min-tap"
+              aria-label="Decrease cardio by 5 minutes"
+              onClick={function () {
+                adjCardio(-5);
+              }}
+              style={{ width: 44, height: 44, borderRadius: "50%", background: C.border, border: "none", fontSize: 18, cursor: "pointer", color: C.text, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            >
+              -
+            </button>
+            <button
+              type="button"
+              className="gt-focus-ring gt-min-tap"
+              aria-label="Increase cardio by 5 minutes"
+              onClick={function () {
+                adjCardio(5);
+              }}
+              style={{ width: 44, height: 44, borderRadius: "50%", background: C.green, border: "none", fontSize: 18, cursor: "pointer", color: C.white, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            >
+              +
+            </button>
+          </div>
+          {!cardio.trim() ? (
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Required. Use <strong style={{ fontWeight: 700, color: C.text }}>0</strong> if you did no cardio.</div>
+          ) : cardioFieldErr ? (
+            <div style={{ fontSize: 11, color: C.redT, marginTop: 6, fontWeight: 600 }}>{cardioFieldErr}</div>
+          ) : null}
         </div>
         <div style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Muscle Groups</div>
@@ -584,20 +658,20 @@ function GymQ(props) {
         )}
         <button
           onClick={function () {
-            if (!bw.trim()) return;
+            if (!canSaveGym) return;
             var s = {};
             muscles.forEach(function (m) {
               if (sets[m] > 0) s[m] = sets[m];
             });
-            props.onSave({ bodyweight: parseFloat(bw), muscles: muscles, sets: s });
+            props.onSave({ bodyweight: parseFloat(bw), muscles: muscles, sets: s, cardio_minutes: cardioParsed.n });
           }}
           style={{
             width: "100%",
             padding: "15px",
             borderRadius: 18,
-            background: bw.trim() ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border,
+            background: canSaveGym ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border,
             border: "none",
-            color: bw.trim() ? C.white : C.muted,
+            color: canSaveGym ? C.white : C.muted,
             fontSize: 16,
             fontWeight: 700,
             cursor: "pointer",
@@ -635,6 +709,12 @@ function WkDetail(props) {
           <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 2 }}>Bodyweight</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{log.bodyweight} lbs</div>
         </div>
+        {cardioMinutesOnLog(log) > 0 ? (
+          <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+            <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 2 }}>Cardio</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{cardioMinutesOnLog(log)} min</div>
+          </div>
+        ) : null}
         {log.muscles && log.muscles.length > 0 && (
           <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", border: "1.5px solid " + C.border }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 10 }}>Muscles</div>
@@ -913,6 +993,15 @@ function GainzTab(props) {
       });
     }
   });
+  var twCm = 0,
+    lwCm = 0,
+    moCm = 0;
+  allK.forEach(function (k) {
+    var cv = cardioMinutesOnLog(wl[k]);
+    if (k >= ws) twCm += cv;
+    if (k.startsWith(mp)) moCm += cv;
+    if (k >= lwSk && k <= lwEk) lwCm += cv;
+  });
   var gDone = gym && comp[gym.id] ? comp[gym.id] : {},
     gStr = 0,
     todayD = new Date();
@@ -961,14 +1050,14 @@ function GainzTab(props) {
       )}
       {gym && (
         <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(104px, 1fr))", gap: 10 }}>
             {[
               { Icon: IFlame, val: gStr + " days", label: "Streak" },
               { Icon: IconKpiWorkout, val: allK.length, label: "Sessions" },
             ].map(function (s, i) {
               var GCardI = s.Icon;
               return (
-                <div key={i} style={{ flex: 1, background: C.white, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
+                <div key={i} style={{ background: C.white, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
                   <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
                     <GCardI size={20} color={C.green} />
                   </div>
@@ -977,7 +1066,7 @@ function GainzTab(props) {
                 </div>
               );
             })}
-            <div style={{ flex: 1, background: C.white, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
+            <div style={{ background: C.white, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
               <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
                 <IconUiScale size={20} color={C.green} />
               </div>
@@ -991,6 +1080,21 @@ function GainzTab(props) {
                     {bwMoChg.toFixed(1)} lb
                   </div>
                   <div style={{ fontSize: 10, color: C.muted, fontWeight: 500, marginTop: 2, lineHeight: 1.2 }}>since last month</div>
+                </div>
+              )}
+            </div>
+            <div style={{ background: C.white, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
+              <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
+                <HabitIcon id="run" size={20} color={C.green} />
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginTop: 3 }}>
+                {twCm}
+                <span style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}> min</span>
+              </div>
+              <div style={{ fontSize: 10, color: C.muted, fontWeight: 500, marginTop: 2, lineHeight: 1.2 }}>Cardio · this week</div>
+              {moCm > 0 && (
+                <div style={{ fontSize: 10, color: C.muted, fontWeight: 500, marginTop: 4, lineHeight: 1.2 }}>
+                  {moCm} min this month
                 </div>
               )}
             </div>
@@ -1015,6 +1119,19 @@ function GainzTab(props) {
                 <span style={{ fontSize: 12, color: C.muted }}>{lwS2}</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: C.green }}>{twS}</span>
                 {lwS2 > 0 && <span style={{ fontSize: 10, fontWeight: 600, color: twS >= lwS2 ? C.green : C.redT }}>{twS >= lwS2 ? "^" : "v"}{Math.abs(twS - lwS2)}</span>}
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 8, marginBottom: 8, borderBottom: "1px solid " + C.border }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Cardio (minutes)</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 12, color: C.muted }}>{lwCm}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: C.green }}>{twCm}</span>
+                {lwCm > 0 && (
+                  <span style={{ fontSize: 10, fontWeight: 600, color: twCm >= lwCm ? C.green : C.redT }}>
+                    {twCm >= lwCm ? "^" : "v"}
+                    {Math.abs(twCm - lwCm)}
+                  </span>
+                )}
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
@@ -1088,7 +1205,9 @@ function GainzTab(props) {
                 .reverse()
                 .map(function (k) {
                   var l = wl[k],
-                    p = k.split("-");
+                    p = k.split("-"),
+                    cm = cardioMinutesOnLog(l),
+                    st = l.sets ? Object.values(l.sets).reduce(function (a, b) { return a + b; }, 0) : 0;
                   return (
                     <div key={k} style={{ display: "flex", gap: 10, alignItems: "center", paddingBottom: 7, borderBottom: "1px solid " + C.border }}>
                       <div style={{ width: 36, height: 36, borderRadius: 10, background: C.gl, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -1098,7 +1217,8 @@ function GainzTab(props) {
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{l.muscles ? l.muscles.join(", ") : "\u2013"}</div>
                         <div style={{ fontSize: 11, color: C.muted }}>
-                          {l.sets ? Object.values(l.sets).reduce(function (a, b) { return a + b; }, 0) : 0} sets - {l.bodyweight}lb
+                          {st} sets · {l.bodyweight} lb
+                          {cm > 0 ? " \u00B7 " + cm + " min cardio" : ""}
                         </div>
                       </div>
                     </div>
@@ -3378,6 +3498,20 @@ function setsTotalOn(wl, k) {
   for (var m in l.sets) t += l.sets[m] || 0;
   return t;
 }
+/** Whole cardio minutes from a workout log row; legacy/missing cardio_minutes → 0. */
+function cardioMinutesOnLog(log) {
+  if (!log || log.cardio_minutes == null || log.cardio_minutes === "") return 0;
+  var n = Number(log.cardio_minutes);
+  return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
+}
+function parseGymCardioMinutesInput(s) {
+  var t = (s || "").trim();
+  if (!t) return { ok: false, error: "Enter minutes (use 0 for no cardio)." };
+  var n = parseInt(t, 10);
+  if (!Number.isFinite(n) || String(n) !== t) return { ok: false, error: "Use whole numbers only (0–300)." };
+  if (n < 0 || n > 300) return { ok: false, error: "Cardio must be between 0 and 300 minutes." };
+  return { ok: true, n: n };
+}
 function scheduledHabitsOn(habits, k) {
   var dow = new Date(k + "T00:00:00").getDay();
   return habits.filter(function (h) {
@@ -3844,6 +3978,10 @@ function DaySummarySheet(props) {
         return a + b;
       }, 0)
     : 0;
+  var cardioDisp =
+    l && l.cardio_minutes != null && l.cardio_minutes !== "" && Number.isFinite(Number(l.cardio_minutes))
+      ? Math.max(0, Math.round(Number(l.cardio_minutes)))
+      : null;
 
   var dayLabel = k === tk ? "Today" : new Date(k + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" });
 
@@ -3933,7 +4071,7 @@ function DaySummarySheet(props) {
           </div>
           {l ? (
             <div>
-              <div style={{ display: "flex", gap: 18, marginBottom: 10 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 18, marginBottom: 10 }}>
                 <div>
                   <div style={{ fontSize: 9, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>Bodyweight</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>
@@ -3944,6 +4082,19 @@ function DaySummarySheet(props) {
                 <div>
                   <div style={{ fontSize: 9, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>Total sets</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: C.green, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>{totalSets}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 9, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>Cardio</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>
+                    {cardioDisp != null ? (
+                      <>
+                        {cardioDisp}
+                        <span style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}> min</span>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: 14, fontWeight: 600, color: C.muted }}>{"\u2014"}</span>
+                    )}
+                  </div>
                 </div>
               </div>
               {l.muscles && l.muscles.length > 0 && (
@@ -4128,7 +4279,11 @@ function buildCoachContext(habits, comp, logs, sleep, cycles, calByDay) {
       sets_per_muscle: sets30,
       bodyweight_log: bw30,
       most_recent: workouts.slice(-3).map(function (k) {
-        return { d: k, muscles: logs[k].muscles, sets: logs[k].sets, bw: logs[k].bodyweight };
+        var log = logs[k];
+        var mr = { d: k, muscles: log.muscles, sets: log.sets, bw: log.bodyweight };
+        var cardioM = cardioMinutesOnLog(log);
+        if (cardioM > 0) mr.cardio_minutes = cardioM;
+        return mr;
       }),
     },
     sleep_7d: sleep7,

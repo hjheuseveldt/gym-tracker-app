@@ -66,6 +66,10 @@ function shapeLogs(rows) {
       bodyweight: r.bodyweight == null ? null : Number(r.bodyweight),
       muscles: Array.isArray(r.muscles) ? r.muscles : [],
       sets: r.sets || {},
+      cardio_minutes:
+        r.cardio_minutes == null || r.cardio_minutes === ""
+          ? null
+          : Math.max(0, Math.round(Number(r.cardio_minutes))),
     };
   });
   return out;
@@ -141,6 +145,7 @@ export async function upsertWorkoutLog(date, data) {
     bodyweight: data.bodyweight == null ? null : Number(data.bodyweight),
     muscles: Array.isArray(data.muscles) ? data.muscles : [],
     sets: data.sets || {},
+    cardio_minutes: data.cardio_minutes == null ? null : Math.max(0, Math.round(Number(data.cardio_minutes))),
   };
   var res = await supabase.from("workout_logs").upsert(row, { onConflict: "log_date" });
   if (res.error) throw new Error(res.error.message);
