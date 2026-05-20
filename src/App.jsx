@@ -2407,7 +2407,32 @@ function foodFromLogRow(row) {
     brand_name: row.brand_name || null,
     food_description: foodDescriptionFromPerServing(ps),
     __fromLog: true,
+    __isCustom: isCustomFoodId(row.food_id),
     __lastServings: row.servings,
+  };
+}
+function isCustomFoodId(id) {
+  return String(id).indexOf("custom:") === 0;
+}
+function newCustomFoodId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return "custom:" + crypto.randomUUID();
+  return "custom:" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 14);
+}
+/** FatSecret-shaped item from custom_foods table row */
+function foodFromCustomRow(row) {
+  return {
+    food_id: row.food_id,
+    food_name: row.food_name,
+    brand_name: null,
+    food_description: foodDescriptionFromPerServing({
+      serving: "serving",
+      calories: Number(row.calories),
+      protein: Number(row.protein),
+      carbs: Number(row.carbs),
+      fat: Number(row.fat),
+    }),
+    __isCustom: true,
+    __fromLog: false,
   };
 }
 function scaleMacrosPerServing(p, servings) {
@@ -2438,6 +2463,7 @@ function bwDeltaColorForCycle(deltaLb, activeCycle) {
 
 function AddFoodSheet(props) {
   var food = props.food;
+  var isCustom = !!(food && (food.__isCustom || isCustomFoodId(food.food_id)));
   var portalRootRef = props.portalRoot;
   var hostS = useState(function () {
     return portalRootRef && portalRootRef.current;
@@ -2459,17 +2485,23 @@ function AddFoodSheet(props) {
     setQty = qS[1];
   useEffect(
     function () {
-      setQty(1);
+      setQty(isCustom ? 1 : 1);
     },
-    [food && food.food_id]
+    [food && food.food_id, isCustom]
   );
   function bump(d) {
+    if (isCustom) {
+      var ci = Math.max(1, Math.round(Number(qty) || 1) + (d >= 1 ? 1 : -1));
+      setQty(ci);
+      return;
+    }
     var v = +(qty + d).toFixed(2);
     if (v < 0.25) v = 0.25;
     setQty(v);
   }
   if (!portalHost) return null;
   var p = parseFsDesc(food.food_description) || { serving: "serving", calories: 0, fat: null, carbs: null, protein: null };
+  var qEff = isCustom ? Math.max(1, Math.round(Number(qty) || 1)) : Math.max(0.25, Number(qty) || 0.25);
   return createPortal(
     <div
       onClick={props.onCancel}
@@ -2522,17 +2554,22 @@ function AddFoodSheet(props) {
           Servings
         </label>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button type="button" className="gt-focus-ring gt-min-tap" onClick={function () { bump(-0.5); }} aria-label="Decrease servings" style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button type="button" className="gt-focus-ring gt-min-tap" onClick={function () { bump(isCustom ? -1 : -0.5); }} aria-label="Decrease servings" style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             {"\u2212"}
           </button>
           <input
             id="add-food-servings-qty"
             type="number"
-            step="0.25"
-            min="0.25"
+            step={isCustom ? 1 : 0.25}
+            min={isCustom ? 1 : 0.25}
             value={qty}
             onChange={function (e) {
               var v = +e.target.value;
+              if (isCustom) {
+                if (isNaN(v) || v < 1) setQty(1);
+                else setQty(Math.floor(v));
+                return;
+              }
               if (isNaN(v) || v < 0) v = 0;
               setQty(v);
             }}
@@ -2540,21 +2577,262 @@ function AddFoodSheet(props) {
             className="gt-input"
             style={{ flex: 1, padding: "10px 12px", borderRadius: 12, border: "1.5px solid " + C.border, fontSize: 17, fontWeight: 700, textAlign: "center", color: C.text, outline: "none", fontFamily: "'DM Sans',sans-serif", background: C.white }}
           />
-          <button type="button" className="gt-focus-ring gt-min-tap" onClick={function () { bump(0.5); }} aria-label="Increase servings" style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button type="button" className="gt-focus-ring gt-min-tap" onClick={function () { bump(isCustom ? 1 : 0.5); }} aria-label="Increase servings" style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             +
           </button>
         </div>
         <div style={{ fontSize: 12, color: C.muted, marginTop: 8, textAlign: "center" }}>
-          = <span style={{ color: C.text, fontWeight: 700 }}>{Math.round(p.calories * qty)} cal</span>
+          = <span style={{ color: C.text, fontWeight: 700 }}>{Math.round(p.calories * qEff)} cal</span>
         </div>
         <div style={{ display: "flex", gap: 9, marginTop: 17 }}>
           <button onClick={props.onCancel} style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.white, fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Cancel</button>
           <button
-            onClick={function () { props.onConfirm(qty); }}
-            disabled={!qty}
-            style={{ flex: 1.4, padding: "11px", borderRadius: 12, border: "none", background: "linear-gradient(135deg," + C.green + "," + C.gd + ")", color: C.white, fontSize: 13, fontWeight: 700, cursor: qty ? "pointer" : "default", opacity: qty ? 1 : 0.6, fontFamily: "'DM Sans',sans-serif", boxShadow: "0 5px 14px rgba(76,199,116,0.28)" }}
+            onClick={function () {
+              var nv = qty;
+              if (isCustom) nv = Math.max(1, Math.round(Number(qty) || 0));
+              else nv = Math.max(0.25, +(Number(qty) || 0.25));
+              props.onConfirm(nv);
+            }}
+            disabled={isCustom ? !(Number(qty) >= 1 && !isNaN(Number(qty))) : !(Number(qty) >= 0.25)}
+            style={{
+              flex: 1.4,
+              padding: "11px",
+              borderRadius: 12,
+              border: "none",
+              background: "linear-gradient(135deg," + C.green + "," + C.gd + ")",
+              color: C.white,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: isCustom ? (Number(qty) >= 1 ? "pointer" : "default") : Number(qty) >= 0.25 ? "pointer" : "default",
+              opacity: isCustom ? (Number(qty) >= 1 ? 1 : 0.6) : Number(qty) >= 0.25 ? 1 : 0.6,
+              fontFamily: "'DM Sans',sans-serif",
+              boxShadow: "0 5px 14px rgba(76,199,116,0.28)",
+            }}
           >
             Add to log
+          </button>
+        </div>
+      </div>
+    </div>,
+    portalHost
+  );
+}
+
+function CustomFoodSheet(props) {
+  var portalRootRef = props.portalRoot;
+  var hostS = useState(function () {
+    return portalRootRef && portalRootRef.current;
+  });
+  var portalHost = hostS[0],
+    setPortalHost = hostS[1];
+  useLayoutEffect(
+    function () {
+      var el = portalRootRef && portalRootRef.current;
+      setPortalHost(function (prev) {
+        var next = el || null;
+        return Object.is(prev, next) ? prev : next;
+      });
+    },
+    [portalRootRef]
+  );
+  var nmS = useState(""),
+    calS = useState(""),
+    pS = useState(""),
+    carbS = useState(""),
+    fatS = useState("");
+  var nm = nmS[0],
+    setNm = nmS[1];
+  var calStr = calS[0],
+    setCalStr = calS[1];
+  var pStr = pS[0],
+    setPStr = pS[1];
+  var carbStr = carbS[0],
+    setCarbStr = carbS[1];
+  var fatStr = fatS[0],
+    setFatStr = fatS[1];
+
+  function parseNut(x) {
+    var n = parseFloat(String(x).trim());
+    return Number.isFinite(n) ? n : NaN;
+  }
+  function validForm() {
+    if (!nm.trim()) return null;
+    var cal = parseNut(calStr);
+    var prot = parseNut(pStr);
+    var crb = parseNut(carbStr);
+    var ft = parseNut(fatStr);
+    if (!(cal > 0)) return null;
+    if (!Number.isFinite(prot) || prot < 0) return null;
+    if (!Number.isFinite(crb) || crb < 0) return null;
+    if (!Number.isFinite(ft) || ft < 0) return null;
+    return { nm: nm.trim(), cal: cal, prot: prot, crb: crb, ft: ft };
+  }
+  function save() {
+    var v = validForm();
+    if (!v || !portalHost) return;
+    var food_id = newCustomFoodId();
+    var rowPayload = {
+      food_id: food_id,
+      food_name: v.nm,
+      calories: v.cal,
+      protein: v.prot,
+      carbs: v.crb,
+      fat: v.ft,
+    };
+    D.upsertCustomFood(rowPayload)
+      .then(function () {
+        props.onCreated(foodFromCustomRow(rowPayload));
+        props.onClose();
+      })
+      .catch(function (err) {
+        props.onSaveError(err && err.message ? err.message : String(err));
+      });
+  }
+
+  if (!portalHost) return null;
+
+  var vNow = validForm();
+  var canSave = !!vNow;
+  var inputStyle = {
+    width: "100%",
+    padding: "11px 12px",
+    borderRadius: 12,
+    border: "1.5px solid " + C.border,
+    fontSize: 15,
+    fontFamily: "'DM Sans',sans-serif",
+    color: C.text,
+    outline: "none",
+    boxSizing: "border-box",
+    background: C.white,
+  };
+  var labelStyle = {
+    fontSize: 11,
+    color: C.muted,
+    fontWeight: 600,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    display: "block",
+  };
+
+  return createPortal(
+    <div
+      onClick={props.onClose}
+      role="presentation"
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: "rgba(45,59,46,0.42)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingTop: "max(12px, env(safe-area-inset-top))",
+        paddingRight: "max(12px, env(safe-area-inset-right))",
+        paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+        paddingLeft: "max(12px, env(safe-area-inset-left))",
+        boxSizing: "border-box",
+        zIndex: 245,
+        animation: "fadeIn 0.18s ease both",
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="custom-food-sheet-title"
+        onClick={function (e) {
+          e.stopPropagation();
+        }}
+        style={{
+          background: C.bg,
+          width: "100%",
+          maxWidth: "min(336px, 100%)",
+          borderRadius: 20,
+          padding: "16px 16px 18px",
+          animation: "slideUp 0.24s cubic-bezier(0.34,1.56,0.64,1) both",
+          fontFamily: "'DM Sans',sans-serif",
+          maxHeight: "calc(100% - 24px)",
+          overflowY: "auto",
+          boxShadow: "0 16px 36px rgba(45,59,46,0.18)",
+          border: "1.5px solid " + C.border,
+          flexShrink: 0,
+        }}
+      >
+        <div id="custom-food-sheet-title" style={{ fontSize: 17, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.25 }}>
+          Custom food
+        </div>
+        <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Values below are per 1 serving.</div>
+        <div style={{ marginTop: 14 }}>
+          <label htmlFor="cf-name" style={labelStyle}>
+            Food name
+          </label>
+          <input
+            id="cf-name"
+            value={nm}
+            onChange={function (e) {
+              setNm(e.target.value);
+            }}
+            className="gt-input"
+            placeholder="e.g. Mom's casserole"
+            style={inputStyle}
+          />
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <label htmlFor="cf-cal" style={labelStyle}>
+            Calories
+          </label>
+          <input
+            id="cf-cal"
+            type="number"
+            inputMode="decimal"
+            min={1}
+            value={calStr}
+            onChange={function (e) {
+              setCalStr(e.target.value);
+            }}
+            className="gt-input"
+            placeholder="Greater than 0"
+            style={inputStyle}
+          />
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <div style={{ ...labelStyle, marginBottom: 8 }}>Macronutrients (per serving)</div>
+          <div style={{ fontSize: 10, color: C.muted, marginBottom: 8 }}>Protein, carbs, and fat in grams (&ge; 0 each).</div>
+          <label htmlFor="cf-p" style={{ ...labelStyle, marginTop: 8 }}>
+            Protein (g)
+          </label>
+          <input id="cf-p" type="number" inputMode="decimal" min={0} step="any" value={pStr} onChange={function (e) { setPStr(e.target.value); }} className="gt-input" placeholder="0" style={inputStyle} />
+          <label htmlFor="cf-c" style={{ ...labelStyle, marginTop: 10 }}>
+            Carbs (g)
+          </label>
+          <input id="cf-c" type="number" inputMode="decimal" min={0} step="any" value={carbStr} onChange={function (e) { setCarbStr(e.target.value); }} className="gt-input" placeholder="0" style={inputStyle} />
+          <label htmlFor="cf-f" style={{ ...labelStyle, marginTop: 10 }}>
+            Fat (g)
+          </label>
+          <input id="cf-f" type="number" inputMode="decimal" min={0} step="any" value={fatStr} onChange={function (e) { setFatStr(e.target.value); }} className="gt-input" placeholder="0" style={inputStyle} />
+        </div>
+        <div style={{ display: "flex", gap: 9, marginTop: 17 }}>
+          <button onClick={props.onClose} style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.white, fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+            Cancel
+          </button>
+          <button
+            onClick={save}
+            disabled={!canSave}
+            style={{
+              flex: 1.4,
+              padding: "11px",
+              borderRadius: 12,
+              border: "none",
+              background: canSave ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border,
+              color: C.white,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: canSave ? "pointer" : "default",
+              opacity: canSave ? 1 : 0.62,
+              fontFamily: "'DM Sans',sans-serif",
+              boxShadow: canSave ? "0 5px 14px rgba(76,199,116,0.28)" : "none",
+            }}
+          >
+            Save food
           </button>
         </div>
       </div>
@@ -2801,6 +3079,9 @@ function CalorieTab(props) {
   var dwlS = useState(new Set());
   var daysWithLogs = dwlS[0],
     setDaysWithLogs = dwlS[1];
+  var cfsS = useState(false);
+  var customFoodOpen = cfsS[0],
+    setCustomFoodOpen = cfsS[1];
 
   useEffect(
     function () {
@@ -2887,15 +3168,27 @@ function CalorieTab(props) {
               .order("created_at", { ascending: false })
               .limit(80)
           : Promise.resolve({ data: [], error: null });
+        var cfP = supaReady() ? D.searchCustomFoods(trimmed) : Promise.resolve({ data: [], error: null });
 
-        Promise.all([fsP, logP])
-          .then(function (pair) {
+        Promise.all([fsP, logP, cfP])
+          .then(function (triple) {
             if (aborted) return;
-            var data = pair[0];
-            var logRes = pair[1];
+            var data = triple[0];
+            var logRes = triple[1];
+            var cfRes = triple[2];
             var foods = data && data.foods && data.foods.food;
             if (!foods) foods = [];
             else if (!Array.isArray(foods)) foods = [foods];
+
+            var merged = [],
+              seen = {};
+            var customRows = cfRes.error ? [] : cfRes.data || [];
+            customRows.forEach(function (r) {
+              var fid = String(r.food_id);
+              if (seen[fid]) return;
+              seen[fid] = true;
+              merged.push(foodFromCustomRow(r));
+            });
 
             var loggedById = {};
             if (!logRes.error && logRes.data) {
@@ -2904,9 +3197,8 @@ function CalorieTab(props) {
                 if (!loggedById[fid]) loggedById[fid] = row;
               });
             }
-            var seen = {};
-            var merged = [];
             Object.keys(loggedById).forEach(function (fid) {
+              if (seen[fid]) return;
               seen[fid] = true;
               merged.push(foodFromLogRow(loggedById[fid]));
             });
@@ -2937,12 +3229,14 @@ function CalorieTab(props) {
   function logFood(food, servings) {
     var p = parseFsDesc(food.food_description) || { serving: "serving", calories: 0, fat: null, carbs: null, protein: null };
     var sm = scaleMacrosPerServing(p, servings);
+    var ic = !!(food.__isCustom || isCustomFoodId(food.food_id));
+    var srvDesc = ic ? "serving" : p.serving;
     var row = {
       log_date: selDate,
       food_id: String(food.food_id),
       food_name: food.food_name,
       brand_name: food.brand_name || null,
-      serving_description: p.serving,
+      serving_description: srvDesc,
       servings: servings,
       calories: sm.calories,
       protein: sm.protein,
@@ -2967,8 +3261,9 @@ function CalorieTab(props) {
   }
 
   function updateEntryServings(entry, newServings) {
-    var s = Math.max(0.25, +newServings);
-    if (isNaN(s)) return;
+    var ic = isCustomFoodId(entry.food_id);
+    var s = ic ? Math.max(1, Math.round(Number(newServings) || 1)) : Math.max(0.25, +newServings);
+    if (!ic && !Number.isFinite(s)) return;
     var ps = perServingMacrosFromLogRow(entry);
     var sm = scaleMacrosPerServing(
       { calories: ps.calories, protein: ps.protein, carbs: ps.carbs, fat: ps.fat },
@@ -3085,31 +3380,66 @@ function CalorieTab(props) {
         <label htmlFor="calorie-food-search" className="gt-sr-only">
           Search food
         </label>
-        <input
-          id="calorie-food-search"
-          value={q}
-          onChange={function (e) { setQ(e.target.value); }}
-          placeholder="Search food (e.g. chicken breast)"
-          className="gt-input"
-          style={{
-            width: "100%",
-            padding: "12px 14px",
-            borderRadius: 14,
-            border: "1.5px solid " + C.border,
-            background: C.white,
-            fontSize: 14,
-            fontFamily: "'DM Sans',sans-serif",
-            color: C.text,
-            outline: "none",
-            boxSizing: "border-box",
-          }}
-        />
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <input
+            id="calorie-food-search"
+            value={q}
+            onChange={function (e) {
+              setQ(e.target.value);
+            }}
+            placeholder="Search food (e.g. chicken breast)"
+            className="gt-input"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              padding: "12px 14px",
+              borderRadius: 14,
+              border: "1.5px solid " + C.border,
+              background: C.white,
+              fontSize: 14,
+              fontFamily: "'DM Sans',sans-serif",
+              color: C.text,
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+          <button
+            type="button"
+            aria-label="Add custom food"
+            className="gt-focus-ring gt-min-tap"
+            onClick={function () {
+              setCustomFoodOpen(true);
+            }}
+            style={{
+              flexShrink: 0,
+              width: 44,
+              height: 44,
+              borderRadius: 14,
+              border: "none",
+              cursor: "pointer",
+              fontSize: 26,
+              fontWeight: 300,
+              lineHeight: 1,
+              fontFamily: "'DM Sans',sans-serif",
+              color: C.white,
+              background: "linear-gradient(135deg," + C.green + "," + C.gd + ")",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 4px 14px rgba(76,199,116,0.38)",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            +
+          </button>
+        </div>
         {(q.trim() || searching) && (
           <div style={{ marginTop: 8, background: C.white, borderRadius: 14, border: "1.5px solid " + C.border, overflow: "hidden", maxHeight: 280, overflowY: "auto" }}>
             {searching && <div style={{ padding: "12px 14px", fontSize: 13, color: C.muted }}>Searching{"\u2026"}</div>}
             {!searching && results.length === 0 && q.trim() && <div style={{ padding: "12px 14px", fontSize: 13, color: C.muted }}>No results.</div>}
             {results.map(function (f, i) {
               var p = parseFsDesc(f.food_description) || { calories: 0, serving: "" };
+              var custItem = !!(f.__isCustom || isCustomFoodId(f.food_id));
               return (
                 <button
                   key={String(f.food_id) + "-r-" + i}
@@ -3132,15 +3462,16 @@ function CalorieTab(props) {
                     <div style={{ fontSize: 14, fontWeight: 600, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {f.food_name}
                       {f.brand_name && <span style={{ color: C.muted, fontWeight: 500 }}> {"\u00B7"} {f.brand_name}</span>}
-                      {f.__fromLog && (
+                      {custItem && (
+                        <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: C.green, textTransform: "uppercase", letterSpacing: 0.35 }}>Your food</span>
+                      )}
+                      {f.__fromLog && !custItem && (
                         <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: C.gd, textTransform: "uppercase", letterSpacing: 0.35 }}>Logged before</span>
                       )}
                     </div>
                     <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-                      {Math.round(p.calories)} cal {"\u00B7"} per {p.serving || "serving"}
-                      {f.__lastServings != null && f.__fromLog && (
-                        <span>{' \u00B7 last '} {f.__lastServings} sv</span>
-                      )}
+                      {Math.round(p.calories)} cal {"\u00B7"} per {custItem ? "serving" : p.serving || "serving"}
+                      {f.__lastServings != null && f.__fromLog && <span>{' \u00B7 last '} {f.__lastServings} sv</span>}
                     </div>
                   </div>
                   <div style={{ width: 28, height: 28, borderRadius: 10, background: C.gl, color: C.gd, fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>+</div>
@@ -3163,6 +3494,7 @@ function CalorieTab(props) {
           </div>
         )}
         {entries.map(function (e) {
+          var ic = isCustomFoodId(e.food_id);
           var pVal = e.protein != null ? Math.round(Number(e.protein) || 0) : null;
           var cVal = e.carbs != null ? Math.round(Number(e.carbs) || 0) : null;
           var fVal = e.fat != null ? Math.round(Number(e.fat) || 0) : null;
@@ -3197,7 +3529,9 @@ function CalorieTab(props) {
                     className="gt-focus-ring gt-min-tap"
                     aria-label="Decrease servings"
                     onClick={function () {
-                      updateEntryServings(e, Math.max(0.25, +(Number(e.servings) || 0) - 0.5));
+                      var cur = +(Number(e.servings) || 0);
+                      if (ic) updateEntryServings(e, Math.max(1, Math.round(cur || 1) - 1));
+                      else updateEntryServings(e, Math.max(0.25, cur - 0.5));
                     }}
                     style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                   >
@@ -3205,9 +3539,9 @@ function CalorieTab(props) {
                   </button>
                   <input
                     type="number"
-                    step="0.25"
-                    min="0.25"
-                    value={e.servings}
+                    step={ic ? 1 : 0.25}
+                    min={ic ? 1 : 0.25}
+                    value={ic ? Math.round(Number(e.servings) || 1) : e.servings}
                     aria-label="Servings"
                     className="gt-input"
                     onChange={function (ev) {
@@ -3220,13 +3554,17 @@ function CalorieTab(props) {
                     className="gt-focus-ring gt-min-tap"
                     aria-label="Increase servings"
                     onClick={function () {
-                      updateEntryServings(e, +(Number(e.servings) || 0) + 0.5);
+                      var cur = +(Number(e.servings) || 0);
+                      if (ic) updateEntryServings(e, Math.round(cur || 1) + 1);
+                      else updateEntryServings(e, cur + 0.5);
                     }}
                     style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                   >
                     +
                   </button>
-                  <span style={{ fontSize: 11, color: C.muted, fontWeight: 500 }}>{e.serving_description || "serving"}</span>
+                  <span style={{ fontSize: 11, color: C.muted, fontWeight: 500 }}>
+                    {(ic ? Math.round(Number(e.servings) || 1) : e.servings) + " × " + (e.serving_description || "serving")}
+                  </span>
                 </div>
                 <div style={{ fontSize: 12, marginTop: 8, lineHeight: 1.35 }}>
                   {macroStr && <span style={{ color: C.muted }}>{macroStr + " \u00B7 "}</span>}
@@ -3260,6 +3598,21 @@ function CalorieTab(props) {
             {"\u00D7"}
           </button>
         </div>
+      )}
+
+      {customFoodOpen && (
+        <CustomFoodSheet
+          portalRoot={props.portalRoot}
+          onClose={function () {
+            setCustomFoodOpen(false);
+          }}
+          onCreated={function (food) {
+            setPending(food);
+          }}
+          onSaveError={function (msg) {
+            setError(msg);
+          }}
+        />
       )}
 
       {pending && (

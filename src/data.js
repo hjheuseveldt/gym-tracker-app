@@ -171,6 +171,38 @@ export async function deleteCycle(id) {
   if (res.error) throw new Error(res.error.message);
 }
 
+/** Sanitize substring for Postgres ILIKE (wildcards stripped). */
+function safeIlikeFragment(s) {
+  return String(s || "")
+    .replace(/\\/g, "")
+    .replace(/%/g, "")
+    .replace(/_/g, "")
+    .trim();
+}
+
+/** Insert or replace a user-defined food (food_id usually `custom:` + UUID). */
+export async function upsertCustomFood(payload) {
+  if (!supaReady()) throw new Error("Supabase isn't configured.");
+  var row = {
+    food_id: String(payload.food_id),
+    food_name: payload.food_name,
+    calories: Number(payload.calories),
+    protein: payload.protein == null ? 0 : Number(payload.protein),
+    carbs: payload.carbs == null ? 0 : Number(payload.carbs),
+    fat: payload.fat == null ? 0 : Number(payload.fat),
+  };
+  var res = await supabase.from("custom_foods").upsert(row, { onConflict: "food_id" });
+  if (res.error) throw new Error(res.error.message);
+}
+
+/** Calories tab search — newest customs first name match. */
+export async function searchCustomFoods(nameFragment) {
+  if (!supaReady()) return { data: [], error: null };
+  var frag = safeIlikeFragment(nameFragment);
+  if (!frag) return { data: [], error: null };
+  return supabase.from("custom_foods").select("*").ilike("food_name", "%" + frag + "%").order("created_at", { ascending: false }).limit(30);
+}
+
 // Convenience: log a write failure to the console without breaking the UI.
 export function fireAndForget(promise, label) {
   if (!promise || typeof promise.then !== "function") return;
