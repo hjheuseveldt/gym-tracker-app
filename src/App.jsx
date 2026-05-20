@@ -2366,6 +2366,16 @@ function SleepTab(props) {
   );
 }
 
+/** Friendlier banner when PostgREST reports custom_foods missing from schema cache. */
+function friendlyCustomFoodsDbError(err) {
+  var msg = typeof err === "string" ? err : err && err.message ? String(err.message) : "";
+  if (!msg) return "Something went wrong saving custom food.";
+  if (/custom_foods/i.test(msg) && (/schema cache|PGRST205|could not find|not find/i.test(msg))) {
+    return "Custom foods aren't set up yet. In Supabase -> SQL Editor, run supabase/migrations/20260520130100_custom_foods.sql (see docs/DATABASE_CUSTOM_FOODS.md), then refresh this page.";
+  }
+  return msg;
+}
+
 function parseFsDesc(desc) {
   if (!desc) return null;
   var m = desc.match(/Per\s+([^-]+?)\s*-\s*Calories:\s*([\d.]+)\s*kcal(?:\s*\|\s*Fat:\s*([\d.]+)\s*g)?(?:\s*\|\s*Carbs:\s*([\d.]+)\s*g)?(?:\s*\|\s*Protein:\s*([\d.]+)\s*g)?/i);
@@ -2685,7 +2695,7 @@ function CustomFoodSheet(props) {
         props.onClose();
       })
       .catch(function (err) {
-        props.onSaveError(err && err.message ? err.message : String(err));
+        props.onSaveError(friendlyCustomFoodsDbError(err));
       });
   }
 
