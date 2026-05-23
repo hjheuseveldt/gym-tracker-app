@@ -495,12 +495,19 @@ function GymQ(props) {
   var cardioParsed = parseGymCardioMinutesInput(cardio);
   var canSaveGym = !!bw.trim() && cardioParsed.ok;
   var cardioFieldErr = cardio.trim() && !cardioParsed.ok ? cardioParsed.error : null;
+  var saving = !!props.saving;
+  var saveError = props.saveError || null;
   return (
     <div style={{ position: "absolute", inset: 0, background: "rgba(45,59,46,0.45)", display: "flex", alignItems: "flex-end", zIndex: 200 }}>
       <div style={{ background: C.bg, borderRadius: "28px 28px 0 0", padding: "24px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
         <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 16px" }} />
         <div style={{ fontSize: 20, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 4 }}>Workout Log</div>
         <div style={{ fontSize: 12, color: C.muted, marginBottom: 20 }}>How did {dayLabel} go?</div>
+        {saveError && (
+          <div style={{ marginBottom: 14, padding: "10px 12px", background: C.red, borderRadius: 12, fontSize: 12, color: C.redT, fontWeight: 600, lineHeight: 1.45 }}>
+            {saveError}
+          </div>
+        )}
         <div style={{ marginBottom: 18 }}>
           <label htmlFor="gymq-bw" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8, display: "block" }}>
             Bodyweight (lbs)
@@ -657,8 +664,10 @@ function GymQ(props) {
           </div>
         )}
         <button
+          type="button"
+          disabled={!canSaveGym || saving}
           onClick={function () {
-            if (!canSaveGym) return;
+            if (!canSaveGym || saving) return;
             var s = {};
             muscles.forEach(function (m) {
               if (sets[m] > 0) s[m] = sets[m];
@@ -669,20 +678,27 @@ function GymQ(props) {
             width: "100%",
             padding: "15px",
             borderRadius: 18,
-            background: canSaveGym ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border,
+            background: canSaveGym && !saving ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border,
             border: "none",
-            color: canSaveGym ? C.white : C.muted,
+            color: canSaveGym && !saving ? C.white : C.muted,
             fontSize: 16,
             fontWeight: 700,
-            cursor: "pointer",
+            cursor: canSaveGym && !saving ? "pointer" : "default",
             fontFamily: "'DM Sans',sans-serif",
             marginBottom: 12,
+            opacity: saving ? 0.75 : 1,
           }}
         >
-          Save Workout
+          {saving ? "Saving\u2026" : "Save Workout"}
         </button>
-        <button onClick={props.onSkip} style={{ width: "100%", padding: "12px", borderRadius: 18, background: "none", border: "none", color: C.muted, fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={props.onSkip}
+          style={{ width: "100%", padding: "12px", borderRadius: 18, background: "none", border: "none", color: C.muted, fontSize: 13, cursor: saving ? "default" : "pointer", fontFamily: "'DM Sans',sans-serif", lineHeight: 1.45 }}
+        >
           Skip for now
+          <span style={{ display: "block", fontSize: 11, fontWeight: 500, marginTop: 4, opacity: 0.85 }}>Keeps gym checked; sets and weight are not saved until you log a workout.</span>
         </button>
       </div>
     </div>
@@ -3877,6 +3893,18 @@ function cardioMinutesOnLog(log) {
   var n = Number(log.cardio_minutes);
   return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
 }
+/** True when workout_logs row has saved bodyweight, sets, or cardio (not habit-check only). */
+function workoutLogHasDetails(log) {
+  if (!log) return false;
+  if (log.bodyweight != null && log.bodyweight !== "" && Number.isFinite(Number(log.bodyweight))) return true;
+  if (cardioMinutesOnLog(log) > 0) return true;
+  if (log.sets) {
+    for (var m in log.sets) {
+      if ((log.sets[m] || 0) > 0) return true;
+    }
+  }
+  return false;
+}
 function parseGymCardioMinutesInput(s) {
   var t = (s || "").trim();
   if (!t) return { ok: false, error: "Enter minutes (use 0 for no cardio)." };
@@ -5385,6 +5413,12 @@ export default function App() {
   var h23 = useState(tk);
   var selDay = h23[0],
     setSelDay = h23[1];
+  var hGymErr = useState(null);
+  var gymSaveErr = hGymErr[0],
+    setGymSaveErr = hGymErr[1];
+  var hGymSav = useState(false);
+  var gymSaving = hGymSav[0],
+    setGymSaving = hGymSav[1];
   var phoneRef = useRef(null),
     scrollRef = useRef(null),
     tabSwipeRowRef = useRef(null),
@@ -5785,6 +5819,7 @@ export default function App() {
       if (hab && hab.icon === ICON_GYM) {
         var capturedDay = k;
         setTimeout(function () {
+          setGymSaveErr(null);
           setPendGym({ id: id, day: capturedDay });
         }, 2900);
       }
@@ -6074,7 +6109,8 @@ export default function App() {
                   var done = isCompOn(habit.id, selDay),
                     streak = getStreak(habit.id),
                     wp = getWP(habit.id),
-                    pop = justChk[habit.id];
+                    pop = justChk[habit.id],
+                    gymOrphan = gym && habit.id === gym.id && done && !workoutLogHasDetails(logs[selDay]);
                   return (
                     <div key={habit.id} className={"hab" + (pop ? " glow" : "")} style={{ background: done ? C.gl : C.white, borderRadius: 18, padding: "14px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: done ? "0 2px 14px rgba(76,199,116,0.16)" : "0 2px 9px rgba(45,59,46,0.05)", border: "1.5px solid " + (done ? C.gm : C.border), transition: "background 0.4s ease,border-color 0.4s ease" }}>
                       <button type="button" aria-pressed={done} aria-label={(done ? "Unmark " : "Mark ") + habit.name + " for " + selDay} className="chk gt-focus-ring" onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "none" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "0 4px 12px rgba(76,199,116,0.45)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
@@ -6105,6 +6141,31 @@ export default function App() {
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 15, fontWeight: 700, color: done ? C.gd : C.text, letterSpacing: 0.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{habit.name}</div>
+                        {gymOrphan && (
+                          <button
+                            type="button"
+                            className="gt-focus-ring"
+                            onClick={function (e) {
+                              e.stopPropagation();
+                              setGymSaveErr(null);
+                              setPendGym({ id: habit.id, day: selDay });
+                            }}
+                            style={{
+                              marginTop: 6,
+                              padding: "5px 10px",
+                              borderRadius: 8,
+                              border: "1px solid " + C.gm,
+                              background: C.white,
+                              color: C.gd,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              fontFamily: "'DM Sans',sans-serif",
+                            }}
+                          >
+                            Add workout details
+                          </button>
+                        )}
                         <div style={{ marginTop: 7 }}>
                           <div style={{ display: "flex", gap: 2, marginBottom: 2 }}>
                             {wd.map(function (d, i) {
@@ -6245,18 +6306,32 @@ export default function App() {
           <GymQ
             day={pendGym.day || tk}
             initial={logs[pendGym.day || tk]}
+            saving={gymSaving}
+            saveError={gymSaveErr}
             onSave={function (data) {
               var d = (pendGym && pendGym.day) || tk;
-              setLogs(function (p) {
-                var n = Object.assign({}, p);
-                n[d] = data;
-                return n;
-              });
-              D.fireAndForget(D.upsertWorkoutLog(d, data), "gymq-save");
-              setPendGym(null);
+              setGymSaving(true);
+              setGymSaveErr(null);
+              D.upsertWorkoutLog(d, data)
+                .then(function (saved) {
+                  setLogs(function (p) {
+                    var n = Object.assign({}, p);
+                    n[d] = saved;
+                    return n;
+                  });
+                  setPendGym(null);
+                  setGymSaving(false);
+                })
+                .catch(function (e) {
+                  setGymSaveErr(String(e && e.message ? e.message : e));
+                  setGymSaving(false);
+                });
             }}
             onSkip={function () {
+              // Policy (b): habit completion stays; workout_logs only written on Save Workout or "Add workout details".
               setPendGym(null);
+              setGymSaveErr(null);
+              setGymSaving(false);
             }}
           />
         )}
