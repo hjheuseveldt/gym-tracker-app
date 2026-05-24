@@ -74,6 +74,16 @@ var C = {
   scrimTint: "rgba(8,10,16,0.3)",
   onAccent: "#E8EAEF",
 };
+/** First outset box-shadow vs remainder (comma before inset). Used when clip-path would hide outward glow on shimmer pills/tabs. */
+function splitFirstOutShadowLayer(boxShadowFull) {
+  var re = /,\s*(?=inset\b)/,
+    ix = boxShadowFull.search(re);
+  if (ix === -1) return { outset: "", rest: boxShadowFull.trim() };
+  return {
+    outset: boxShadowFull.slice(0, ix).trim(),
+    rest: boxShadowFull.slice(ix + 1).trim(),
+  };
+}
 var DL = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 var MN = [
   "January",
@@ -3933,41 +3943,50 @@ function TabPicker(props) {
         var isCenter = idx === highlightPhysIdx;
         var opacity = isCenter ? 1 : Math.max(0.32, 1 - t * 0.65);
         var TabIcon = item.tab.Icon;
+        var centerTabShadowFull =
+          "0 0 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(200,204,212,0.25)";
+        var tabShimmerSplit = isCenter ? splitFirstOutShadowLayer(centerTabShadowFull) : null;
         return (
-          <button
-            type="button"
-            className={"gt-focus-ring" + (isCenter ? " gt-shimmer" : "")}
+          <div
             key={item.key}
-            onClick={function () { onSelect(item.tab.id); }}
             style={{
               flexShrink: 0,
               scrollSnapAlign: "center",
               scrollSnapStop: "normal",
-              width: 78,
-              height: 68,
-              padding: "10px 6px",
-              background: isCenter
-                ? "linear-gradient(160deg,rgba(255,255,255,0.16) 0%,rgba(34,40,54,0.92) 40%,rgba(26,31,46,0.96) 100%)"
-                : "transparent",
-              border: isCenter ? "1px solid rgba(212,216,224,0.45)" : "1px solid transparent",
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              borderRadius: 18,
-              opacity: opacity,
-              transition: "opacity 0.08s ease, box-shadow 0.12s ease, background 0.12s ease",
-              fontFamily: "'DM Sans',sans-serif",
-              boxShadow: isCenter ? "0 0 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(200,204,212,0.25)" : "none",
+              filter: tabShimmerSplit && tabShimmerSplit.outset ? "drop-shadow(" + tabShimmerSplit.outset + ")" : undefined,
             }}
           >
-            <div style={{ transform: "scale(1.35)", lineHeight: 0 }}>
-              <TabIcon color={isCenter ? C.accent : C.muted} />
-            </div>
-            <span style={{ fontSize: 11, fontWeight: isCenter ? 700 : 600, color: isCenter ? C.selText : C.muted, whiteSpace: "nowrap" }}>{item.tab.label}</span>
-          </button>
+            <button
+              type="button"
+              className={"gt-focus-ring" + (isCenter ? " gt-shimmer gt-shimmer-tab" : "")}
+              onClick={function () { onSelect(item.tab.id); }}
+              style={{
+                width: 78,
+                height: 68,
+                padding: "10px 6px",
+                background: isCenter
+                  ? "linear-gradient(160deg,rgba(255,255,255,0.16) 0%,rgba(34,40,54,0.92) 40%,rgba(26,31,46,0.96) 100%)"
+                  : "transparent",
+                border: isCenter ? "1px solid rgba(212,216,224,0.45)" : "1px solid transparent",
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                borderRadius: 18,
+                opacity: opacity,
+                transition: "opacity 0.08s ease, box-shadow 0.12s ease, background 0.12s ease",
+                fontFamily: "'DM Sans',sans-serif",
+                boxShadow: isCenter ? (tabShimmerSplit ? tabShimmerSplit.rest : centerTabShadowFull) : "none",
+              }}
+            >
+              <div style={{ transform: "scale(1.35)", lineHeight: 0 }}>
+                <TabIcon color={isCenter ? C.accent : C.muted} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: isCenter ? 700 : 600, color: isCenter ? C.selText : C.muted, whiteSpace: "nowrap" }}>{item.tab.label}</span>
+            </button>
+          </div>
         );
       })}
     </div>
@@ -6484,33 +6503,45 @@ export default function App() {
             (function () {
               var curTab = APP_NAV_TABS.find(function (t) { return t.id === tab; }) || APP_NAV_TABS[0];
               var CurI = curTab.Icon;
+              var launcherShadowFull =
+                C.shadowCTA + ", inset 0 1px 0 rgba(255,255,255,0.16)";
+              var launchSp = splitFirstOutShadowLayer(launcherShadowFull);
               return (
-                <button
-                  type="button"
-                  className="gt-focus-ring gt-shimmer"
-                  onClick={() => setTabsExp(true)}
+                <div
                   style={{
-                    pointerEvents: "auto",
-                    display: "flex",
+                    pointerEvents: "none",
+                    display: "inline-flex",
                     alignItems: "center",
-                    gap: 9,
-                    background: C.gradCTA,
-                    border: "1px solid rgba(212,216,224,0.42)",
-                    borderRadius: 99,
-                    padding: "12px 22px 12px 18px",
-                    boxShadow: C.shadowCTA + ", inset 0 1px 0 rgba(255,255,255,0.16)",
-                    cursor: "pointer",
-                    color: C.onAccent,
-                    fontFamily: "'DM Sans',sans-serif",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    letterSpacing: 0.3,
+                    filter: launchSp.outset ? "drop-shadow(" + launchSp.outset + ")" : undefined,
                   }}
-                  aria-label="Open tab switcher"
                 >
-                  <CurI color={C.onAccent} />
-                  <span>{curTab.label}</span>
-                </button>
+                  <button
+                    type="button"
+                    className="gt-focus-ring gt-shimmer gt-shimmer-pill"
+                    onClick={() => setTabsExp(true)}
+                    style={{
+                      pointerEvents: "auto",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 9,
+                      background: C.gradCTA,
+                      border: "1px solid rgba(212,216,224,0.42)",
+                      borderRadius: 99,
+                      padding: "12px 22px 12px 18px",
+                      boxShadow: launchSp.rest,
+                      cursor: "pointer",
+                      color: C.onAccent,
+                      fontFamily: "'DM Sans',sans-serif",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      letterSpacing: 0.3,
+                    }}
+                    aria-label="Open tab switcher"
+                  >
+                    <CurI color={C.onAccent} />
+                    <span>{curTab.label}</span>
+                  </button>
+                </div>
               );
             })()
           ) : (
