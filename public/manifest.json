@@ -1,13 +1,13 @@
 {
   "name": "GymTrack",
   "short_name": "GymTrack",
-  "description": "Workouts, sleep, calories, habits, and your AI coach.",
+  "description": "Navy chrome training companion — workouts, sleep, calories, habits, and coach.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0b0e14",
-  "theme_color": "#0b0e14",
+  "background_color": "#0B0E14",
+  "theme_color": "#0B0E14",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -20,6 +20,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/apple-touch-icon.png",
