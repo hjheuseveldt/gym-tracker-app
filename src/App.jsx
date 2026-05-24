@@ -6574,7 +6574,6 @@ export default function App() {
               var CurI = curTab.Icon;
               var launcherShadowFull =
                 C.shadowCTA + ", inset 0 1px 0 rgba(255,255,255,0.16)";
-              var launchSp = splitFirstOutShadowLayer(launcherShadowFull);
               return (
                 <button
                   type="button"
@@ -6589,8 +6588,7 @@ export default function App() {
                     border: "1px solid rgba(212,216,224,0.42)",
                     borderRadius: 99,
                     padding: "12px 22px 12px 18px",
-                    boxShadow: launchSp.rest,
-                    filter: launchSp.outset ? "drop-shadow(" + launchSp.outset + ")" : undefined,
+                    boxShadow: launcherShadowFull,
                     cursor: "pointer",
                     color: C.onAccent,
                     fontFamily: "'DM Sans',sans-serif",

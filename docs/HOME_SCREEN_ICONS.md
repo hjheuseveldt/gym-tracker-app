@@ -2,7 +2,7 @@
 
 Design matches in-app navy–silver chrome (no legacy green/violet accents).
 
-The mark is a **stroke-outline dumbbell** (rounded-rect plates plus a horizontal bar, `fill="none"`), aligned with **`IconDumbbellMark`** in `src/icons.jsx`. Plates are drawn first; the **center line is last** with a **thicker stroke** so the bar survives export at 48×48 and 180×180.
+The mark uses **stroke-outline plates** (`fill="none"`) like **`IconDumbbellMark`**, plus a **filled rounded-rect shaft** (`fill="url(#silver)"`) drawn on top — the shaft spans roughly **x = 3→21** so it stays clearly visible after export at **48×48** and **180×180** (a thin stroke on the plate midline blended into the rims).
 
 ## Palette
 
@@ -15,7 +15,7 @@ The mark is a **stroke-outline dumbbell** (rounded-rect plates plus a horizontal
 | Highlight| `#E8EAEF`   |
 | Rim      | `rgba(212,216,224,0.48)` |
 
-Source graphic is programmatic SVG in **`scripts/make-pwa-icons.mjs`** (navy diagonal gradient, silver-gradient stroke dumbbell, inset rim).
+Source graphic is programmatic SVG in **`scripts/make-pwa-icons.mjs`** (navy diagonal gradient, stroke plates + filled silver handle, inset rim).
 
 Regenerate raster assets after editing the SVG:
 
