@@ -1864,6 +1864,26 @@ function scoreColor(s) {
   if (s >= 70) return "#B8C0CC";
   return "#E05050";
 }
+/** Dark fills for charts/bars — pair with scoreTextOnFill for contrast (not light silver on silver). */
+function scoreFill(s) {
+  if (s == null) return null;
+  if (s >= 85) return "#222836";
+  if (s >= 70) return "#1E2633";
+  return "rgba(224,80,80,0.38)";
+}
+function scoreTextOnFill(s) {
+  if (s == null) return C.muted;
+  if (s >= 85) return "#E8EAEF";
+  if (s >= 70) return "#D4D8E0";
+  return "#FFFFFF";
+}
+/** Muted label on scoreFill pill (e.g. "score" caption). */
+function scoreCaptionOnFill(s) {
+  if (s == null) return C.muted;
+  if (s >= 85) return "#B8C0CC";
+  if (s >= 70) return "#C8CCD4";
+  return "#FF848C";
+}
 function computeSleepDebt(sleep, anchorKey) {
   if (!anchorKey) return null;
   var TARGET_SEC = 8 * 3600;
@@ -1977,15 +1997,13 @@ function ScoreRing(props) {
   var col = scoreColor(score);
   var shimmerSvg = !!props.shimmer && pct > 0;
   var gradIdRaw = useId();
-  var gradId = "_sr_" + gradIdRaw.replace(/\W/g, "_");
+  var baseId = "_sr_" + gradIdRaw.replace(/\W/g, "_");
+  var gradId = baseId + "_g";
+  var maskId = baseId + "_m";
   var reduceMotionSvg =
     typeof window !== "undefined" &&
     window.matchMedia &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var progStroke = col;
-  if (shimmerSvg) {
-    progStroke = "url(#" + gradId + ")";
-  }
   return (
     <div style={{ position: "relative", width: size, height: size }}>
       <svg width={size} height={size}>
@@ -1994,17 +2012,17 @@ function ScoreRing(props) {
             <linearGradient
               id={gradId}
               gradientUnits="userSpaceOnUse"
-              x1={cx - r}
+              x1={cx - r * 1.15}
               y1={cy}
-              x2={cx + r}
+              x2={cx + r * 1.15}
               y2={cy}
-              gradientTransform={reduceMotionSvg ? "rotate(48 " + cx + " " + cy + ")" : undefined}
+              gradientTransform={reduceMotionSvg ? "rotate(52 " + cx + " " + cy + ")" : undefined}
             >
-              <stop offset="36%" stopColor={col} stopOpacity={1} />
-              <stop offset="44%" stopColor="rgba(226,232,240,0.45)" />
-              <stop offset="48%" stopColor="rgba(255,255,255,1)" />
-              <stop offset="52%" stopColor="rgba(240,243,247,0.66)" />
-              <stop offset="58%" stopColor={col} stopOpacity={1} />
+              <stop offset="30%" stopColor={col} stopOpacity={1} />
+              <stop offset="42%" stopColor="rgba(255,255,255,0.48)" />
+              <stop offset="48%" stopColor="rgba(255,255,255,0.95)" />
+              <stop offset="54%" stopColor="rgba(240,243,247,0.52)" />
+              <stop offset="62%" stopColor={col} stopOpacity={1} />
               {!reduceMotionSvg ? (
                 <animateTransform
                   attributeName="gradientTransform"
@@ -2017,6 +2035,21 @@ function ScoreRing(props) {
                 />
               ) : null}
             </linearGradient>
+            <mask id={maskId} maskUnits="userSpaceOnUse">
+              <rect x="0" y="0" width={size} height={size} fill="black" />
+              <circle
+                cx={cx}
+                cy={cy}
+                r={r}
+                fill="none"
+                stroke="white"
+                strokeWidth={stroke}
+                strokeDasharray={circ}
+                strokeDashoffset={circ * (1 - pct)}
+                strokeLinecap="round"
+                transform={"rotate(-90 " + cx + " " + cy + ")"}
+              />
+            </mask>
           </defs>
         ) : null}
         <circle cx={cx} cy={cy} r={r} fill="none" stroke={C.border} strokeWidth={stroke} />
@@ -2025,7 +2058,7 @@ function ScoreRing(props) {
           cy={cy}
           r={r}
           fill="none"
-          stroke={progStroke}
+          stroke={col}
           strokeWidth={stroke}
           strokeDasharray={circ}
           strokeDashoffset={circ * (1 - pct)}
@@ -2033,12 +2066,15 @@ function ScoreRing(props) {
           transform={"rotate(-90 " + cx + " " + cy + ")"}
           style={{ transition: "stroke-dashoffset 0.7s ease, stroke 0.4s ease" }}
         />
+        {shimmerSvg ? (
+          <rect x="0" y="0" width={size} height={size} fill={"url(#" + gradId + ")"} mask={"url(#" + maskId + ")"} opacity={0.48} />
+        ) : null}
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
         <div style={{ fontSize: 44, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>
           {score != null ? score : "\u2013"}
         </div>
-        <div style={{ fontSize: 10, color: col, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginTop: 5 }}>
+        <div style={{ fontSize: 10, color: score != null ? scoreTextOnFill(score) : C.muted, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginTop: 5 }}>
           {scoreLabel(score)}
         </div>
       </div>
@@ -2062,13 +2098,24 @@ function ContributorBars(props) {
     <div style={{ display: "flex", gap: 5 }}>
       {CONTRIB_KEYS.map(function (item) {
         var val = contributors ? contributors[item.k] : null;
-        var col = scoreColor(val);
+        var fillCol = scoreFill(val);
+        var txtCol = val != null ? scoreTextOnFill(val) : C.muted;
         var pct = val != null ? Math.max(0, Math.min(100, val)) / 100 : 0;
         return (
           <div key={item.k} style={{ flex: 1, textAlign: "center" }}>
             <div style={{ height: 52, background: C.bg, borderRadius: 6, position: "relative", overflow: "hidden", border: "1px solid " + C.border }}>
-              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: pct * 100 + "%", background: col, transition: "height 0.6s ease, background 0.4s ease" }} />
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: val != null && pct > 0.55 ? C.white : C.text, transition: "color 0.4s" }}>
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: pct * 100 + "%",
+                  background: fillCol || "transparent",
+                  transition: "height 0.6s ease, background 0.4s ease",
+                }}
+              />
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: txtCol, transition: "color 0.4s" }}>
                 {val != null ? val : "\u2013"}
               </div>
             </div>
@@ -2160,16 +2207,14 @@ function SleepCalendar(props) {
           var k = dKey(day);
           var data = sleep[k];
           var hasScore = data && data.score != null;
-          var col = hasScore ? scoreColor(data.score) : null;
-          var txt = hasScore ? scoreTextOn(data.score) : C.text;
+          var fillBg = hasScore ? scoreFill(data.score) : "transparent";
+          var txt = hasScore ? scoreTextOnFill(data.score) : C.text;
           var isSel = k === selected;
           var isT = k === todayKey;
           var isFut = k > todayKey;
-          var border = isSel
-            ? "2.5px solid " + C.text
-            : hasScore
-            ? "1.5px solid transparent"
-            : "1.5px solid " + C.border;
+          var chromeBorder = hasScore && !isSel ? "1px solid rgba(212,216,224,0.35)" : "1.5px solid transparent";
+          var border =
+            isSel ? "2px solid rgba(232,236,243,0.65)" : hasScore ? chromeBorder : "1.5px solid " + C.border;
           var shadow = isT && !isSel ? "inset 0 0 0 2px " + C.accent : "none";
           return (
             <button
@@ -2181,7 +2226,7 @@ function SleepCalendar(props) {
                 aspectRatio: "1",
                 borderRadius: 9,
                 border: border,
-                background: hasScore ? col : "transparent",
+                background: fillBg,
                 boxShadow: shadow,
                 color: txt,
                 cursor: isFut ? "default" : "pointer",
@@ -2251,9 +2296,19 @@ function SleepDayDetail(props) {
           </div>
         </div>
         {data.score != null && (
-          <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "'DM Serif Display',serif", color: scoreColor(data.score), lineHeight: 1 }}>{data.score}</div>
-            <div style={{ fontSize: 10, color: C.muted, fontWeight: 600 }}>score</div>
+          <div
+            style={{
+              textAlign: "right",
+              flexShrink: 0,
+              minWidth: 72,
+              background: scoreFill(data.score),
+              border: "1px solid rgba(212,216,224,0.35)",
+              borderRadius: 12,
+              padding: "8px 12px",
+            }}
+          >
+            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "'DM Serif Display',serif", color: scoreTextOnFill(data.score), lineHeight: 1 }}>{data.score}</div>
+            <div style={{ fontSize: 10, color: scoreCaptionOnFill(data.score), fontWeight: 600 }}>score</div>
           </div>
         )}
       </div>
