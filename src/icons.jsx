@@ -1,4 +1,4 @@
-var DEF_PRI = "#4CC774";
+var DEF_PRI = "#C8CCD4";
 var DEF = DEF_PRI;
 
 export var ICON_GYM = "gym";
@@ -327,7 +327,7 @@ export function IconDumbbellMark(props) {
 }
 
 export function CalDayDoneCheck(props) {
-  var c = props.color || "#ffffff",
+  var c = props.color || "#F5F5F7",
     s = props.size || 11;
   return (
     <svg width={s} height={s} viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -391,7 +391,7 @@ export function IconUiSparkles(props) {
 }
 
 export function IconUiAlert(props) {
-  var c = props.color || "#9A4040",
+  var c = props.color || "#FF959C",
     s = props.size || 14;
   return (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -402,7 +402,7 @@ export function IconUiAlert(props) {
 }
 
 export function IconUiEye(props) {
-  var c = props.color || "#7A5A0F",
+  var c = props.color || "#E8CF7A",
     s = props.size || 14;
   return (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

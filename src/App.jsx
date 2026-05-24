@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import { supabase, supaReady } from "./supabase.js";
 import * as D from "./data.js";
@@ -42,17 +42,37 @@ var APP_NAV_TABS = [
 ];
 
 var C = {
-  bg: "#FAF9F6",
-  green: "#4CC774",
-  gd: "#3AB860",
-  gl: "#E8F9EE",
-  gm: "#A8E6BC",
-  text: "#1A2922",
-  muted: "#526B60",
-  border: "#D5E9DF",
-  white: "#FFFFFF",
-  red: "#F2E8E8",
-  redT: "#9B4545",
+  bg: "#0B0E14",
+  sheet: "#141824",
+  /** Completed / habit-positive semantic (was green): navy bases + chrome text. */
+  green: "#222836",
+  gd: "#D4D8E0",
+  gl: "rgba(200,204,212,0.12)",
+  gm: "rgba(200,204,212,0.48)",
+  accent: "#C8CCD4",
+  accentDeep: "#9EA4AF",
+  /** Selected chips / pressed toggles — lighter navy fill + silver rim (not violet CTA wash). */
+  selFill: "#222836",
+  selBorder: "rgba(212,216,224,0.52)",
+  selText: "#E8EAEF",
+  gradCTA: "linear-gradient(165deg,#2A3040 0%,#1A1F2E 55%,#121620 100%)",
+  gradSuccess: "linear-gradient(165deg,#323A4C 0%,#222836 50%,#161B28 100%)",
+  shadowCTA: "0 8px 28px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.14), 0 0 0 1px rgba(200,204,212,0.38)",
+  shadowCTASoft: "0 4px 16px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 0 1px rgba(200,204,212,0.32)",
+  shadowGlow: "0 4px 20px rgba(0,0,0,0.35), 0 0 0 1px rgba(212,216,224,0.22)",
+  text: "#F5F5F7",
+  muted: "#8E8E93",
+  border: "rgba(200,204,212,0.4)",
+  panel: "rgba(255,255,255,0.055)",
+  panelHi: "rgba(255,255,255,0.09)",
+  white: "#F5F5F7",
+  red: "rgba(255,95,105,0.16)",
+  redT: "#FF848C",
+  scrim: "rgba(8,10,16,0.65)",
+  scrimMed: "rgba(8,10,16,0.54)",
+  scrimSoft: "rgba(8,10,16,0.44)",
+  scrimTint: "rgba(8,10,16,0.3)",
+  onAccent: "#E8EAEF",
 };
 var DL = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 var MN = [
@@ -72,7 +92,7 @@ var MN = [
 var MG = ["Biceps", "Triceps", "Chest", "Shoulders", "Back", "Legs", "Core"];
 var CT = ["Bulk", "Cut", "Maintain", "Recomp", "Custom"];
 var PAL = [
-  "#4FA8E0",
+  "#C8CCD4",
   "#E05050",
   "#40B870",
   "#9060E0",
@@ -84,7 +104,7 @@ var PAL = [
   "#A0A040",
 ];
 var AN = ["1 Ripple", "2 Sparks", "3 Confetti", "4 Starburst", "5 Bloom"];
-var G = ["#4CC774", "#3AB860", "#A8E6BC", "#ffffff", "#B8F0CE", "#2EA653"];
+var G = ["#E8EAEF", "#C8CCD4", "#D4D8E0", "#B0B6C4", "#7A8494", "#3D4556"];
 
 /** Local calendar date YYYY-MM-DD (do not use UTC / toISOString — breaks timezones behind UTC). */
 function dk(d) {
@@ -155,9 +175,9 @@ var DEFAULT_GYM_HABIT = { id: 3, name: "Gym", icon: ICON_GYM, scheduledDays: [1,
 
 function aRipple(ctx, cx, cy, f) {
   var rings = [
-    { s: 0, sp: 1.1, dc: 0.018, lw: 3, rgb: "76,199,116" },
-    { s: 12, sp: 0.9, dc: 0.014, lw: 2, rgb: "58,184,96" },
-    { s: 26, sp: 0.7, dc: 0.011, lw: 1.4, rgb: "168,230,188" },
+    { s: 0, sp: 1.1, dc: 0.018, lw: 3, rgb: "212,216,224" },
+    { s: 12, sp: 0.9, dc: 0.014, lw: 2, rgb: "160,168,180" },
+    { s: 26, sp: 0.7, dc: 0.011, lw: 1.4, rgb: "228,232,240" },
   ];
   var alive = false;
   rings.forEach(function (r) {
@@ -267,13 +287,13 @@ function aStarburst(ctx, cx, cy, f) {
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(tx, ty);
-    ctx.strokeStyle = i % 2 === 0 ? "#4CC774" : "#A8E6BC";
+    ctx.strokeStyle = i % 2 === 0 ? "#D4D8E0" : "#9EA4AF";
     ctx.lineWidth = w;
     ctx.lineCap = "round";
     ctx.stroke();
     ctx.beginPath();
     ctx.arc(tx, ty, w * 0.7, 0, Math.PI * 2);
-    ctx.fillStyle = "#fff";
+    ctx.fillStyle = "#E8EAEF";
     ctx.fill();
     ctx.restore();
   }
@@ -285,9 +305,9 @@ function aBloom(ctx, cx, cy, f) {
   var oR = 4 + 50 * Math.pow(t, 0.5),
     oA = t < 0.25 ? t / 0.25 : Math.pow(1 - (t - 0.25) / 0.75, 1.6);
   var g = ctx.createRadialGradient(cx, cy, 0, cx, cy, oR);
-  g.addColorStop(0, "rgba(76,199,116," + oA * 0.55 + ")");
-  g.addColorStop(0.5, "rgba(76,199,116," + oA * 0.28 + ")");
-  g.addColorStop(1, "rgba(76,199,116,0)");
+  g.addColorStop(0, "rgba(200,204,212," + oA * 0.52 + ")");
+  g.addColorStop(0.5, "rgba(154,164,178," + oA * 0.28 + ")");
+  g.addColorStop(1, "rgba(154,164,178,0)");
   ctx.beginPath();
   ctx.arc(cx, cy, oR, 0, Math.PI * 2);
   ctx.fillStyle = g;
@@ -360,7 +380,7 @@ function BarChart(props) {
               style={{
                 width: "100%",
                 borderRadius: "4px 4px 0 0",
-                background: d.val > 0 ? C.green : C.border,
+                background: d.val > 0 ? "linear-gradient(180deg,#D8DCE4 0%,#9EA4AF 100%)" : C.border,
                 height: Math.max(pct * (h - cap), d.val > 0 ? 4 : 2),
                 transition: "height 0.5s",
               }}
@@ -397,8 +417,8 @@ function BwChart(props) {
         return H - pd - ((v - mn) / rng) * (H - pd * 2);
       }
       var gr = ctx.createLinearGradient(0, 0, 0, H);
-      gr.addColorStop(0, "rgba(76,199,116,0.25)");
-      gr.addColorStop(1, "rgba(76,199,116,0)");
+      gr.addColorStop(0, "rgba(200,204,212,0.28)");
+      gr.addColorStop(1, "rgba(200,204,212,0)");
       ctx.beginPath();
       ctx.moveTo(px(0), py(pts[0].val));
       for (var i = 1; i < pts.length; i++) ctx.lineTo(px(i), py(pts[i].val));
@@ -410,7 +430,7 @@ function BwChart(props) {
       ctx.beginPath();
       ctx.moveTo(px(0), py(pts[0].val));
       for (var j = 1; j < pts.length; j++) ctx.lineTo(px(j), py(pts[j].val));
-      ctx.strokeStyle = C.green;
+      ctx.strokeStyle = C.accent;
       ctx.lineWidth = 2.5;
       ctx.lineJoin = "round";
       ctx.stroke();
@@ -419,7 +439,7 @@ function BwChart(props) {
         ctx.arc(px(i), py(p.val), 3, 0, Math.PI * 2);
         ctx.fillStyle = C.white;
         ctx.fill();
-        ctx.strokeStyle = C.green;
+        ctx.strokeStyle = C.accent;
         ctx.lineWidth = 2;
         ctx.stroke();
       });
@@ -498,8 +518,20 @@ function GymQ(props) {
   var saving = !!props.saving;
   var saveError = props.saveError || null;
   return (
-    <div style={{ position: "absolute", inset: 0, background: "rgba(45,59,46,0.45)", display: "flex", alignItems: "flex-end", zIndex: 200 }}>
-      <div style={{ background: C.bg, borderRadius: "28px 28px 0 0", padding: "24px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
+    <div style={{ position: "absolute", inset: 0, background: C.scrim, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
+      <div
+        style={{
+          background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")",
+          backdropFilter: "blur(28px)",
+          WebkitBackdropFilter: "blur(28px)",
+          borderRadius: "28px 28px 0 0",
+          borderTop: "1px solid rgba(255,255,255,0.12)",
+          padding: "24px 20px 48px",
+          width: "100%",
+          maxHeight: "88%",
+          overflowY: "auto",
+        }}
+      >
         <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 16px" }} />
         <div style={{ fontSize: 20, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 4 }}>Workout Log</div>
         <div style={{ fontSize: 12, color: C.muted, marginBottom: 20 }}>How did {dayLabel} go?</div>
@@ -530,7 +562,7 @@ function GymQ(props) {
               fontSize: 16,
               fontFamily: "'DM Sans',sans-serif",
               color: C.text,
-              background: C.white,
+              background: C.panel,
               outline: "none",
             }}
           />
@@ -562,7 +594,7 @@ function GymQ(props) {
                 fontSize: 16,
                 fontFamily: "'DM Sans',sans-serif",
                 color: C.text,
-                background: C.white,
+                background: C.panel,
                 outline: "none",
               }}
             />
@@ -584,7 +616,7 @@ function GymQ(props) {
               onClick={function () {
                 adjCardio(5);
               }}
-              style={{ width: 44, height: 44, borderRadius: "50%", background: C.green, border: "none", fontSize: 18, cursor: "pointer", color: C.white, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+              style={{ width: 44, height: 44, borderRadius: "50%", background: C.gradCTA, border: "none", fontSize: 18, cursor: "pointer", color: C.onAccent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
             >
               +
             </button>
@@ -609,9 +641,9 @@ function GymQ(props) {
                   style={{
                     padding: "7px 14px",
                     borderRadius: 20,
-                    background: a ? C.green : C.white,
-                    border: "1.5px solid " + (a ? C.green : C.border),
-                    color: a ? C.white : C.text,
+                    background: a ? C.selFill : C.panel,
+                    border: "1.5px solid " + (a ? C.selBorder : C.border),
+                    color: a ? C.selText : C.text,
                     fontSize: 13,
                     fontWeight: 600,
                     cursor: "pointer",
@@ -630,7 +662,7 @@ function GymQ(props) {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {muscles.map(function (m) {
                 return (
-                  <div key={m} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.white, borderRadius: 12, padding: "10px 14px", border: "1.5px solid " + C.border }}>
+                  <div key={m} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.panel, borderRadius: 12, padding: "10px 14px", border: "1.5px solid " + C.border }}>
                     <span style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{m}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <button
@@ -652,7 +684,7 @@ function GymQ(props) {
                         onClick={function () {
                           adj(m, 1);
                         }}
-                        style={{ width: 44, height: 44, borderRadius: "50%", background: C.green, border: "none", fontSize: 20, cursor: "pointer", color: C.white, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                        style={{ width: 44, height: 44, borderRadius: "50%", background: C.gradCTA, border: "none", fontSize: 20, cursor: "pointer", color: C.onAccent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                       >
                         +
                       </button>
@@ -678,9 +710,9 @@ function GymQ(props) {
             width: "100%",
             padding: "15px",
             borderRadius: 18,
-            background: canSaveGym && !saving ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border,
+            background: canSaveGym && !saving ? C.gradCTA : C.border,
             border: "none",
-            color: canSaveGym && !saving ? C.white : C.muted,
+            color: canSaveGym && !saving ? C.onAccent : C.muted,
             fontSize: 16,
             fontWeight: 700,
             cursor: canSaveGym && !saving ? "pointer" : "default",
@@ -709,8 +741,20 @@ function WkDetail(props) {
   var log = props.log,
     k = props.dateKey;
   return (
-    <div style={{ position: "absolute", inset: 0, background: "rgba(45,59,46,0.45)", display: "flex", alignItems: "flex-end", zIndex: 200 }}>
-      <div style={{ background: C.bg, borderRadius: "28px 28px 0 0", padding: "24px 20px 48px", width: "100%", maxHeight: "75%", overflowY: "auto" }}>
+    <div style={{ position: "absolute", inset: 0, background: C.scrim, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
+      <div
+        style={{
+          background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")",
+          backdropFilter: "blur(28px)",
+          WebkitBackdropFilter: "blur(28px)",
+          borderRadius: "28px 28px 0 0",
+          borderTop: "1px solid rgba(255,255,255,0.12)",
+          padding: "24px 20px 48px",
+          width: "100%",
+          maxHeight: "75%",
+          overflowY: "auto",
+        }}
+      >
         <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 16px" }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
           <div>
@@ -721,18 +765,18 @@ function WkDetail(props) {
             x
           </button>
         </div>
-        <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+        <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
           <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 2 }}>Bodyweight</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{log.bodyweight} lbs</div>
         </div>
         {cardioMinutesOnLog(log) > 0 ? (
-          <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+          <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 2 }}>Cardio</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{cardioMinutesOnLog(log)} min</div>
           </div>
         ) : null}
         {log.muscles && log.muscles.length > 0 && (
-          <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", border: "1.5px solid " + C.border }}>
+          <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", border: "1.5px solid " + C.border }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 10 }}>Muscles</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {log.muscles.map(function (m) {
@@ -744,7 +788,7 @@ function WkDetail(props) {
                       <span style={{ fontSize: 13, color: C.muted }}>{s} sets</span>
                     </div>
                     <div style={{ height: 4, background: C.border, borderRadius: 99, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: Math.min(s / 20, 1) * 100 + "%", background: C.green, borderRadius: 99 }} />
+                      <div style={{ height: "100%", width: Math.min(s / 20, 1) * 100 + "%", background: "linear-gradient(90deg," + C.accentDeep + "," + C.accent + ")", borderRadius: 99 }} />
                     </div>
                   </div>
                 );
@@ -797,7 +841,7 @@ function CalView(props) {
   return (
     <div style={{ padding: "0 16px 16px", position: "relative" }}>
       {detK && wl[detK] && <WkDetail log={wl[detK]} dateKey={detK} onClose={() => setDetK(null)} />}
-      <button type="button" className="gt-focus-ring" onClick={() => props.onBack()} style={{ background: "none", border: "none", color: C.green, fontSize: 15, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", padding: "8px 0" }}>
+      <button type="button" className="gt-focus-ring" onClick={() => props.onBack()} style={{ background: "none", border: "none", color: C.accent, fontSize: 15, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", padding: "8px 0" }}>
         Back
       </button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0 14px" }}>
@@ -810,7 +854,7 @@ function CalView(props) {
         </div>
       </div>
       {activeCycs.map(function (cyc) {
-        var col = cc(cyc.color || "#4CC774");
+        var col = cc(cyc.color || PAL[0]);
         return (
           <div key={cyc.id} style={{ background: col.bg, border: "1.5px solid " + col.border, borderRadius: 12, padding: "8px 12px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: col.bar, flexShrink: 0 }} />
@@ -825,7 +869,7 @@ function CalView(props) {
           </div>
         );
       })}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.white, borderRadius: 14, padding: "10px 14px", marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.panel, borderRadius: 14, padding: "10px 14px", marginBottom: 12 }}>
         <button
           type="button"
           className="gt-focus-ring"
@@ -833,7 +877,7 @@ function CalView(props) {
           onClick={function () {
             cm === 0 ? (props.setCM(11), props.setCY(function (y) { return y - 1; })) : props.setCM(function (m) { return m - 1; });
           }}
-          style={{ background: "none", border: "none", cursor: "pointer", color: C.green, padding: "4px 10px", display: "flex", alignItems: "center", justifyContent: "center" }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, padding: "4px 10px", display: "flex", alignItems: "center", justifyContent: "center" }}
         >
           <IconChevronCal dir="left" />
         </button>
@@ -847,12 +891,12 @@ function CalView(props) {
           onClick={function () {
             cm === 11 ? (props.setCM(0), props.setCY(function (y) { return y + 1; })) : props.setCM(function (m) { return m + 1; });
           }}
-          style={{ background: "none", border: "none", cursor: "pointer", color: C.green, padding: "4px 10px", display: "flex", alignItems: "center", justifyContent: "center" }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, padding: "4px 10px", display: "flex", alignItems: "center", justifyContent: "center" }}
         >
           <IconChevronCal dir="right" />
         </button>
       </div>
-      <div style={{ background: C.white, borderRadius: 18, padding: 14 }}>
+      <div style={{ background: C.panel, borderRadius: 18, padding: 14 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 6 }}>
           {DL.map(function (d) {
             return (
@@ -872,7 +916,7 @@ function CalView(props) {
               sched = isSched(day);
             var hasLog = isGym && isDone && !!wl[k];
             var cyc = isGym ? cycleAt(cycles, k) : null;
-            var col = cyc ? cc(cyc.color || "#4CC774") : null;
+            var col = cyc ? cc(cyc.color || PAL[0]) : null;
             var cantUse = isFut || !sched;
             return (
               <button
@@ -900,7 +944,7 @@ function CalView(props) {
                   alignItems: "center",
                   justifyContent: "center",
                   background: isDone ? C.green : isT ? C.gl : col ? col.bg : "transparent",
-                  border: isT && !isDone ? "2px solid " + C.green : col && !isDone ? "2px solid " + col.border : "2px solid transparent",
+                  border: isT && !isDone ? "2px solid " + C.accent : col && !isDone ? "2px solid " + col.border : "2px solid transparent",
                   opacity: isFut ? 0.28 : !sched ? 0.22 : 1,
                   position: "relative",
                   cursor: !cantUse ? "pointer" : "default",
@@ -909,10 +953,10 @@ function CalView(props) {
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                <span style={{ fontSize: 12, color: isDone ? C.white : C.text, fontWeight: isT ? 700 : 400 }}>{day}</span>
+                <span style={{ fontSize: 12, color: isDone ? C.onAccent : C.text, fontWeight: isT ? 700 : 400 }}>{day}</span>
                 {isDone && (
                   <span style={{ position: "absolute", bottom: 4, display: "flex", lineHeight: 0 }}>
-                    <CalDayDoneCheck color={C.white} size={11} />
+                    <CalDayDoneCheck color={C.onAccent} size={11} />
                   </span>
                 )}
               </button>
@@ -920,7 +964,7 @@ function CalView(props) {
           })}
         </div>
       </div>
-      <div style={{ marginTop: 12, background: C.white, borderRadius: 14, padding: "12px 16px", display: "flex", justifyContent: "space-around" }}>
+      <div style={{ marginTop: 12, background: C.panel, borderRadius: 14, padding: "12px 16px", display: "flex", justifyContent: "space-around" }}>
         {[
           { val: mDone, label: "This month" },
           { val: props.getStreak(h.id), label: "Streak" },
@@ -928,7 +972,7 @@ function CalView(props) {
         ].map(function (s, i) {
           return (
             <div key={i} style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: C.green, fontFamily: "'DM Serif Display',serif" }}>{s.val}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: C.accent, fontFamily: "'DM Serif Display',serif" }}>{s.val}</div>
               <div style={{ fontSize: 11, color: C.muted }}>{s.label}</div>
             </div>
           );
@@ -1059,7 +1103,7 @@ function GainzTab(props) {
         <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Your Progress</div>
       </div>
       {!gym && (
-        <div style={{ margin: "0 16px", background: C.white, borderRadius: 14, padding: "18px", textAlign: "center", border: "1.5px solid " + C.border }}>
+        <div style={{ margin: "0 16px", background: C.panel, borderRadius: 14, padding: "18px", textAlign: "center", border: "1.5px solid " + C.border }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>No gym habit yet</div>
           <div style={{ fontSize: 12, color: C.muted }}>Add a habit using the Gym (dumbbell) icon to start tracking workouts.</div>
         </div>
@@ -1073,18 +1117,18 @@ function GainzTab(props) {
             ].map(function (s, i) {
               var GCardI = s.Icon;
               return (
-                <div key={i} style={{ background: C.white, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
+                <div key={i} style={{ background: C.panel, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
                   <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
-                    <GCardI size={20} color={C.green} />
+                    <GCardI size={20} color={C.accent} />
                   </div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginTop: 3 }}>{s.val}</div>
                   <div style={{ fontSize: 10, color: C.muted }}>{s.label}</div>
                 </div>
               );
             })}
-            <div style={{ background: C.white, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
+            <div style={{ background: C.panel, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
               <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
-                <IconUiScale size={20} color={C.green} />
+                <IconUiScale size={20} color={C.accent} />
               </div>
               <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginTop: 3 }}>
                 {latBw != null ? latBw + " lb" : "\u2013"}
@@ -1101,7 +1145,7 @@ function GainzTab(props) {
             </div>
             <div
               style={{
-                background: C.white,
+                background: C.panel,
                 borderRadius: 14,
                 padding: "12px",
                 border: "1.5px solid " + C.border,
@@ -1111,7 +1155,7 @@ function GainzTab(props) {
               }}
             >
               <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
-                <HabitIcon id="run" size={20} color={C.green} />
+                <HabitIcon id="run" size={20} color={C.accent} />
               </div>
               <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginTop: 3 }}>
                 {twCm}
@@ -1125,12 +1169,12 @@ function GainzTab(props) {
               )}
             </div>
           </div>
-          <div style={{ background: C.white, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
+          <div style={{ background: C.panel, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Weekly Volume</div>
               <div style={{ display: "flex", gap: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 2, background: C.green }} />
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: C.accent }} />
                   <span style={{ fontSize: 10, color: C.muted }}>This wk</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -1143,17 +1187,17 @@ function GainzTab(props) {
               <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Total sets</span>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 12, color: C.muted }}>{lwS2}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: C.green }}>{twS}</span>
-                {lwS2 > 0 && <span style={{ fontSize: 10, fontWeight: 600, color: twS >= lwS2 ? C.green : C.redT }}>{twS >= lwS2 ? "^" : "v"}{Math.abs(twS - lwS2)}</span>}
+                <span style={{ fontSize: 14, fontWeight: 700, color: C.accent }}>{twS}</span>
+                {lwS2 > 0 && <span style={{ fontSize: 10, fontWeight: 600, color: twS >= lwS2 ? C.accent : C.redT }}>{twS >= lwS2 ? "^" : "v"}{Math.abs(twS - lwS2)}</span>}
               </div>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 8, marginBottom: 8, borderBottom: "1px solid " + C.border }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Cardio (minutes)</span>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 12, color: C.muted }}>{lwCm}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: C.green }}>{twCm}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: C.accent }}>{twCm}</span>
                 {lwCm > 0 && (
-                  <span style={{ fontSize: 10, fontWeight: 600, color: twCm >= lwCm ? C.green : C.redT }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: twCm >= lwCm ? C.accent : C.redT }}>
                     {twCm >= lwCm ? "^" : "v"}
                     {Math.abs(twCm - lwCm)}
                   </span>
@@ -1172,19 +1216,19 @@ function GainzTab(props) {
                       <span style={{ fontSize: 12, color: C.text, fontWeight: 500 }}>{m}</span>
                       <div style={{ display: "flex", gap: 8 }}>
                         <span style={{ fontSize: 11, color: C.muted }}>{lw > 0 ? lw : ""}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: tw > 0 ? C.green : C.muted }}>{tw > 0 ? tw : "\u2013"}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: tw > 0 ? C.accent : C.muted }}>{tw > 0 ? tw : "\u2013"}</span>
                       </div>
                     </div>
                     <div style={{ position: "relative", height: 4, background: C.border, borderRadius: 99, overflow: "hidden" }}>
                       <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: (lw / mx) * 100 + "%", background: C.gm, borderRadius: 99 }} />
-                      <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: (tw / mx) * 100 + "%", background: C.green, borderRadius: 99, transition: "width 0.5s" }} />
+                      <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: (tw / mx) * 100 + "%", background: "linear-gradient(90deg," + C.accentDeep + "," + C.accent + ")", borderRadius: 99, transition: "width 0.5s" }} />
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
-          <div style={{ background: C.white, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
+          <div style={{ background: C.panel, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Bodyweight</div>
               <div style={{ display: "flex", gap: 4 }}>
@@ -1195,7 +1239,7 @@ function GainzTab(props) {
                       onClick={function () {
                         setRange(r);
                       }}
-                      style={{ padding: "3px 9px", borderRadius: 20, background: range === r ? C.green : C.border, border: "none", color: range === r ? C.white : C.muted, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}
+                      style={{ padding: "3px 9px", borderRadius: 20, background: range === r ? C.selFill : C.border, border: range === r ? "1px solid " + C.selBorder : "none", color: range === r ? C.selText : C.muted, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}
                     >
                       {r}
                     </button>
@@ -1205,7 +1249,7 @@ function GainzTab(props) {
             </div>
             {bwPts.length >= 2 ? <BwChart points={bwPts} /> : <div style={{ textAlign: "center", padding: "16px 0", color: C.muted, fontSize: 13 }}>Log 2+ sessions to see trend.</div>}
           </div>
-          <div style={{ background: C.white, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
+          <div style={{ background: C.panel, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Sets per Muscle - This Week</div>
             <BarChart
               data={MG.map(function (m) {
@@ -1214,7 +1258,7 @@ function GainzTab(props) {
               height={76}
             />
           </div>
-          <div style={{ background: C.white, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
+          <div style={{ background: C.panel, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Sets per Muscle - This Month</div>
             <BarChart
               data={MG.map(function (m) {
@@ -1223,7 +1267,7 @@ function GainzTab(props) {
               height={76}
             />
           </div>
-          <div style={{ background: C.white, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
+          <div style={{ background: C.panel, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Recent Sessions</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
               {allK
@@ -1329,7 +1373,7 @@ function CyclesTab(props) {
           <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Cycles</div>
           <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>My Cycles</div>
         </div>
-        <button onClick={openNew} style={{ width: 40, height: 40, borderRadius: "50%", background: C.green, border: "none", color: C.white, fontSize: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(76,199,116,0.4)", lineHeight: 1, fontWeight: 300 }}>
+        <button onClick={openNew} style={{ width: 40, height: 40, borderRadius: "50%", background: C.gradCTA, border: "none", color: C.onAccent, fontSize: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: C.shadowCTASoft, lineHeight: 1, fontWeight: 300 }}>
           +
         </button>
       </div>
@@ -1349,13 +1393,13 @@ function CyclesTab(props) {
         })()}
       <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}>
         {cycles.length === 0 && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px", background: C.white, borderRadius: 20, border: "1.5px dashed " + C.border }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px", background: C.panel, borderRadius: 20, border: "1.5px dashed " + C.border }}>
             <div style={{ marginBottom: 10, display: "flex", justifyContent: "center", lineHeight: 0 }}>
-              <IconUiChartTrend size={40} color={C.green} />
+              <IconUiChartTrend size={40} color={C.accent} />
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 4 }}>No cycles yet</div>
             <div style={{ fontSize: 13, color: C.muted, textAlign: "center", marginBottom: 18 }}>Track bulk, cut, or recomp phases.</div>
-            <button onClick={openNew} style={{ padding: "11px 24px", borderRadius: 99, background: "linear-gradient(135deg," + C.green + "," + C.gd + ")", border: "none", color: C.white, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+            <button onClick={openNew} style={{ padding: "11px 24px", borderRadius: 99, background: C.gradCTA, border: "none", color: C.onAccent, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
               Add first cycle
             </button>
           </div>
@@ -1365,7 +1409,7 @@ function CyclesTab(props) {
           var isA = tk >= cyc.start && tk <= cyc.end,
             isP = tk > cyc.end;
           return (
-            <div key={cyc.id} style={{ background: C.white, borderRadius: 18, border: "1.5px solid " + (isA ? col.border : C.border), overflow: "hidden" }}>
+            <div key={cyc.id} style={{ background: C.panel, borderRadius: 18, border: "1.5px solid " + (isA ? col.border : C.border), overflow: "hidden" }}>
               <div style={{ height: 4, background: col.bar, opacity: isP ? 0.4 : 1 }} />
               <div style={{ padding: "12px 14px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
@@ -1373,7 +1417,7 @@ function CyclesTab(props) {
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{cyc.name}</span>
                       <span style={{ fontSize: 10, fontWeight: 700, color: col.bar, background: col.bg, border: "1px solid " + col.border, borderRadius: 99, padding: "1px 7px" }}>{cyc.type}</span>
-                      {isA && <span style={{ fontSize: 10, fontWeight: 700, color: C.green, background: C.gl, border: "1px solid " + C.gm, borderRadius: 99, padding: "1px 7px" }}>Active</span>}
+                      {isA && <span style={{ fontSize: 10, fontWeight: 700, color: C.accent, background: C.gl, border: "1px solid " + C.gm, borderRadius: 99, padding: "1px 7px" }}>Active</span>}
                       {isP && <span style={{ fontSize: 10, color: C.muted, background: C.border, borderRadius: 99, padding: "1px 7px" }}>Past</span>}
                     </div>
                     <div style={{ fontSize: 11, color: C.muted }}>
@@ -1419,15 +1463,15 @@ function CyclesTab(props) {
         })}
       </div>
       {sf && (
-        <div style={{ position: "absolute", inset: 0, background: "rgba(45,59,46,0.4)", display: "flex", alignItems: "flex-end", zIndex: 200 }}>
-          <div onClick={function (e) { e.stopPropagation(); }} style={{ background: C.bg, borderRadius: "28px 28px 0 0", padding: "22px 20px 48px", width: "100%", maxHeight: "92%", overflowY: "auto" }}>
+        <div style={{ position: "absolute", inset: 0, background: C.scrimMed, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
+          <div onClick={function (e) { e.stopPropagation(); }} style={{ background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")", backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)", borderRadius: "28px 28px 0 0", borderTop: "1px solid rgba(255,255,255,0.12)", padding: "22px 20px 48px", width: "100%", maxHeight: "92%", overflowY: "auto" }}>
             <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 14px" }} />
             <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 16 }}>{ed ? "Edit Cycle" : "New Cycle"}</div>
             <div style={{ marginBottom: 14 }}>
               <label htmlFor="cycle-name-input" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
                 Name
               </label>
-              <input id="cycle-name-input" value={fn} onChange={(e) => setFn(e.target.value)} placeholder="e.g. Winter Bulk 2026" className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.white, outline: "none" }} />
+              <input id="cycle-name-input" value={fn} onChange={(e) => setFn(e.target.value)} placeholder="e.g. Winter Bulk 2026" className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none" }} />
             </div>
             <div style={{ marginBottom: 14 }}>
               <div id="cycle-type-label" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
@@ -1437,7 +1481,7 @@ function CyclesTab(props) {
                 {CT.map(function (t) {
                   var a = ft === t;
                   return (
-                    <button key={t} type="button" className="gt-focus-ring" aria-pressed={a} onClick={() => setFt(t)} style={{ padding: "8px 14px", borderRadius: 20, background: a ? C.green : "transparent", border: "1.5px solid " + (a ? C.green : C.border), color: a ? C.white : C.text, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", minHeight: 44 }}>
+                    <button key={t} type="button" className="gt-focus-ring" aria-pressed={a} onClick={() => setFt(t)} style={{ padding: "8px 14px", borderRadius: 20, background: a ? C.selFill : "transparent", border: "1.5px solid " + (a ? C.selBorder : C.border), color: a ? C.selText : C.text, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", minHeight: 44 }}>
                       {t}
                     </button>
                   );
@@ -1482,7 +1526,7 @@ function CyclesTab(props) {
                           background: hex,
                           border: a ? "3px solid " + C.text : "3px solid transparent",
                           boxSizing: "border-box",
-                          boxShadow: a ? "0 0 0 2px " + C.white + ",0 0 0 4px " + hex : "none",
+                          boxShadow: a ? "0 0 0 2px rgba(255,255,255,0.88),0 0 0 4px " + hex : "none",
                         }}
                       />
                     </button>
@@ -1503,28 +1547,28 @@ function CyclesTab(props) {
                 <label htmlFor="cycle-start" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
                   Start
                 </label>
-                <input id="cycle-start" type="date" value={fs} onChange={(e) => setFs(e.target.value)} className="gt-input" style={{ width: "100%", padding: "10px 9px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.white, outline: "none" }} />
+                <input id="cycle-start" type="date" value={fs} onChange={(e) => setFs(e.target.value)} className="gt-input" style={{ width: "100%", padding: "10px 9px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none" }} />
               </div>
               <div style={{ flex: 1 }}>
                 <label htmlFor="cycle-end" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
                   End
                 </label>
-                <input id="cycle-end" type="date" value={fe} onChange={(e) => setFe(e.target.value)} className="gt-input" style={{ width: "100%", padding: "10px 9px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.white, outline: "none" }} />
+                <input id="cycle-end" type="date" value={fe} onChange={(e) => setFe(e.target.value)} className="gt-input" style={{ width: "100%", padding: "10px 9px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none" }} />
               </div>
             </div>
             <div style={{ marginBottom: 14 }}>
               <label htmlFor="cycle-calories" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
                 Daily Calories
               </label>
-              <input id="cycle-calories" type="number" value={fca} onChange={(e) => setFca(e.target.value)} placeholder="e.g. 3200" className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.white, outline: "none" }} />
+              <input id="cycle-calories" type="number" value={fca} onChange={(e) => setFca(e.target.value)} placeholder="e.g. 3200" className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none" }} />
             </div>
             <div style={{ marginBottom: 20 }}>
               <label htmlFor="cycle-supplements" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
                 Supplements
               </label>
-              <textarea id="cycle-supplements" value={fsu} onChange={(e) => setFsu(e.target.value)} placeholder="e.g. Creatine 5g, Whey 2x" rows={2} className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.white, outline: "none", resize: "none" }} />
+              <textarea id="cycle-supplements" value={fsu} onChange={(e) => setFsu(e.target.value)} placeholder="e.g. Creatine 5g, Whey 2x" rows={2} className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none", resize: "none" }} />
             </div>
-            <button onClick={save} style={{ width: "100%", padding: "14px", borderRadius: 16, background: fn.trim() && fs && fe ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border, border: "none", color: fn.trim() && fs && fe ? C.white : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
+            <button onClick={save} style={{ width: "100%", padding: "14px", borderRadius: 16, background: fn.trim() && fs && fe ? C.gradCTA : C.border, border: "none", color: fn.trim() && fs && fe ? C.onAccent : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
               {ed ? "Save Changes" : "Add Cycle"}
             </button>
             <button onClick={() => setSf(false)} style={{ width: "100%", padding: "11px", borderRadius: 16, background: "none", border: "none", color: C.muted, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
@@ -1613,15 +1657,15 @@ function SettingsTab(props) {
           onClick={() => setShowAP((p) => !p)}
           type="button"
           className="gt-focus-ring tb"
-          style={{ width: "100%", padding: "8px 12px", background: C.white, border: "1.5px solid " + C.border, borderRadius: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.muted }}
+          style={{ width: "100%", padding: "8px 12px", background: C.panel, border: "1.5px solid " + C.border, borderRadius: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.muted }}
         >
           <span>
-            Animation: <strong style={{ color: C.green }}>{AN[animT - 1]}</strong>
+            Animation: <strong style={{ color: C.accent }}>{AN[animT - 1]}</strong>
           </span>
           <span>{showAP ? "^" : "v"}</span>
         </button>
         {showAP && (
-          <div style={{ marginTop: 5, background: C.white, borderRadius: 12, border: "1.5px solid " + C.border, overflow: "hidden" }}>
+          <div style={{ marginTop: 5, background: C.panel, borderRadius: 12, border: "1.5px solid " + C.border, overflow: "hidden" }}>
             {AN.map(function (name, i) {
               return (
                 <button
@@ -1649,7 +1693,7 @@ function SettingsTab(props) {
                     gap: 7,
                   }}
                 >
-                  {animT === i + 1 && <span style={{ color: C.green }}>v</span>}
+                  {animT === i + 1 && <span style={{ color: C.accent }}>v</span>}
                   {name}
                 </button>
               );
@@ -1661,9 +1705,9 @@ function SettingsTab(props) {
         {habits.length === 0 && <div style={{ textAlign: "center", padding: "36px 20px", color: C.muted, fontSize: 13 }}>No habits yet.</div>}
         {habits.map(function (h, i) {
           return (
-            <div key={h.id} style={{ background: C.white, borderRadius: 18, border: "1.5px solid " + C.border, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+            <div key={h.id} style={{ background: C.panel, borderRadius: 18, border: "1.5px solid " + C.border, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: C.gl, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <HabitIcon id={h.icon} size={24} color={C.green} />
+                <HabitIcon id={h.icon} size={24} color={C.accent} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</div>
@@ -1729,8 +1773,8 @@ function SettingsTab(props) {
         })}
       </div>
       {ed && (
-        <div style={{ position: "absolute", inset: 0, background: "rgba(45,59,46,0.4)", display: "flex", alignItems: "flex-end", zIndex: 200 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: C.bg, borderRadius: "28px 28px 0 0", padding: "22px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
+        <div style={{ position: "absolute", inset: 0, background: C.scrimMed, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")", backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)", borderRadius: "28px 28px 0 0", borderTop: "1px solid rgba(255,255,255,0.12)", padding: "22px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
             <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 14px" }} />
             <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 16 }}>Edit Habit</div>
             <div style={{ marginBottom: 16 }}>
@@ -1747,9 +1791,9 @@ function SettingsTab(props) {
                       onClick={() => setIconEdit(hid)}
                       aria-label={"Icon " + hid}
                       aria-pressed={iconEdit === hid}
-                      style={{ width: 44, height: 44, borderRadius: 11, background: iconEdit === hid ? C.gl : C.white, border: "2px solid " + (iconEdit === hid ? C.green : C.border), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                      style={{ width: 44, height: 44, borderRadius: 11, background: iconEdit === hid ? C.gl : C.panel, border: "2px solid " + (iconEdit === hid ? C.accent : C.border), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                     >
-                      <HabitIcon id={hid} size={22} color={iconEdit === hid ? C.green : C.muted} />
+                      <HabitIcon id={hid} size={22} color={iconEdit === hid ? C.accent : C.muted} />
                     </button>
                   );
                 })}
@@ -1759,7 +1803,7 @@ function SettingsTab(props) {
               <label htmlFor="habit-edit-name" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
                 Name
               </label>
-              <input id="habit-edit-name" value={fn} onChange={(e) => setFn(e.target.value)} className="gt-input" style={{ width: "100%", padding: "12px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.white, outline: "none" }} />
+              <input id="habit-edit-name" value={fn} onChange={(e) => setFn(e.target.value)} className="gt-input" style={{ width: "100%", padding: "12px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none" }} />
             </div>
             <div style={{ marginBottom: 22 }}>
               <div id="habit-edit-schedule-label" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
@@ -1769,14 +1813,14 @@ function SettingsTab(props) {
                 {DL.map(function (label, i) {
                   var a = fd2.includes(i);
                   return (
-                    <button key={i} type="button" className="gt-focus-ring" onClick={() => togD(i)} aria-pressed={a} style={{ flex: 1, minHeight: 44, padding: "8px 4px", borderRadius: 9, background: a ? C.green : C.white, border: "1.5px solid " + (a ? C.green : C.border), color: a ? C.white : C.muted, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                    <button key={i} type="button" className="gt-focus-ring" onClick={() => togD(i)} aria-pressed={a} style={{ flex: 1, minHeight: 44, padding: "8px 4px", borderRadius: 9, background: a ? C.selFill : C.panel, border: "1.5px solid " + (a ? C.selBorder : C.border), color: a ? C.selText : C.muted, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                       {label}
                     </button>
                   );
                 })}
               </div>
             </div>
-            <button onClick={save} style={{ width: "100%", padding: "14px", borderRadius: 16, background: fn.trim() && fd2.length ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border, border: "none", color: fn.trim() && fd2.length ? C.white : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
+            <button onClick={save} style={{ width: "100%", padding: "14px", borderRadius: 16, background: fn.trim() && fd2.length ? C.gradCTA : C.border, border: "none", color: fn.trim() && fd2.length ? C.onAccent : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
               Save Changes
             </button>
             <button
@@ -1806,8 +1850,8 @@ function SettingsTab(props) {
 
 function scoreColor(s) {
   if (s == null) return C.muted;
-  if (s >= 85) return "#4CC774";
-  if (s >= 70) return "#E5B53C";
+  if (s >= 85) return "#E8EAEF";
+  if (s >= 70) return "#B8C0CC";
   return "#E05050";
 }
 function computeSleepDebt(sleep, anchorKey) {
@@ -1832,7 +1876,7 @@ function computeSleepDebt(sleep, anchorKey) {
 }
 function debtColor(hrs) {
   if (hrs == null) return C.border;
-  if (hrs <= 2) return "#4CC774";
+  if (hrs <= 2) return "#2A3548";
   if (hrs <= 5) return "#E5B53C";
   return "#E05050";
 }
@@ -1887,7 +1931,7 @@ function scoreLabel(s) {
 }
 function scoreTextOn(s) {
   if (s == null) return C.text;
-  if (s >= 70 && s < 85) return "#3D2F00";
+  if (s >= 70 && s < 85) return "#D4D8E0";
   return C.white;
 }
 function fmtDur(secs) {
@@ -1915,25 +1959,68 @@ function ScoreRing(props) {
   var size = props.size || 140;
   var stroke = 12;
   var r = (size - stroke) / 2;
+  var cx = size / 2,
+    cy = size / 2;
   var circ = 2 * Math.PI * r;
   var score = props.score;
   var pct = score != null ? Math.max(0, Math.min(100, score)) / 100 : 0;
   var col = scoreColor(score);
+  var shimmerSvg = !!props.shimmer && pct > 0;
+  var gradIdRaw = useId();
+  var gradId = "_sr_" + gradIdRaw.replace(/\W/g, "_");
+  var reduceMotionSvg =
+    typeof window !== "undefined" &&
+    window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var progStroke = col;
+  if (shimmerSvg) {
+    progStroke = "url(#" + gradId + ")";
+  }
   return (
     <div style={{ position: "relative", width: size, height: size }}>
       <svg width={size} height={size}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={C.border} strokeWidth={stroke} />
+        {shimmerSvg ? (
+          <defs>
+            <linearGradient
+              id={gradId}
+              gradientUnits="userSpaceOnUse"
+              x1={cx - r}
+              y1={cy}
+              x2={cx + r}
+              y2={cy}
+              gradientTransform={reduceMotionSvg ? "rotate(48 " + cx + " " + cy + ")" : undefined}
+            >
+              <stop offset="36%" stopColor={col} stopOpacity={1} />
+              <stop offset="44%" stopColor="rgba(226,232,240,0.45)" />
+              <stop offset="48%" stopColor="rgba(255,255,255,1)" />
+              <stop offset="52%" stopColor="rgba(240,243,247,0.66)" />
+              <stop offset="58%" stopColor={col} stopOpacity={1} />
+              {!reduceMotionSvg ? (
+                <animateTransform
+                  attributeName="gradientTransform"
+                  attributeType="XML"
+                  type="rotate"
+                  from={"0 " + cx + " " + cy}
+                  to={"360 " + cx + " " + cy}
+                  dur="5.25s"
+                  repeatCount="indefinite"
+                />
+              ) : null}
+            </linearGradient>
+          </defs>
+        ) : null}
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={C.border} strokeWidth={stroke} />
         <circle
-          cx={size / 2}
-          cy={size / 2}
+          cx={cx}
+          cy={cy}
           r={r}
           fill="none"
-          stroke={col}
+          stroke={progStroke}
           strokeWidth={stroke}
           strokeDasharray={circ}
           strokeDashoffset={circ * (1 - pct)}
           strokeLinecap="round"
-          transform={"rotate(-90 " + size / 2 + " " + size / 2 + ")"}
+          transform={"rotate(-90 " + cx + " " + cy + ")"}
           style={{ transition: "stroke-dashoffset 0.7s ease, stroke 0.4s ease" }}
         />
       </svg>
@@ -2016,12 +2103,12 @@ function Sparkline(props) {
     <svg width={w} height={h} style={{ display: "block" }}>
       <defs>
         <linearGradient id="spark-gr" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor={C.green} stopOpacity={0.32} />
-          <stop offset="100%" stopColor={C.green} stopOpacity={0} />
+          <stop offset="0%" stopColor={C.accent} stopOpacity={0.34} />
+          <stop offset="100%" stopColor={C.accent} stopOpacity={0} />
         </linearGradient>
       </defs>
       <path d={areaD} fill="url(#spark-gr)" />
-      <path d={pathD} stroke={C.green} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={pathD} stroke={C.accent} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
       {pts.map(function (p, i) {
         return <circle key={i} cx={p.x} cy={p.y} r={2.8} fill={C.white} stroke={scoreColor(p.score)} strokeWidth={1.8} />;
       })}
@@ -2044,13 +2131,13 @@ function SleepCalendar(props) {
     return year + "-" + String(month + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
   }
   return (
-    <div style={{ background: C.white, borderRadius: 14, padding: 12, border: "1.5px solid " + C.border }}>
+    <div style={{ background: C.panel, borderRadius: 14, padding: 12, border: "1.5px solid " + C.border }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <button onClick={function () { props.onMonthChange(-1); }} style={{ background: "none", border: "none", fontSize: 18, color: C.green, cursor: "pointer", padding: 2 }}>{"<"}</button>
+        <button onClick={function () { props.onMonthChange(-1); }} style={{ background: "none", border: "none", fontSize: 18, color: C.accent, cursor: "pointer", padding: 2 }}>{"<"}</button>
         <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 15, color: C.text, fontWeight: 600 }}>
           {MN[month]} {year}
         </div>
-        <button onClick={function () { props.onMonthChange(1); }} style={{ background: "none", border: "none", fontSize: 18, color: C.green, cursor: "pointer", padding: 2 }}>{">"}</button>
+        <button onClick={function () { props.onMonthChange(1); }} style={{ background: "none", border: "none", fontSize: 18, color: C.accent, cursor: "pointer", padding: 2 }}>{">"}</button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
         {DL.map(function (d) {
@@ -2073,7 +2160,7 @@ function SleepCalendar(props) {
             : hasScore
             ? "1.5px solid transparent"
             : "1.5px solid " + C.border;
-          var shadow = isT && !isSel ? "inset 0 0 0 2px " + C.green : "none";
+          var shadow = isT && !isSel ? "inset 0 0 0 2px " + C.accent : "none";
           return (
             <button
               key={i}
@@ -2111,10 +2198,10 @@ function SleepCalendar(props) {
 }
 
 var STAGE_DEFS = [
-  { k: "deep_sleep_duration", label: "Deep", color: "#3D4F7A" },
-  { k: "rem_sleep_duration", label: "REM", color: "#9060E0" },
-  { k: "light_sleep_duration", label: "Light", color: "#6DD994" },
-  { k: "awake_time", label: "Awake", color: "#E07840" },
+  { k: "deep_sleep_duration", label: "Deep", color: "#1E2633" },
+  { k: "rem_sleep_duration", label: "REM", color: "#4A5564" },
+  { k: "light_sleep_duration", label: "Light", color: "#8E96A4" },
+  { k: "awake_time", label: "Awake", color: "#C17A3A" },
 ];
 
 function SleepDayDetail(props) {
@@ -2122,7 +2209,7 @@ function SleepDayDetail(props) {
     data = props.data;
   if (!data) {
     return (
-      <div style={{ background: C.white, borderRadius: 14, padding: "18px 14px", border: "1.5px dashed " + C.border, textAlign: "center" }}>
+      <div style={{ background: C.panel, borderRadius: 14, padding: "18px 14px", border: "1.5px dashed " + C.border, textAlign: "center" }}>
         <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4 }}>{fmtDS(day)}</div>
         <div style={{ fontSize: 13, color: C.muted }}>No Oura data for this day</div>
       </div>
@@ -2138,7 +2225,7 @@ function SleepDayDetail(props) {
     { label: "Latency", val: data.latency != null ? Math.round(data.latency / 60) : null, unit: "min" },
   ];
   return (
-    <div style={{ background: C.white, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border, display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ background: C.panel, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border, display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>{fmtDS(day)}</div>
@@ -2332,7 +2419,7 @@ function SleepTab(props) {
           onClick={fetchData}
           disabled={loading}
           aria-label="Refresh from Oura"
-          style={{ width: 44, height: 44, borderRadius: "50%", background: loading ? C.border : C.gl, border: "none", color: C.green, fontSize: 17, cursor: loading ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, flexShrink: 0 }}
+          style={{ width: 44, height: 44, borderRadius: "50%", background: loading ? C.border : C.gl, border: "none", color: C.accent, fontSize: 17, cursor: loading ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, flexShrink: 0 }}
         >
           {loading ? "\u2026" : "\u21BB"}
         </button>
@@ -2346,7 +2433,7 @@ function SleepTab(props) {
 
       <div style={{ padding: "2px 16px 12px", display: "flex", flexDirection: "column", alignItems: "center" }}>
         <div style={{ position: "relative", width: 140, height: 140 }}>
-          <ScoreRing score={current ? current.score : null} size={140} />
+          <ScoreRing score={current ? current.score : null} size={140} shimmer={true} />
           <SleepDebtBadge hours={computeSleepDebt(sleep, selected)} />
         </div>
       </div>
@@ -2361,7 +2448,7 @@ function SleepTab(props) {
           <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Last 7 Days</div>
           <div style={{ fontSize: 9, color: C.muted }}>score trend</div>
         </div>
-        <div style={{ background: C.white, borderRadius: 11, padding: "8px 6px", border: "1.5px solid " + C.border }}>
+        <div style={{ background: C.panel, borderRadius: 11, padding: "8px 6px", border: "1.5px solid " + C.border }}>
           <Sparkline data={sparkData} width={328} height={42} />
         </div>
       </div>
@@ -2478,8 +2565,8 @@ function bwDeltaColorForCycle(deltaLb, activeCycle) {
   if (deltaLb == null || Math.abs(deltaLb) < 0.05) return C.muted;
   if (!activeCycle || !activeCycle.type) return C.muted;
   var t = activeCycle.type;
-  if (t === "Bulk") return deltaLb > 0 ? C.green : C.redT;
-  if (t === "Cut") return deltaLb < 0 ? C.green : C.redT;
+  if (t === "Bulk") return deltaLb > 0 ? C.accent : C.redT;
+  if (t === "Cut") return deltaLb < 0 ? C.accent : C.redT;
   if (t === "Maintain" || t === "Recomp" || t === "Custom") {
     if (Math.abs(deltaLb) <= 1) return C.muted;
     return C.muted;
@@ -2535,7 +2622,7 @@ function AddFoodSheet(props) {
       style={{
         position: "absolute",
         inset: 0,
-        background: "rgba(45,59,46,0.42)",
+        background: C.scrimSoft,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -2554,7 +2641,9 @@ function AddFoodSheet(props) {
         aria-labelledby="add-food-sheet-title"
         onClick={function (e) { e.stopPropagation(); }}
         style={{
-          background: C.bg,
+          background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
           width: "100%",
           maxWidth: "min(336px, 100%)",
           borderRadius: 20,
@@ -2563,14 +2652,14 @@ function AddFoodSheet(props) {
           fontFamily: "'DM Sans',sans-serif",
           maxHeight: "calc(100% - 24px)",
           overflowY: "auto",
-          boxShadow: "0 16px 36px rgba(45,59,46,0.18)",
+          boxShadow: "0 16px 42px rgba(0,0,0,0.55)",
           border: "1.5px solid " + C.border,
           flexShrink: 0,
         }}
       >
         <div id="add-food-sheet-title" style={{ fontSize: 17, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.25 }}>{food.food_name}</div>
         {food.brand_name && <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{food.brand_name}</div>}
-        <div style={{ marginTop: 10, padding: "9px 12px", background: C.white, borderRadius: 12, border: "1px solid " + C.border, fontSize: 11, color: C.muted }}>
+        <div style={{ marginTop: 10, padding: "9px 12px", background: C.panel, borderRadius: 12, border: "1px solid " + C.border, fontSize: 11, color: C.muted }}>
           Per <span style={{ color: C.text, fontWeight: 600 }}>{p.serving}</span> {"\u00B7"} <span style={{ color: C.text, fontWeight: 600 }}>{Math.round(p.calories)} cal</span>
           {p.protein != null && <span> {"\u00B7"} P {p.protein}g</span>}
           {p.carbs != null && <span> {"\u00B7"} C {p.carbs}g</span>}
@@ -2580,7 +2669,7 @@ function AddFoodSheet(props) {
           Servings
         </label>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button type="button" className="gt-focus-ring gt-min-tap" onClick={function () { bump(isCustom ? -1 : -0.5); }} aria-label="Decrease servings" style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button type="button" className="gt-focus-ring gt-min-tap" onClick={function () { bump(isCustom ? -1 : -0.5); }} aria-label="Decrease servings" style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.panel, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             {"\u2212"}
           </button>
           <input
@@ -2601,9 +2690,9 @@ function AddFoodSheet(props) {
             }}
             aria-label="Number of servings"
             className="gt-input"
-            style={{ flex: 1, padding: "10px 12px", borderRadius: 12, border: "1.5px solid " + C.border, fontSize: 17, fontWeight: 700, textAlign: "center", color: C.text, outline: "none", fontFamily: "'DM Sans',sans-serif", background: C.white }}
+            style={{ flex: 1, padding: "10px 12px", borderRadius: 12, border: "1.5px solid " + C.border, fontSize: 17, fontWeight: 700, textAlign: "center", color: C.text, outline: "none", fontFamily: "'DM Sans',sans-serif", background: C.panel }}
           />
-          <button type="button" className="gt-focus-ring gt-min-tap" onClick={function () { bump(isCustom ? 1 : 0.5); }} aria-label="Increase servings" style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button type="button" className="gt-focus-ring gt-min-tap" onClick={function () { bump(isCustom ? 1 : 0.5); }} aria-label="Increase servings" style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.panel, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             +
           </button>
         </div>
@@ -2611,7 +2700,7 @@ function AddFoodSheet(props) {
           = <span style={{ color: C.text, fontWeight: 700 }}>{Math.round(p.calories * qEff)} cal</span>
         </div>
         <div style={{ display: "flex", gap: 9, marginTop: 17 }}>
-          <button onClick={props.onCancel} style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.white, fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Cancel</button>
+          <button onClick={props.onCancel} style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.panel, fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Cancel</button>
           <button
             onClick={function () {
               var nv = qty;
@@ -2625,14 +2714,14 @@ function AddFoodSheet(props) {
               padding: "11px",
               borderRadius: 12,
               border: "none",
-              background: "linear-gradient(135deg," + C.green + "," + C.gd + ")",
-              color: C.white,
+              background: C.gradCTA,
+              color: C.onAccent,
               fontSize: 13,
               fontWeight: 700,
               cursor: isCustom ? (Number(qty) >= 1 ? "pointer" : "default") : Number(qty) >= 0.25 ? "pointer" : "default",
               opacity: isCustom ? (Number(qty) >= 1 ? 1 : 0.6) : Number(qty) >= 0.25 ? 1 : 0.6,
               fontFamily: "'DM Sans',sans-serif",
-              boxShadow: "0 5px 14px rgba(76,199,116,0.28)",
+              boxShadow: C.shadowCTASoft,
             }}
           >
             Add to log
@@ -2729,7 +2818,7 @@ function CustomFoodSheet(props) {
     color: C.text,
     outline: "none",
     boxSizing: "border-box",
-    background: C.white,
+    background: C.panel,
   };
   var labelStyle = {
     fontSize: 11,
@@ -2748,7 +2837,7 @@ function CustomFoodSheet(props) {
       style={{
         position: "absolute",
         inset: 0,
-        background: "rgba(45,59,46,0.42)",
+        background: C.scrimSoft,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -2769,7 +2858,9 @@ function CustomFoodSheet(props) {
           e.stopPropagation();
         }}
         style={{
-          background: C.bg,
+          background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
           width: "100%",
           maxWidth: "min(336px, 100%)",
           borderRadius: 20,
@@ -2778,7 +2869,7 @@ function CustomFoodSheet(props) {
           fontFamily: "'DM Sans',sans-serif",
           maxHeight: "calc(100% - 24px)",
           overflowY: "auto",
-          boxShadow: "0 16px 36px rgba(45,59,46,0.18)",
+          boxShadow: "0 16px 42px rgba(0,0,0,0.55)",
           border: "1.5px solid " + C.border,
           flexShrink: 0,
         }}
@@ -2837,7 +2928,7 @@ function CustomFoodSheet(props) {
           <input id="cf-f" type="number" inputMode="decimal" min={0} step="any" value={fatStr} onChange={function (e) { setFatStr(e.target.value); }} className="gt-input" placeholder="0" style={inputStyle} />
         </div>
         <div style={{ display: "flex", gap: 9, marginTop: 17 }}>
-          <button onClick={props.onClose} style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.white, fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+          <button onClick={props.onClose} style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.panel, fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
             Cancel
           </button>
           <button
@@ -2848,14 +2939,14 @@ function CustomFoodSheet(props) {
               padding: "11px",
               borderRadius: 12,
               border: "none",
-              background: canSave ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border,
-              color: C.white,
+              background: canSave ? C.gradCTA : C.border,
+              color: canSave ? C.onAccent : C.muted,
               fontSize: 13,
               fontWeight: 700,
               cursor: canSave ? "pointer" : "default",
               opacity: canSave ? 1 : 0.62,
               fontFamily: "'DM Sans',sans-serif",
-              boxShadow: canSave ? "0 5px 14px rgba(76,199,116,0.28)" : "none",
+              boxShadow: canSave ? C.shadowCTASoft : "none",
             }}
           >
             Save food
@@ -2887,7 +2978,7 @@ function DayNav(props) {
         display: "flex",
         alignItems: "center",
         gap: 6,
-        background: C.white,
+        background: C.panel,
         borderRadius: 16,
         padding: 6,
         border: "1px solid " + C.border,
@@ -2911,7 +3002,7 @@ function DayNav(props) {
         <div style={{ fontSize: 14, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, flexWrap: "wrap" }}>
           <span>{label}</span>
           {rel && (
-            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 99, background: rel === "Today" ? C.green : C.gl, color: rel === "Today" ? C.white : C.gd, letterSpacing: 0.4 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 99, background: rel === "Today" ? C.selFill : C.gl, color: rel === "Today" ? C.selText : C.accent, border: rel === "Today" ? "1px solid " + C.selBorder : "none", letterSpacing: 0.4 }}>
               {rel.toUpperCase()}
             </span>
           )}
@@ -2969,12 +3060,12 @@ function CalCalendar(props) {
     <div
       style={{
         margin: "-8px 16px 14px",
-        background: C.white,
+        background: C.panel,
         borderRadius: 18,
         padding: 14,
         paddingTop: 18,
         border: "1.5px solid " + C.border,
-        boxShadow: "0 8px 22px rgba(45,59,46,0.10)",
+        boxShadow: "0 9px 26px rgba(0,0,0,0.45)",
         animation: "slideUp 0.18s ease both",
         position: "relative",
         zIndex: 1,
@@ -2985,7 +3076,7 @@ function CalCalendar(props) {
         <button
           onClick={function () { gotoMonth(-1); }}
           aria-label="Previous month"
-          style={{ width: 32, height: 32, borderRadius: 10, background: "transparent", border: "none", color: C.green, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}
+          style={{ width: 32, height: 32, borderRadius: 10, background: "transparent", border: "none", color: C.accent, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}
         >
           {"\u2039"}
         </button>
@@ -2996,7 +3087,7 @@ function CalCalendar(props) {
           onClick={function () { gotoMonth(1); }}
           disabled={nextMonthDisabled}
           aria-label="Next month"
-          style={{ width: 32, height: 32, borderRadius: 10, background: "transparent", border: "none", color: C.green, fontSize: 18, cursor: nextMonthDisabled ? "default" : "pointer", opacity: nextMonthDisabled ? 0.3 : 1, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}
+          style={{ width: 32, height: 32, borderRadius: 10, background: "transparent", border: "none", color: C.accent, fontSize: 18, cursor: nextMonthDisabled ? "default" : "pointer", opacity: nextMonthDisabled ? 0.3 : 1, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}
         >
           {"\u203A"}
         </button>
@@ -3015,7 +3106,7 @@ function CalCalendar(props) {
           var isFut = k > tk;
           var hasLog = daysWithLogs.has(k);
           var border = "none";
-          if (!isSel && isT) border = "2px solid " + C.green;
+          if (!isSel && isT) border = "2px solid " + C.accent;
           else if (!isSel && !hasLog) border = "1px solid " + C.border;
           else if (!isSel && hasLog) border = "1px solid " + C.gm;
           return (
@@ -3028,8 +3119,8 @@ function CalCalendar(props) {
                 aspectRatio: "1",
                 borderRadius: 10,
                 border: border,
-                background: isSel ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : hasLog && !isT ? C.gl : "transparent",
-                color: isSel ? C.white : C.text,
+                background: isSel ? C.gradCTA : hasLog && !isT ? C.gl : "transparent",
+                color: isSel ? C.onAccent : C.text,
                 cursor: isFut ? "default" : "pointer",
                 opacity: isFut ? 0.28 : 1,
                 fontSize: 13,
@@ -3037,7 +3128,7 @@ function CalCalendar(props) {
                 position: "relative",
                 fontFamily: "'DM Sans',sans-serif",
                 padding: 0,
-                boxShadow: isSel ? "0 4px 12px rgba(76,199,116,0.4)" : "none",
+                boxShadow: isSel ? C.shadowCTASoft : "none",
                 transition: "transform 0.12s ease",
               }}
             >
@@ -3052,7 +3143,7 @@ function CalCalendar(props) {
                     width: 4,
                     height: 4,
                     borderRadius: 99,
-                    background: isSel ? C.white : C.gd,
+                    background: isSel ? C.onAccent : C.gd,
                   }}
                 />
               )}
@@ -3382,10 +3473,10 @@ function CalorieTab(props) {
         style={{
           margin: "0 16px 14px",
           padding: "20px 22px",
-          background: "linear-gradient(135deg," + C.green + "," + C.gd + ")",
+          background: C.gradCTA,
           borderRadius: 24,
-          color: C.white,
-          boxShadow: "0 8px 24px rgba(76,199,116,0.25)",
+          color: C.onAccent,
+          boxShadow: C.shadowCTA,
           animation: "slideUp 0.32s ease both",
         }}
       >
@@ -3421,7 +3512,7 @@ function CalorieTab(props) {
               padding: "12px 14px",
               borderRadius: 14,
               border: "1.5px solid " + C.border,
-              background: C.white,
+              background: C.panel,
               fontSize: 14,
               fontFamily: "'DM Sans',sans-serif",
               color: C.text,
@@ -3447,12 +3538,12 @@ function CalorieTab(props) {
               fontWeight: 300,
               lineHeight: 1,
               fontFamily: "'DM Sans',sans-serif",
-              color: C.white,
-              background: "linear-gradient(135deg," + C.green + "," + C.gd + ")",
+              color: C.onAccent,
+              background: C.gradCTA,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 4px 14px rgba(76,199,116,0.38)",
+              boxShadow: C.shadowCTASoft,
               WebkitTapHighlightColor: "transparent",
             }}
           >
@@ -3460,7 +3551,7 @@ function CalorieTab(props) {
           </button>
         </div>
         {(q.trim() || searching) && (
-          <div style={{ marginTop: 8, background: C.white, borderRadius: 14, border: "1.5px solid " + C.border, overflow: "hidden", maxHeight: 280, overflowY: "auto" }}>
+          <div style={{ marginTop: 8, background: C.panel, borderRadius: 14, border: "1.5px solid " + C.border, overflow: "hidden", maxHeight: 280, overflowY: "auto" }}>
             {searching && <div style={{ padding: "12px 14px", fontSize: 13, color: C.muted }}>Searching{"\u2026"}</div>}
             {!searching && results.length === 0 && q.trim() && <div style={{ padding: "12px 14px", fontSize: 13, color: C.muted }}>No results.</div>}
             {results.map(function (f, i) {
@@ -3489,7 +3580,7 @@ function CalorieTab(props) {
                       {f.food_name}
                       {f.brand_name && <span style={{ color: C.muted, fontWeight: 500 }}> {"\u00B7"} {f.brand_name}</span>}
                       {custItem && (
-                        <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: C.green, textTransform: "uppercase", letterSpacing: 0.35 }}>Your food</span>
+                        <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: C.accent, textTransform: "uppercase", letterSpacing: 0.35 }}>Your food</span>
                       )}
                       {f.__fromLog && !custItem && (
                         <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: C.gd, textTransform: "uppercase", letterSpacing: 0.35 }}>Logged before</span>
@@ -3512,9 +3603,9 @@ function CalorieTab(props) {
         <div style={{ fontSize: 12, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, padding: "6px 4px 10px" }}>Log</div>
         {loading && <div style={{ padding: "18px 14px", fontSize: 13, color: C.muted, textAlign: "center" }}>Loading{"\u2026"}</div>}
         {!loading && entries.length === 0 && (
-          <div style={{ padding: "28px 20px", background: C.white, borderRadius: 16, border: "1.5px dashed " + C.border, textAlign: "center" }}>
+          <div style={{ padding: "28px 20px", background: C.panel, borderRadius: 16, border: "1.5px dashed " + C.border, textAlign: "center" }}>
             <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", lineHeight: 0 }}>
-              <IconUiBowl size={36} color={C.green} />
+              <IconUiBowl size={36} color={C.accent} />
             </div>
             <div style={{ fontSize: 13, color: C.muted }}>{emptyLbl}</div>
           </div>
@@ -3533,7 +3624,7 @@ function CalorieTab(props) {
             <div
               key={e.id}
               style={{
-                background: C.white,
+                background: C.panel,
                 borderRadius: 14,
                 padding: "12px 14px",
                 border: "1px solid " + C.border,
@@ -3559,7 +3650,7 @@ function CalorieTab(props) {
                       if (ic) updateEntryServings(e, Math.max(1, Math.round(cur || 1) - 1));
                       else updateEntryServings(e, Math.max(0.25, cur - 0.5));
                     }}
-                    style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                    style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.panel, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                   >
                     {"\u2212"}
                   </button>
@@ -3573,7 +3664,7 @@ function CalorieTab(props) {
                     onChange={function (ev) {
                       updateEntryServings(e, ev.target.value);
                     }}
-                    style={{ width: 72, padding: "8px 6px", borderRadius: 12, border: "1.5px solid " + C.border, fontSize: 15, fontWeight: 700, textAlign: "center", color: C.text, outline: "none", fontFamily: "'DM Sans',sans-serif", background: C.white, flexShrink: 0 }}
+                    style={{ width: 72, padding: "8px 6px", borderRadius: 12, border: "1.5px solid " + C.border, fontSize: 15, fontWeight: 700, textAlign: "center", color: C.text, outline: "none", fontFamily: "'DM Sans',sans-serif", background: C.panel, flexShrink: 0 }}
                   />
                   <button
                     type="button"
@@ -3584,7 +3675,7 @@ function CalorieTab(props) {
                       if (ic) updateEntryServings(e, Math.round(cur || 1) + 1);
                       else updateEntryServings(e, cur + 0.5);
                     }}
-                    style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.white, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                    style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.panel, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                   >
                     +
                   </button>
@@ -3845,7 +3936,7 @@ function TabPicker(props) {
         return (
           <button
             type="button"
-            className="gt-focus-ring"
+            className={"gt-focus-ring" + (isCenter ? " gt-shimmer" : "")}
             key={item.key}
             onClick={function () { onSelect(item.tab.id); }}
             style={{
@@ -3855,8 +3946,10 @@ function TabPicker(props) {
               width: 78,
               height: 68,
               padding: "10px 6px",
-              background: isCenter ? C.green : "transparent",
-              border: "none",
+              background: isCenter
+                ? "linear-gradient(160deg,rgba(255,255,255,0.16) 0%,rgba(34,40,54,0.92) 40%,rgba(26,31,46,0.96) 100%)"
+                : "transparent",
+              border: isCenter ? "1px solid rgba(212,216,224,0.45)" : "1px solid transparent",
               cursor: "pointer",
               display: "flex",
               flexDirection: "column",
@@ -3865,14 +3958,15 @@ function TabPicker(props) {
               gap: 6,
               borderRadius: 18,
               opacity: opacity,
-              transition: "opacity 0.08s ease",
+              transition: "opacity 0.08s ease, box-shadow 0.12s ease, background 0.12s ease",
               fontFamily: "'DM Sans',sans-serif",
+              boxShadow: isCenter ? "0 0 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(200,204,212,0.25)" : "none",
             }}
           >
             <div style={{ transform: "scale(1.35)", lineHeight: 0 }}>
-              <TabIcon color={isCenter ? C.white : C.muted} />
+              <TabIcon color={isCenter ? C.accent : C.muted} />
             </div>
-            <span style={{ fontSize: 11, fontWeight: isCenter ? 700 : 600, color: isCenter ? C.white : C.muted, whiteSpace: "nowrap" }}>{item.tab.label}</span>
+            <span style={{ fontSize: 11, fontWeight: isCenter ? 700 : 600, color: isCenter ? C.selText : C.muted, whiteSpace: "nowrap" }}>{item.tab.label}</span>
           </button>
         );
       })}
@@ -3957,18 +4051,18 @@ function cellColorForLayer(layer, k, ctx) {
   if (layer === "sleep") {
     var s = ctx.sleep[k];
     if (!s || s.score == null) return null;
-    if (s.score >= 85) return "rgba(76,199,116,0.58)";
-    if (s.score >= 75) return "rgba(108,217,148,0.44)";
-    if (s.score >= 65) return "rgba(229,181,60,0.38)";
-    return "rgba(224,80,80,0.32)";
+    if (s.score >= 85) return "rgba(210,214,222,0.50)";
+    if (s.score >= 75) return "rgba(190,196,208,0.40)";
+    if (s.score >= 65) return "rgba(229,181,60,0.40)";
+    return "rgba(224,80,80,0.36)";
   }
   if (layer === "workouts") {
     var sets = setsTotalOn(ctx.wl, k);
     if (sets === 0) return null;
-    if (sets >= 20) return "rgba(76,199,116,0.66)";
-    if (sets >= 12) return "rgba(108,217,148,0.50)";
-    if (sets >= 6) return "rgba(168,230,188,0.65)";
-    return "rgba(232,249,238,0.95)";
+    if (sets >= 20) return "rgba(200,204,212,0.55)";
+    if (sets >= 12) return "rgba(200,204,212,0.40)";
+    if (sets >= 6) return "rgba(200,204,212,0.28)";
+    return "rgba(255,255,255,0.16)";
   }
   return null;
 }
@@ -3986,8 +4080,8 @@ function cycleTintFor(cycles, k) {
 }
 
 var LAYER_LEGENDS = {
-  sleep: ["rgba(224,80,80,0.32)", "rgba(229,181,60,0.38)", "rgba(108,217,148,0.44)", "rgba(76,199,116,0.58)"],
-  workouts: ["rgba(232,249,238,0.95)", "rgba(168,230,188,0.65)", "rgba(108,217,148,0.50)", "rgba(76,199,116,0.66)"],
+  sleep: ["rgba(224,80,80,0.36)", "rgba(229,181,60,0.40)", "rgba(190,196,208,0.40)", "rgba(210,214,222,0.50)"],
+  workouts: ["rgba(255,255,255,0.16)", "rgba(200,204,212,0.28)", "rgba(200,204,212,0.40)", "rgba(200,204,212,0.55)"],
 };
 
 function UnifiedCalendar(props) {
@@ -4111,9 +4205,9 @@ function UnifiedCalendar(props) {
         {kpis.map(function (k2, i) {
           var KpiI = k2.Icon;
           return (
-            <div key={i} style={{ background: C.white, borderRadius: 14, padding: "10px 6px", border: "1.5px solid " + C.border, textAlign: "center" }}>
+            <div key={i} style={{ background: C.panel, borderRadius: 14, padding: "10px 6px", border: "1.5px solid " + C.border, textAlign: "center" }}>
               <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
-                <KpiI size={17} color={C.green} />
+                <KpiI size={17} color={C.accent} />
               </div>
               <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginTop: 6, lineHeight: 1 }}>{k2.val}</div>
               <div style={{ fontSize: 9, color: C.muted, marginTop: 3, letterSpacing: 0.3 }}>{k2.label}</div>
@@ -4134,7 +4228,7 @@ function UnifiedCalendar(props) {
                   <div style={{ fontSize: 11, fontWeight: 700, color: col.text, display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cyc.name}</span>
                     <span style={{ fontSize: 9, opacity: 0.7, fontWeight: 500 }}>{"\u00B7 " + cyc.type}</span>
-                    {isA && <span style={{ fontSize: 8, fontWeight: 700, color: C.green, background: C.gl, border: "1px solid " + C.gm, borderRadius: 99, padding: "1px 6px" }}>Active</span>}
+                    {isA && <span style={{ fontSize: 8, fontWeight: 700, color: C.accent, background: C.gl, border: "1px solid " + C.gm, borderRadius: 99, padding: "1px 6px" }}>Active</span>}
                   </div>
                   <div style={{ fontSize: 10, color: col.text, opacity: 0.7 }}>
                     {fmtDS(cyc.start)} {"\u2192"} {fmtDS(cyc.end)}{cyc.calories ? " \u00B7 " + cyc.calories + " kcal" : ""}
@@ -4146,13 +4240,13 @@ function UnifiedCalendar(props) {
         </div>
       )}
 
-      <div style={{ margin: "0 14px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.white, borderRadius: 14, padding: "8px 8px", border: "1.5px solid " + C.border }}>
+      <div style={{ margin: "0 14px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.panel, borderRadius: 14, padding: "8px 8px", border: "1.5px solid " + C.border }}>
         <button
           type="button"
           className="gt-focus-ring"
           aria-label="Previous month"
           onClick={function () { changeMonth(-1); }}
-          style={{ background: "none", border: "none", cursor: "pointer", color: C.green, padding: "4px 12px", display: "flex", alignItems: "center", justifyContent: "center" }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, padding: "4px 12px", display: "flex", alignItems: "center", justifyContent: "center" }}
         >
           <IconChevronCal dir="left" />
         </button>
@@ -4164,7 +4258,7 @@ function UnifiedCalendar(props) {
           className="gt-focus-ring"
           aria-label="Next month"
           onClick={function () { changeMonth(1); }}
-          style={{ background: "none", border: "none", cursor: "pointer", color: C.green, padding: "4px 12px", display: "flex", alignItems: "center", justifyContent: "center" }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, padding: "4px 12px", display: "flex", alignItems: "center", justifyContent: "center" }}
         >
           <IconChevronCal dir="right" />
         </button>
@@ -4184,9 +4278,9 @@ function UnifiedCalendar(props) {
                 flex: 1,
                 padding: "8px 6px",
                 borderRadius: 99,
-                background: active ? C.green : C.white,
-                border: "1.5px solid " + (active ? C.green : C.border),
-                color: active ? C.white : C.muted,
+                background: active ? C.selFill : C.panel,
+                border: "1.5px solid " + (active ? C.selBorder : C.border),
+                color: active ? C.selText : C.muted,
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: "pointer",
@@ -4199,7 +4293,7 @@ function UnifiedCalendar(props) {
               }}
             >
               <span style={{ display: "flex", alignItems: "center" }}>
-                <LayI size={15} color={active ? C.white : C.muted} />
+                <LayI size={15} color={active ? C.selText : C.muted} />
               </span>
               <span>{p.label}</span>
             </button>
@@ -4207,7 +4301,7 @@ function UnifiedCalendar(props) {
         })}
       </div>
 
-      <div style={{ margin: "0 14px", background: C.white, borderRadius: 18, padding: 14, border: "1.5px solid " + C.border }}>
+      <div style={{ margin: "0 14px", background: C.panel, borderRadius: 18, padding: 14, border: "1.5px solid " + C.border }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 8 }}>
           {DL.map(function (d) {
             return (
@@ -4229,9 +4323,9 @@ function UnifiedCalendar(props) {
             var hasWk = !!wl[k];
             var hasSl = !!(sleep[k] && sleep[k].score != null);
             var ringBorder = isT
-              ? "2px solid " + C.green
+              ? "2px solid " + C.accent
               : heat
-              ? "1px solid rgba(45,59,46,0.06)"
+              ? "1px solid rgba(255,255,255,0.08)"
               : "1.5px solid " + C.border;
             return (
               <div
@@ -4267,8 +4361,8 @@ function UnifiedCalendar(props) {
                 </div>
                 {!isFut && (hasWk || hasSl) && (
                   <div style={{ position: "absolute", bottom: 2, left: 0, right: 0, display: "flex", gap: 2, justifyContent: "center", pointerEvents: "none" }}>
-                    {hasWk && <div style={{ width: 3, height: 3, borderRadius: "50%", background: "#4FA8E0" }} />}
-                    {hasSl && <div style={{ width: 3, height: 3, borderRadius: "50%", background: "#9060E0" }} />}
+                    {hasWk && <div style={{ width: 3, height: 3, borderRadius: "50%", background: C.accent }} />}
+                    {hasSl && <div style={{ width: 3, height: 3, borderRadius: "50%", background: C.accentDeep }} />}
                   </div>
                 )}
                 {perfect && (
@@ -4290,11 +4384,11 @@ function UnifiedCalendar(props) {
           </div>
           <div style={{ display: "flex", gap: 7 }}>
             <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-              <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#4FA8E0" }} />
+              <div style={{ width: 5, height: 5, borderRadius: "50%", background: C.accent }} />
               gym
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-              <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#9060E0" }} />
+              <div style={{ width: 5, height: 5, borderRadius: "50%", background: C.accentDeep }} />
               sleep
             </span>
           </div>
@@ -4388,14 +4482,14 @@ function DaySummarySheet(props) {
 
   return (
     <div
-      style={{ position: "absolute", inset: 0, background: "rgba(45,59,46,0.45)", display: "flex", alignItems: "flex-end", zIndex: 200, animation: "fadeIn 0.18s ease both" }}
+      style={{ position: "absolute", inset: 0, background: C.scrim, display: "flex", alignItems: "flex-end", zIndex: 200, animation: "fadeIn 0.18s ease both" }}
       onClick={props.onClose}
     >
       <div
         onClick={function (e) {
           e.stopPropagation();
         }}
-        style={{ background: C.bg, borderRadius: "28px 28px 0 0", padding: "20px 18px 44px", width: "100%", maxHeight: "85%", overflowY: "auto", animation: "slideUp 0.24s cubic-bezier(0.34,1.56,0.64,1) both" }}
+        style={{ background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")", backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)", borderRadius: "28px 28px 0 0", borderTop: "1px solid rgba(255,255,255,0.12)", padding: "20px 18px 44px", width: "100%", maxHeight: "85%", overflowY: "auto", animation: "slideUp 0.24s cubic-bezier(0.34,1.56,0.64,1) both" }}
       >
         <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 14px" }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
@@ -4403,8 +4497,8 @@ function DaySummarySheet(props) {
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{dayLabel}</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{fmtDS(k)}</div>
             {perfect && (
-              <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: "linear-gradient(135deg,#FFF4C8,#F5C518)", color: "#5C4500", fontSize: 10, fontWeight: 700, letterSpacing: 0.3, border: "1px solid rgba(245,197,24,0.45)" }}>
-                <IconKpiStar size={12} color="#C9A008" />
+              <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: "rgba(245,207,94,0.14)", color: "#F2D884", fontSize: 10, fontWeight: 700, letterSpacing: 0.3, border: "1px solid rgba(245,207,94,0.35)" }}>
+                <IconKpiStar size={12} color="#E5C848" />
                 <span>Perfect day</span>
               </div>
             )}
@@ -4429,11 +4523,11 @@ function DaySummarySheet(props) {
           </div>
         )}
 
-        <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+        <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Sleep</div>
             <span style={{ display: "flex", lineHeight: 0 }}>
-              <IconKpiSleep size={20} color={C.green} />
+              <IconKpiSleep size={20} color={C.accent} />
             </span>
           </div>
           {s && s.score != null ? (
@@ -4463,11 +4557,11 @@ function DaySummarySheet(props) {
           )}
         </div>
 
-        <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+        <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Workout</div>
             <span style={{ display: "flex", lineHeight: 0 }}>
-              <IconKpiWorkout size={20} color={C.green} />
+              <IconKpiWorkout size={20} color={C.accent} />
             </span>
           </div>
           {l ? (
@@ -4482,7 +4576,7 @@ function DaySummarySheet(props) {
                 </div>
                 <div>
                   <div style={{ fontSize: 9, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>Total sets</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: C.green, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>{totalSets}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: C.accent, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>{totalSets}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: 9, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>Cardio</div>
@@ -4509,7 +4603,7 @@ function DaySummarySheet(props) {
                           <span style={{ fontSize: 11, color: C.muted }}>{sm} sets</span>
                         </div>
                         <div style={{ height: 3, background: C.border, borderRadius: 99, overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: Math.min(sm / 20, 1) * 100 + "%", background: C.green, borderRadius: 99 }} />
+                          <div style={{ height: "100%", width: Math.min(sm / 20, 1) * 100 + "%", background: "linear-gradient(90deg," + C.accentDeep + "," + C.accent + ")", borderRadius: 99 }} />
                         </div>
                       </div>
                     );
@@ -4522,13 +4616,13 @@ function DaySummarySheet(props) {
           )}
         </div>
 
-        <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+        <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
               Habits {hd.total > 0 ? "(" + hd.done + "/" + hd.total + ")" : ""}
             </div>
             <span style={{ display: "flex", lineHeight: 0 }}>
-              <IconKpiHabit size={20} color={C.green} />
+              <IconKpiHabit size={20} color={C.accent} />
             </span>
           </div>
           {sched.length === 0 ? (
@@ -4539,10 +4633,10 @@ function DaySummarySheet(props) {
                 var done = !!(comp[h.id] && comp[h.id][k]);
                 return (
                   <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                    <div style={{ width: 24, height: 24, borderRadius: "50%", background: done ? C.green : "transparent", border: done ? "none" : "2px solid " + C.border, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", background: done ? C.green : "transparent", border: done ? "2px solid rgba(212,216,224,0.5)" : "2px solid " + C.border, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {done && (
                         <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
-                          <path d="M4 10.5L8.5 15L16 6" stroke="white" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M4 10.5L8.5 15L16 6" stroke={C.onAccent} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                     </div>
@@ -4557,11 +4651,11 @@ function DaySummarySheet(props) {
           )}
         </div>
 
-        <div style={{ background: C.white, borderRadius: 14, padding: "12px 14px", border: "1.5px solid " + C.border }}>
+        <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", border: "1.5px solid " + C.border }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Calories</div>
             <span style={{ display: "flex", lineHeight: 0 }}>
-              <IFlame size={20} color={C.green} />
+              <IFlame size={20} color={C.accent} />
             </span>
           </div>
           {!supaReady() ? (
@@ -4578,7 +4672,7 @@ function DaySummarySheet(props) {
                 <span style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>{Math.round(calTotal).toLocaleString()}</span>
                 <span style={{ fontSize: 12, color: C.muted }}>kcal</span>
                 {cyc && cyc.calories ? (
-                  <span style={{ fontSize: 10, color: calTotal <= cyc.calories ? C.green : C.redT, fontWeight: 700, marginLeft: "auto" }}>
+                  <span style={{ fontSize: 10, color: calTotal <= cyc.calories ? C.accent : C.redT, fontWeight: 700, marginLeft: "auto" }}>
                     {calTotal <= cyc.calories ? "\u2193" : "\u2191"} {Math.abs(Math.round(calTotal - cyc.calories))} vs target
                   </span>
                 ) : null}
@@ -5105,7 +5199,7 @@ function CoachTab(props) {
             padding: "3px 11px",
             fontSize: 11,
             fontWeight: 600,
-            color: hl.loading ? C.muted : C.green,
+            color: hl.loading ? C.muted : C.accent,
             cursor: hl.loading ? "default" : "pointer",
             fontFamily: "'DM Sans',sans-serif",
           }}
@@ -5121,7 +5215,7 @@ function CoachTab(props) {
           </div>
         )}
         {!hl.items.length && !hl.loading && !hl.error && (
-          <div style={{ background: C.white, border: "1.5px dashed " + C.border, borderRadius: 14, padding: "14px 14px", textAlign: "center" }}>
+          <div style={{ background: C.panel, border: "1.5px dashed " + C.border, borderRadius: 14, padding: "14px 14px", textAlign: "center" }}>
             <div style={{ fontSize: 12, color: C.text, fontWeight: 600, marginBottom: 4 }}>No highlights yet</div>
             <div style={{ fontSize: 11, color: C.muted }}>Log a few workouts and sleep nights, then tap Refresh.</div>
           </div>
@@ -5133,10 +5227,10 @@ function CoachTab(props) {
           {hl.items.map(function (c2, i) {
             var kindCol =
               c2.kind === "win"
-                ? { bg: "#E8F9EE", bd: "#A8E6BC", fg: "#2C7142" }
+                ? { bg: "rgba(200,204,212,0.12)", bd: "rgba(212,216,224,0.48)", fg: "#E8EAEF" }
                 : c2.kind === "fix"
-                ? { bg: "#FCE9E9", bd: "#F2C4C4", fg: "#9A4040" }
-                : { bg: "#FFF5E1", bd: "#F2DDA8", fg: "#7A5A0F" };
+                ? { bg: "rgba(255,95,105,0.12)", bd: "rgba(255,132,140,0.45)", fg: "#FFADB2" }
+                : { bg: "rgba(229,181,60,0.12)", bd: "rgba(245,207,94,0.42)", fg: "#F2D884" };
             var KindIco = c2.kind === "win" ? IconUiSparkles : c2.kind === "fix" ? IconUiAlert : IconUiEye;
             return (
               <div key={i} style={{ background: kindCol.bg, borderLeft: "3px solid " + kindCol.bd, borderRadius: 10, padding: "8px 12px" }}>
@@ -5182,8 +5276,8 @@ function CoachTab(props) {
                       maxWidth: "84%",
                       padding: "8px 12px",
                       borderRadius: 14,
-                      background: isUser ? C.green : C.white,
-                      color: isUser ? C.white : C.text,
+                      background: isUser ? C.gradCTA : C.panel,
+                      color: isUser ? C.onAccent : C.text,
                       border: isUser ? "none" : "1.5px solid " + C.border,
                       fontSize: 13,
                       lineHeight: 1.5,
@@ -5211,7 +5305,7 @@ function CoachTab(props) {
                     onClick={function () { sendMessage(qp); }}
                     style={{
                       flexShrink: 0,
-                      background: C.white,
+                      background: C.panel,
                       border: "1.5px solid " + C.border,
                       borderRadius: 99,
                       padding: "10px 14px",
@@ -5263,7 +5357,7 @@ function CoachTab(props) {
                 fontSize: 13,
                 fontFamily: "'DM Sans',sans-serif",
                 color: C.text,
-                background: C.white,
+                background: C.panel,
                 outline: "none",
                 maxHeight: 80,
                 lineHeight: 1.4,
@@ -5278,16 +5372,16 @@ function CoachTab(props) {
                 width: 44,
                 height: 44,
                 borderRadius: "50%",
-                background: inp.trim() && !streaming ? C.green : C.border,
+                background: inp.trim() && !streaming ? C.gradCTA : C.border,
                 border: "none",
-                color: inp.trim() && !streaming ? C.white : C.muted,
+                color: inp.trim() && !streaming ? C.onAccent : C.muted,
                 fontSize: 17,
                 cursor: inp.trim() && !streaming ? "pointer" : "default",
                 flexShrink: 0,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: inp.trim() && !streaming ? "0 4px 12px rgba(76,199,116,0.4)" : "none",
+                boxShadow: inp.trim() && !streaming ? C.shadowCTASoft : "none",
                 fontWeight: 700,
               }}
               aria-label="Send"
@@ -5944,10 +6038,10 @@ export default function App() {
   if (!booted) {
     return (
       <div>
-        <style>{"body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes pulseDot{0%,100%{opacity:0.35;transform:scale(0.9)}50%{opacity:1;transform:scale(1.1)}}"}</style>
-        <div style={{ width: compact ? "100%" : 390, maxWidth: compact ? "100%" : undefined, height: compact ? "100dvh" : 844, background: C.bg, borderRadius: compact ? 0 : 48, overflow: "hidden", boxShadow: compact ? "none" : "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", color: C.text }}>
+        <style>{"body{background:#0b0e14;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:transparent;display:block;min-height:100vh;}}@keyframes pulseDot{0%,100%{opacity:0.35;transform:scale(0.9)}50%{opacity:1;transform:scale(1.1)}}"}</style>
+        <div className="gt-page-bg" style={{ width: compact ? "100%" : 390, maxWidth: compact ? "100%" : undefined, height: compact ? "100dvh" : 844, borderRadius: compact ? 0 : 48, overflow: "hidden", boxShadow: compact ? "none" : "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", color: C.text }}>
           <div style={{ marginBottom: 16, display: "flex", justifyContent: "center" }} aria-hidden="true">
-            <IconDumbbellMark size={52} color={C.green} />
+            <IconDumbbellMark size={52} color={C.accent} />
           </div>
           <div style={{ fontSize: 14, color: C.muted, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }}>GymTrack</div>
           <div style={{ marginTop: 18, display: "flex", gap: 6 }}>
@@ -5956,7 +6050,7 @@ export default function App() {
                 <div
                   key={i}
                   className="boot-pulse"
-                  style={{ width: 8, height: 8, borderRadius: "50%", background: C.green, animation: "pulseDot 1.1s ease-in-out infinite", animationDelay: i * 0.15 + "s" }}
+                  style={{ width: 8, height: 8, borderRadius: "50%", background: C.accent, animation: "pulseDot 1.1s ease-in-out infinite", animationDelay: i * 0.15 + "s" }}
                 />
               );
             })}
@@ -6014,23 +6108,23 @@ export default function App() {
                           minWidth: 44,
                           padding: "6px 0 5px",
                           borderRadius: 12,
-                          border: isSel ? "1.5px solid " + C.green : isT ? "1.5px solid " + C.gm : "1.5px solid " + C.border,
-                          background: isSel ? C.green : C.white,
-                          color: isSel ? C.white : C.text,
+                          border: isSel ? "1.5px solid rgba(212,216,224,0.55)" : isT ? "1.5px solid " + C.gm : "1.5px solid " + C.border,
+                          background: isSel ? C.gradCTA : C.panel,
+                          color: isSel ? C.onAccent : C.text,
                           cursor: "pointer",
                           fontFamily: "'DM Sans',sans-serif",
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "center",
                           gap: 2,
-                          boxShadow: isSel ? "0 4px 12px rgba(76,199,116,0.35)" : "none",
+                          boxShadow: isSel ? C.shadowCTASoft : "none",
                           transition: "background 0.18s ease,border-color 0.18s ease",
                         }}
                       >
                         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.35, textTransform: "uppercase", opacity: isSel ? 0.95 : 0.75 }}>{DL[dow]}</span>
                         <span style={{ fontSize: 16, fontWeight: 700, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>{d.getDate()}</span>
                         <span style={{ height: 5, marginTop: 1, display: "flex", alignItems: "center" }}>
-                          {hasAny && <span style={{ width: 5, height: 5, borderRadius: "50%", background: isSel ? C.white : (isPerfect ? C.green : C.gm) }} />}
+                          {hasAny && <span style={{ width: 5, height: 5, borderRadius: "50%", background: isSel ? C.onAccent : isPerfect ? C.gd : C.gm }} />}
                         </span>
                       </button>
                     );
@@ -6040,7 +6134,7 @@ export default function App() {
                   type="button"
                   className="gt-focus-ring gt-min-tap"
                   onClick={function () { if (dateInputRef.current) { try { dateInputRef.current.showPicker(); } catch (e) { dateInputRef.current.click(); } } }}
-                  style={{ flex: "0 0 auto", width: 44, height: 44, borderRadius: 12, background: C.white, border: "1.5px solid " + C.border, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.text }}
+                  style={{ flex: "0 0 auto", width: 44, height: 44, borderRadius: 12, background: C.panel, border: "1.5px solid " + C.border, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.text }}
                   aria-label="Pick a date"
                 >
                   <ICal color={C.text} />
@@ -6073,29 +6167,29 @@ export default function App() {
                 <div style={{ padding: "0 22px 12px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                     <span style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>{selIsToday ? "Today\u2019s Progress" : "Progress"}</span>
-                    <span style={{ fontSize: 12, color: C.green, fontWeight: 700 }}>
+                    <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>
                       {selDoneC}/{selH.length}
                     </span>
                   </div>
                   <div style={{ height: 5, background: C.border, borderRadius: 99, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: selPct + "%", background: "linear-gradient(90deg," + C.gd + "," + C.green + ")", borderRadius: 99, transition: "width 0.6s cubic-bezier(0.34,1.56,0.64,1)" }} />
+                    <div style={{ height: "100%", width: selPct + "%", background: "linear-gradient(90deg," + C.accentDeep + "," + C.accent + ")", borderRadius: 99, transition: "width 0.6s cubic-bezier(0.34,1.56,0.64,1)" }} />
                   </div>
                 </div>
               )}
               {selH.length === 0 && habits.length === 0 && (
-                <div style={{ margin: "16px 14px 0", display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px", background: C.white, borderRadius: 22, border: "1.5px dashed " + C.border }}>
+                <div style={{ margin: "16px 14px 0", display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px", background: C.panel, borderRadius: 22, border: "1.5px dashed " + C.border }}>
                   <div style={{ marginBottom: 14, display: "flex", justifyContent: "center", lineHeight: 0 }} aria-hidden="true">
                     <IconSprout size={52} />
                   </div>
                   <div style={{ fontSize: 17, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 6, textAlign: "center" }}>No habits yet</div>
                   <div style={{ fontSize: 13, color: C.muted, textAlign: "center", lineHeight: 1.6, marginBottom: 20 }}>Tap + to add your first habit.</div>
-                  <button type="button" className="gt-focus-ring" onClick={() => setShowAdd(true)} style={{ padding: "11px 24px", borderRadius: 99, background: "linear-gradient(135deg," + C.green + "," + C.gd + ")", border: "none", color: C.white, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                  <button type="button" className="gt-focus-ring" onClick={() => setShowAdd(true)} style={{ padding: "11px 24px", borderRadius: 99, background: C.gradCTA, border: "none", color: C.onAccent, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                     Add your first habit
                   </button>
                 </div>
               )}
               {selH.length === 0 && habits.length > 0 && (
-                <div style={{ margin: "10px 14px 0", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 16px", background: C.white, borderRadius: 18, border: "1.5px dashed " + C.border }}>
+                <div style={{ margin: "10px 14px 0", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 16px", background: C.panel, borderRadius: 18, border: "1.5px dashed " + C.border }}>
                   <div style={{ marginBottom: 10, opacity: 0.65 }} aria-hidden="true">
                     <ICal color={C.muted} />
                   </div>
@@ -6112,11 +6206,11 @@ export default function App() {
                     pop = justChk[habit.id],
                     gymOrphan = gym && habit.id === gym.id && done && !workoutLogHasDetails(logs[selDay]);
                   return (
-                    <div key={habit.id} className={"hab" + (pop ? " glow" : "")} style={{ background: done ? C.gl : C.white, borderRadius: 18, padding: "14px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: done ? "0 2px 14px rgba(76,199,116,0.16)" : "0 2px 9px rgba(45,59,46,0.05)", border: "1.5px solid " + (done ? C.gm : C.border), transition: "background 0.4s ease,border-color 0.4s ease" }}>
-                      <button type="button" aria-pressed={done} aria-label={(done ? "Unmark " : "Mark ") + habit.name + " for " + selDay} className="chk gt-focus-ring" onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "none" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "0 4px 12px rgba(76,199,116,0.45)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
+                    <div key={habit.id} className={"hab" + (pop ? " glow" : "")} style={{ background: done ? C.gl : C.panel, borderRadius: 18, padding: "14px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: done ? "0 2px 18px rgba(0,0,0,0.35), 0 0 0 1px rgba(200,204,212,0.2)" : "0 3px 12px rgba(0,0,0,0.22)", border: "1.5px solid " + (done ? C.gm : C.border), transition: "background 0.4s ease,border-color 0.4s ease" }}>
+                      <button type="button" aria-pressed={done} aria-label={(done ? "Unmark " : "Mark ") + habit.name + " for " + selDay} className={"chk gt-focus-ring" + (habit.icon === ICON_GYM ? " gt-shimmer gt-shimmer-ring" : "")} onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "2px solid rgba(212,216,224,0.55)" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "inset 0 1px 0 rgba(255,255,255,0.12), 0 4px 14px rgba(0,0,0,0.38)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
                         {done && (
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ animation: pop ? "checkPop 0.8s cubic-bezier(0.34,1.56,0.64,1) both" : "none" }}>
-                            <path d="M4 10.5L8.5 15L16 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M4 10.5L8.5 15L16 6" stroke={C.onAccent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
                       </button>
@@ -6127,17 +6221,17 @@ export default function App() {
                           height: 40,
                           flexShrink: 0,
                           borderRadius: 13,
-                          background: done ? C.white : C.gl,
+                          background: done ? C.panelHi : C.gl,
                           border: "1.5px solid " + (done ? C.gm : C.border),
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           fontSize: 20,
                           lineHeight: 1,
-                          boxShadow: done ? "0 1px 4px rgba(45,59,46,0.06)" : "none",
+                          boxShadow: done ? "0 1px 4px rgba(0,0,0,0.25)" : "none",
                         }}
                       >
-                        <HabitIcon id={habit.icon} size={22} color={done ? C.gd : C.green} />
+                        <HabitIcon id={habit.icon} size={22} color={done ? C.gd : C.accent} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 15, fontWeight: 700, color: done ? C.gd : C.text, letterSpacing: 0.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{habit.name}</div>
@@ -6155,7 +6249,7 @@ export default function App() {
                               padding: "5px 10px",
                               borderRadius: 8,
                               border: "1px solid " + C.gm,
-                              background: C.white,
+                              background: C.panel,
                               color: C.gd,
                               fontSize: 11,
                               fontWeight: 700,
@@ -6194,7 +6288,7 @@ export default function App() {
                           <div style={{ display: "flex", gap: 2 }}>
                             {DL.map(function (l, i) {
                               return (
-                                <div key={i} style={{ flex: 1, textAlign: "center", fontSize: 10, color: i === todayDOW ? C.green : C.muted, fontWeight: i === todayDOW ? 700 : 400 }}>
+                                <div key={i} style={{ flex: 1, textAlign: "center", fontSize: 10, color: i === todayDOW ? C.accent : C.muted, fontWeight: i === todayDOW ? 700 : 400 }}>
                                   {l}
                                 </div>
                               );
@@ -6214,14 +6308,14 @@ export default function App() {
                 })}
               </div>
               {selDoneC === selH.length && selH.length > 0 && (
-                <div style={{ margin: "16px 14px 0", background: "linear-gradient(135deg," + C.green + "," + C.gd + ")", borderRadius: 18, padding: "16px 18px", textAlign: "center" }}>
+                <div style={{ margin: "16px 14px 0", background: C.gradSuccess, borderRadius: 18, padding: "16px 18px", textAlign: "center", border: "1px solid rgba(212,216,224,0.35)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)" }}>
                   <div style={{ marginBottom: 6, display: "flex", justifyContent: "center", lineHeight: 0 }} aria-hidden="true">
-                    <IconSprout size={34} color={C.white} />
+                    <IconSprout size={34} color={C.accent} />
                   </div>
-                  <div style={{ fontSize: 14, color: C.white, fontFamily: "'DM Serif Display',serif", lineHeight: 1.4 }}>
+                  <div style={{ fontSize: 14, color: C.onAccent, fontFamily: "'DM Serif Display',serif", lineHeight: 1.4 }}>
                     All done for {selIsToday ? "today" : selDate.toLocaleDateString("en-US", { weekday: "long" })}.
                   </div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.82)", marginTop: 3 }}>Every action is a vote for the person you want to become.</div>
+                  <div style={{ fontSize: 11, color: "rgba(232,234,239,0.78)", marginTop: 3 }}>Every action is a vote for the person you want to become.</div>
                 </div>
               )}
             </div>
@@ -6264,16 +6358,16 @@ export default function App() {
     <div>
       <style>
         {
-          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#dce8de;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:" + C.bg + ";display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 2px 10px rgba(45,59,46,0.06)}40%{box-shadow:0 0 0 4px rgba(76,199,116,0.25)}100%{box-shadow:0 2px 16px rgba(76,199,116,0.18)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
+          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#0b0e14;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:transparent;display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 3px 14px rgba(0,0,0,0.22)}40%{box-shadow:0 0 0 4px rgba(200,204,212,0.32)}100%{box-shadow:0 5px 22px rgba(0,0,0,0.35),0 0 0 1px rgba(212,216,224,0.22)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
         }
       </style>
       <div
         ref={phoneRef}
+        className="gt-page-bg"
         style={{
           width: compact ? "100%" : 390,
           maxWidth: compact ? "100%" : undefined,
           height: compact ? "100dvh" : 844,
-          background: C.bg,
           borderRadius: compact ? 0 : 48,
           overflow: "hidden",
           boxShadow: compact ? "none" : "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a",
@@ -6336,7 +6430,7 @@ export default function App() {
           />
         )}
         {!compact && (
-          <div style={{ height: 50, background: C.bg, display: "flex", alignItems: "flex-end", justifyContent: "space-between", padding: "0 28px 8px", position: "relative", zIndex: 10 }}>
+          <div style={{ height: 50, background: "transparent", display: "flex", alignItems: "flex-end", justifyContent: "space-between", padding: "0 28px 8px", position: "relative", zIndex: 10 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>9:41</span>
             <div style={{ width: 120, height: 32, background: "#1a1a1a", borderRadius: 20, position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }} />
             <div style={{ display: "flex", gap: 5, alignItems: "center", fontSize: 11, color: C.text }}>
@@ -6378,11 +6472,11 @@ export default function App() {
             {renderMainNavPane(navNextId)}
           </div>
         </div>
-        <div aria-hidden style={{ height: 80, flexShrink: 0, background: C.bg }} />
+        <div aria-hidden style={{ height: 80, flexShrink: 0, background: "transparent" }} />
         {tabsExp && (
           <div
             onClick={() => closePicker(true)}
-            style={{ position: "absolute", inset: 0, background: "rgba(45,59,46,0.18)", zIndex: 9, animation: "fadeIn 0.18s ease both" }}
+            style={{ position: "absolute", inset: 0, background: C.scrimTint, zIndex: 9, animation: "fadeIn 0.18s ease both" }}
           />
         )}
         <div style={{ position: "absolute", bottom: 18, left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 10, pointerEvents: "none" }}>
@@ -6393,20 +6487,20 @@ export default function App() {
               return (
                 <button
                   type="button"
-                  className="gt-focus-ring"
+                  className="gt-focus-ring gt-shimmer"
                   onClick={() => setTabsExp(true)}
                   style={{
                     pointerEvents: "auto",
                     display: "flex",
                     alignItems: "center",
                     gap: 9,
-                    background: "linear-gradient(135deg," + C.green + "," + C.gd + ")",
-                    border: "none",
+                    background: C.gradCTA,
+                    border: "1px solid rgba(212,216,224,0.42)",
                     borderRadius: 99,
                     padding: "12px 22px 12px 18px",
-                    boxShadow: "0 8px 24px rgba(76,199,116,0.45),0 0 0 4px rgba(255,255,255,0.55)",
+                    boxShadow: C.shadowCTA + ", inset 0 1px 0 rgba(255,255,255,0.16)",
                     cursor: "pointer",
-                    color: C.white,
+                    color: C.onAccent,
                     fontFamily: "'DM Sans',sans-serif",
                     fontSize: 14,
                     fontWeight: 700,
@@ -6414,20 +6508,20 @@ export default function App() {
                   }}
                   aria-label="Open tab switcher"
                 >
-                  <CurI color={C.white} />
+                  <CurI color={C.onAccent} />
                   <span>{curTab.label}</span>
                 </button>
               );
             })()
           ) : (
             <div
+              className="gt-glass-strong"
               style={{
                 pointerEvents: "auto",
                 width: 290,
-                background: C.white,
                 borderRadius: 32,
                 padding: "8px 0",
-                boxShadow: "0 14px 36px rgba(45,59,46,0.28)",
+                boxShadow: "0 14px 44px rgba(0,0,0,0.55)",
                 border: "1.5px solid " + C.border,
                 animation: "slideUp 0.22s cubic-bezier(0.34,1.56,0.64,1) both",
                 overflow: "hidden",
@@ -6452,8 +6546,8 @@ export default function App() {
           )}
         </div>
         {showAdd && (
-          <div style={{ position: "absolute", inset: 0, background: "rgba(45,59,46,0.35)", display: "flex", alignItems: "flex-end", zIndex: 100 }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ background: C.bg, borderRadius: "28px 28px 0 0", padding: "22px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
+          <div style={{ position: "absolute", inset: 0, background: C.scrimMed, display: "flex", alignItems: "flex-end", zIndex: 100 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: "linear-gradient(180deg," + C.sheet + " 0%, " + C.bg + " 100%)", backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)", borderTop: "1px solid rgba(255,255,255,0.12)", borderRadius: "28px 28px 0 0", padding: "22px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
               <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 18px" }} />
               <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 18 }}>New Habit</div>
               {gym && newIconId === ICON_GYM && <div style={{ background: C.red, borderRadius: 9, padding: "7px 11px", marginBottom: 10, fontSize: 12, color: C.redT, fontWeight: 600 }}>You already have a gym habit.</div>}
@@ -6475,8 +6569,8 @@ export default function App() {
                           width: 44,
                           height: 44,
                           borderRadius: 11,
-                          background: newIconId === hid ? C.gl : C.white,
-                          border: "2px solid " + (newIconId === hid ? C.green : C.border),
+                          background: newIconId === hid ? C.gl : C.panel,
+                          border: "2px solid " + (newIconId === hid ? C.accent : C.border),
                           cursor: "pointer",
                           opacity: hid === ICON_GYM && gym ? 0.4 : 1,
                           display: "flex",
@@ -6486,7 +6580,7 @@ export default function App() {
                           padding: 0,
                         }}
                       >
-                        <HabitIcon id={hid} size={22} color={newIconId === hid ? C.green : C.muted} />
+                        <HabitIcon id={hid} size={22} color={newIconId === hid ? C.accent : C.muted} />
                       </button>
                     );
                   })}
@@ -6504,7 +6598,7 @@ export default function App() {
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") addHabit(); }}
                   placeholder="e.g. Journal for 5 minutes"
-                  style={{ width: "100%", padding: "12px 13px", border: "1.5px solid " + C.border, borderRadius: 12, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.white, outline: "none", boxSizing: "border-box" }}
+                  style={{ width: "100%", padding: "12px 13px", border: "1.5px solid " + C.border, borderRadius: 12, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none", boxSizing: "border-box" }}
                 />
               </div>
               <div style={{ marginBottom: 22 }}>
@@ -6515,7 +6609,7 @@ export default function App() {
                   {DL.map(function (label, i) {
                     var a = newDays.includes(i);
                     return (
-                      <button key={i} type="button" className="gt-focus-ring" onClick={() => togNewDay(i)} aria-pressed={a} style={{ flex: 1, minHeight: 44, padding: "8px 4px", borderRadius: 9, background: a ? C.green : C.white, border: "1.5px solid " + (a ? C.green : C.border), color: a ? C.white : C.muted, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                      <button key={i} type="button" className="gt-focus-ring" onClick={() => togNewDay(i)} aria-pressed={a} style={{ flex: 1, minHeight: 44, padding: "8px 4px", borderRadius: 9, background: a ? C.selFill : C.panel, border: "1.5px solid " + (a ? C.selBorder : C.border), color: a ? C.selText : C.muted, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                         {label}
                       </button>
                     );
@@ -6525,7 +6619,7 @@ export default function App() {
                   {newDays.length === 7 ? "Every day" : newDays.length === 0 ? "Pick at least one day" : newDays.map(function (d) { return DL[d]; }).join(", ")}
                 </div>
               </div>
-              <button type="button" className="gt-focus-ring" onClick={addHabit} style={{ width: "100%", padding: "14px", borderRadius: 16, background: newName.trim() && newDays.length && !(newIconId === ICON_GYM && gym) ? "linear-gradient(135deg," + C.green + "," + C.gd + ")" : C.border, border: "none", color: newName.trim() && newDays.length && !(newIconId === ICON_GYM && gym) ? C.white : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
+              <button type="button" className="gt-focus-ring" onClick={addHabit} style={{ width: "100%", padding: "14px", borderRadius: 16, background: newName.trim() && newDays.length && !(newIconId === ICON_GYM && gym) ? C.gradCTA : C.border, border: "none", color: newName.trim() && newDays.length && !(newIconId === ICON_GYM && gym) ? C.onAccent : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
                 Add Habit
               </button>
               <button type="button" className="gt-focus-ring" onClick={() => setShowAdd(false)} style={{ width: "100%", padding: "11px", borderRadius: 16, background: "none", border: "none", color: C.muted, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
