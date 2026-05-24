@@ -2208,7 +2208,7 @@ function SleepCalendar(props) {
           var data = sleep[k];
           var hasScore = data && data.score != null;
           var fillBg = hasScore ? scoreFill(data.score) : "transparent";
-          var txt = hasScore ? scoreTextOnFill(data.score) : C.text;
+          var txt = hasScore ? scoreTextOnFill(data.score) : C.muted;
           var isSel = k === selected;
           var isT = k === todayKey;
           var isFut = k > todayKey;
