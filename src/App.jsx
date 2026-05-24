@@ -6546,14 +6546,28 @@ export default function App() {
             {renderMainNavPane(navNextId)}
           </div>
         </div>
-        <div aria-hidden style={{ height: 80, flexShrink: 0, background: "transparent" }} />
+        <div aria-hidden style={{ height: 80, flexShrink: 0, background: "transparent", pointerEvents: "none" }} />
         {tabsExp && (
           <div
             onClick={() => closePicker(true)}
             style={{ position: "absolute", inset: 0, background: C.scrimTint, zIndex: 9, animation: "fadeIn 0.18s ease both" }}
           />
         )}
-        <div style={{ position: "absolute", bottom: 18, left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 10, pointerEvents: "none" }}>
+        <div
+          style={{
+            position: "absolute",
+            bottom: "calc(18px + env(safe-area-inset-bottom, 0px))",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "max-content",
+            maxWidth: "min(290px, calc(100vw - 24px))",
+            zIndex: 10,
+            pointerEvents: "none",
+            background: "none",
+            border: "none",
+            boxShadow: "none",
+          }}
+        >
           {!tabsExp ? (
             (function () {
               var curTab = APP_NAV_TABS.find(function (t) { return t.id === tab; }) || APP_NAV_TABS[0];
@@ -6562,41 +6576,33 @@ export default function App() {
                 C.shadowCTA + ", inset 0 1px 0 rgba(255,255,255,0.16)";
               var launchSp = splitFirstOutShadowLayer(launcherShadowFull);
               return (
-                <div
+                <button
+                  type="button"
+                  className="gt-focus-ring gt-shimmer gt-shimmer-pill"
+                  onClick={() => setTabsExp(true)}
                   style={{
-                    pointerEvents: "none",
-                    display: "inline-flex",
+                    pointerEvents: "auto",
+                    display: "flex",
                     alignItems: "center",
+                    gap: 9,
+                    background: C.gradCTA,
+                    border: "1px solid rgba(212,216,224,0.42)",
+                    borderRadius: 99,
+                    padding: "12px 22px 12px 18px",
+                    boxShadow: launchSp.rest,
                     filter: launchSp.outset ? "drop-shadow(" + launchSp.outset + ")" : undefined,
+                    cursor: "pointer",
+                    color: C.onAccent,
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    letterSpacing: 0.3,
                   }}
+                  aria-label="Open tab switcher"
                 >
-                  <button
-                    type="button"
-                    className="gt-focus-ring gt-shimmer gt-shimmer-pill"
-                    onClick={() => setTabsExp(true)}
-                    style={{
-                      pointerEvents: "auto",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 9,
-                      background: C.gradCTA,
-                      border: "1px solid rgba(212,216,224,0.42)",
-                      borderRadius: 99,
-                      padding: "12px 22px 12px 18px",
-                      boxShadow: launchSp.rest,
-                      cursor: "pointer",
-                      color: C.onAccent,
-                      fontFamily: "'DM Sans',sans-serif",
-                      fontSize: 14,
-                      fontWeight: 700,
-                      letterSpacing: 0.3,
-                    }}
-                    aria-label="Open tab switcher"
-                  >
-                    <CurI color={C.onAccent} />
-                    <span>{curTab.label}</span>
-                  </button>
-                </div>
+                  <CurI color={C.onAccent} />
+                  <span>{curTab.label}</span>
+                </button>
               );
             })()
           ) : (
@@ -6604,7 +6610,7 @@ export default function App() {
               className="gt-glass-strong"
               style={{
                 pointerEvents: "auto",
-                width: 290,
+                width: "min(290px, calc(100vw - 24px))",
                 borderRadius: 32,
                 padding: "8px 0",
                 boxShadow: "0 14px 44px rgba(0,0,0,0.55)",

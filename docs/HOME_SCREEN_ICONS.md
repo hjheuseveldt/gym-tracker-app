@@ -2,7 +2,7 @@
 
 Design matches in-app navy–silver chrome (no legacy green/violet accents).
 
-The mark is a **stroke-outline dumbbell** (horizontal bar plus two rounded-rect plates, `fill="none"`), aligned with **`IconDumbbellMark`** in `src/icons.jsx` — not the older filled-plate/bar style.
+The mark is a **stroke-outline dumbbell** (rounded-rect plates plus a horizontal bar, `fill="none"`), aligned with **`IconDumbbellMark`** in `src/icons.jsx`. Plates are drawn first; the **center line is last** with a **thicker stroke** so the bar survives export at 48×48 and 180×180.
 
 ## Palette
 
