@@ -3892,10 +3892,10 @@ function cellColorForLayer(layer, k, ctx) {
   if (layer === "workouts") {
     var sets = setsTotalOn(ctx.wl, k);
     if (sets === 0) return null;
-    if (sets >= 20) return "rgba(200,204,212,0.55)";
-    if (sets >= 12) return "rgba(200,204,212,0.40)";
-    if (sets >= 6) return "rgba(200,204,212,0.28)";
-    return "rgba(255,255,255,0.16)";
+    if (sets >= 20) return "linear-gradient(165deg,#2A3040 0%,#1A1F2E 55%,#121620 100%)";
+    if (sets >= 12) return "linear-gradient(165deg,rgba(42,48,64,0.82) 0%,rgba(26,31,46,0.78) 100%)";
+    if (sets >= 6) return "linear-gradient(165deg,rgba(42,48,64,0.6) 0%,rgba(26,31,46,0.55) 100%)";
+    return "linear-gradient(165deg,rgba(42,48,64,0.38) 0%,rgba(26,31,46,0.32) 100%)";
   }
   return null;
 }
@@ -3914,7 +3914,7 @@ function cycleTintFor(cycles, k) {
 
 var LAYER_LEGENDS = {
   sleep: ["rgba(224,80,80,0.36)", "rgba(229,181,60,0.40)", "rgba(190,196,208,0.40)", "rgba(210,214,222,0.50)"],
-  workouts: ["rgba(255,255,255,0.16)", "rgba(200,204,212,0.28)", "rgba(200,204,212,0.40)", "rgba(200,204,212,0.55)"],
+  workouts: ["rgba(42,48,64,0.38)", "rgba(42,48,64,0.6)", "rgba(42,48,64,0.82)", "#1A1F2E"],
 };
 
 function UnifiedCalendar(props) {
@@ -3926,12 +3926,12 @@ function UnifiedCalendar(props) {
     tk = props.todayKey;
   var cy = props.calY,
     cm = props.calM;
-  var layS = useState("sleep");
+  var layS = useState("workouts");
   var layer = layS[0],
     setLayer = layS[1];
   useEffect(
     function () {
-      if (layer === "habits") setLayer("sleep");
+      if (layer === "habits") setLayer("workouts");
     },
     [layer]
   );
@@ -4155,8 +4155,11 @@ function UnifiedCalendar(props) {
             var perfect = !isFut && isPerfectDay(habits, comp, sleep, k, tk);
             var hasWk = !!wl[k];
             var hasSl = !!(sleep[k] && sleep[k].score != null);
+            var wkGlow = layer === "workouts" && heat;
             var ringBorder = isT
               ? "2px solid " + C.accent
+              : wkGlow
+              ? "1px solid rgba(200,204,212,0.42)"
               : heat
               ? "1px solid rgba(255,255,255,0.08)"
               : "1.5px solid " + C.border;
@@ -4177,6 +4180,7 @@ function UnifiedCalendar(props) {
                 }}
               >
                 <div
+                  className={wkGlow ? "gt-cal-glow" : undefined}
                   style={{
                     position: "absolute",
                     inset: 3,
@@ -4186,7 +4190,7 @@ function UnifiedCalendar(props) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "none",
+                    boxShadow: wkGlow ? "0 0 8px rgba(200,204,212,0.3), inset 0 1px 0 rgba(255,255,255,0.15)" : "none",
                     transition: "background 0.3s ease, border-color 0.2s ease",
                   }}
                 >
