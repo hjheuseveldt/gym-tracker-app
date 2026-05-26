@@ -4127,7 +4127,6 @@ function UnifiedCalendar(props) {
             var isFut = k > tk;
             var isT = k === tk;
             var heat = !isFut ? cellColorForLayer(layer, k, ctx) : null;
-            var tint = cycleTintFor(cycles, k);
             var perfect = !isFut && isPerfectDay(habits, comp, sleep, k, tk);
             var hasWk = !!wl[k];
             var hasSl = !!(sleep[k] && sleep[k].score != null);
@@ -4147,7 +4146,7 @@ function UnifiedCalendar(props) {
                 }}
                 style={{
                   aspectRatio: "1",
-                  background: tint || "transparent",
+                  background: "transparent",
                   borderRadius: 12,
                   position: "relative",
                   cursor: "pointer",
