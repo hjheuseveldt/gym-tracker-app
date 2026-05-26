@@ -4190,11 +4190,11 @@ function UnifiedCalendar(props) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: wkGlow ? "0 0 8px rgba(200,204,212,0.3), inset 0 1px 0 rgba(255,255,255,0.15)" : "none",
+                    boxShadow: "none",
                     transition: "background 0.3s ease, border-color 0.2s ease",
                   }}
                 >
-                  <span style={{ fontSize: 12, fontWeight: isT ? 700 : 500, color: C.text }}>{day}</span>
+                  <span style={{ fontSize: 12, fontWeight: isT ? 700 : 500, color: C.text, position: "relative", zIndex: 3 }}>{day}</span>
                 </div>
                 {!isFut && (hasWk || hasSl) && (
                   <div style={{ position: "absolute", bottom: 2, left: 0, right: 0, display: "flex", gap: 2, justifyContent: "center", pointerEvents: "none" }}>
