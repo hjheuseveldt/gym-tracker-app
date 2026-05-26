@@ -2,7 +2,7 @@
 
 Design matches in-app navy–silver chrome (no legacy green/violet accents).
 
-The mark uses **stroke-outline plates** (`fill="none"`) like **`IconDumbbellMark`**, plus a **filled rounded-rect shaft** (`fill="url(#silver)"`) drawn on top — the shaft spans roughly **x = 3→21** so it stays clearly visible after export at **48×48** and **180×180** (a thin stroke on the plate midline blended into the rims).
+The mark draws a **wide silver bar first** (`x=1→23`, tall rounded rect `fill="url(#silver)"`), then **`IconDumbbellMark`-style outline plates on top**, so the handle stays crisp at **48×48 / 180×180** exports.
 
 ## Palette
 

@@ -111,33 +111,32 @@ body {
 }
 
 /* Liquid-glass rotating specular (four targets only; see App.jsx classNames).
-   Narrow conic wedge + slow rotate; icons stay z-index 4.
-   WebKit clip-path pills/tabs/rings constrain pseudos — avoid overflow:clip/contain:paint/Z-hack
-   on iOS (rectangular containment / halo behind rounded controls). Outset glow uses box-shadow. */
+   Base has no overflow/isolation/box-shadow — avoids rectangular stacking context behind pills on iOS.
+   Clip + optional inset glass highlight live on shape classes only. */
 .gt-shimmer {
   position: relative;
-  isolation: isolate;
-  border-radius: inherit;
-  overflow: hidden;
-  background: transparent;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
-/* WebKit: hard clip shimmer to rounded control */
+
 .gt-shimmer-pill {
+  overflow: hidden;
   -webkit-clip-path: inset(0 round 9999px);
   clip-path: inset(0 round 9999px);
   box-shadow: none;
 }
 
 .gt-shimmer-tab {
+  overflow: hidden;
   -webkit-clip-path: inset(0 round 18px);
   clip-path: inset(0 round 18px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 .gt-shimmer-ring {
+  overflow: hidden;
   border-radius: 50% !important;
   -webkit-clip-path: circle(closest-side at 50% 50%);
   clip-path: circle(closest-side at 50% 50%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 .gt-shimmer-pill::before,

@@ -340,7 +340,9 @@ function AnimCanvas(props) {
         raf,
         pts = [];
       function tick() {
-        ctx.clearRect(0, 0, 390, 900);
+        var bw = cv.width,
+          bh = cv.height;
+        ctx.clearRect(0, 0, bw, bh);
         var alive = false;
         var at = props.animType;
         if (at === 1) alive = aRipple(ctx, props.ox, props.oy, f);
@@ -359,11 +361,13 @@ function AnimCanvas(props) {
     },
     []
   );
+  var canvasW = props.canvasW != null && props.canvasW > 0 ? props.canvasW : 390,
+    canvasH = props.canvasH != null && props.canvasH > 0 ? props.canvasH : 900;
   return (
     <canvas
       ref={ref}
-      width={390}
-      height={900}
+      width={canvasW}
+      height={canvasH}
       style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none", zIndex: 50 }}
     />
   );
@@ -5980,7 +5984,7 @@ export default function App() {
           n[id] = true;
           return n;
         });
-      }, 3050);
+      }, 1200);
       var hab = habits.find(function (h) {
         return h.id === id;
       });
@@ -5989,7 +5993,7 @@ export default function App() {
         setTimeout(function () {
           setGymSaveErr(null);
           setPendGym({ id: id, day: capturedDay });
-        }, 2900);
+        }, 800);
       }
     } else {
       setSortRdy(function (p) {
@@ -6426,7 +6430,9 @@ export default function App() {
       </div>
     );
   }
-
+  var animPhoneEl = phoneRef.current;
+  var phoneCanvasW = animPhoneEl && animPhoneEl.offsetWidth ? animPhoneEl.offsetWidth : 390;
+  var phoneCanvasH = animPhoneEl && animPhoneEl.offsetHeight ? animPhoneEl.offsetHeight : 900;
 
   return (
     <div>
@@ -6459,6 +6465,8 @@ export default function App() {
               key={a.id}
               ox={a.ox}
               oy={a.oy}
+              canvasW={phoneCanvasW}
+              canvasH={phoneCanvasH}
               animType={animT}
               onDone={function () {
                 setAnims(function (x) {
