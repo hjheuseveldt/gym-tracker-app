@@ -113,8 +113,6 @@ var PAL = [
   "#8080C0",
   "#A0A040",
 ];
-var AN = ["1 Ripple", "2 Sparks", "3 Confetti", "4 Starburst", "5 Bloom"];
-var G = ["#E8EAEF", "#C8CCD4", "#D4D8E0", "#B0B6C4", "#7A8494", "#3D4556"];
 
 /** Local calendar date YYYY-MM-DD (do not use UTC / toISOString — breaks timezones behind UTC). */
 function dk(d) {
@@ -183,195 +181,6 @@ var COMP = {};
 var LOGS = {};
 var DEFAULT_GYM_HABIT = { id: 3, name: "Gym", icon: ICON_GYM, scheduledDays: [1, 2, 3, 4, 5] };
 
-function aRipple(ctx, cx, cy, f) {
-  var rings = [
-    { s: 0, sp: 1.1, dc: 0.018, lw: 3, rgb: "212,216,224" },
-    { s: 12, sp: 0.9, dc: 0.014, lw: 2, rgb: "160,168,180" },
-    { s: 26, sp: 0.7, dc: 0.011, lw: 1.4, rgb: "228,232,240" },
-  ];
-  var alive = false;
-  rings.forEach(function (r) {
-    var ff = f - r.s;
-    if (ff < 0) return;
-    var a = Math.max(0, 1 - ff * r.dc);
-    if (a <= 0) return;
-    alive = true;
-    ctx.beginPath();
-    ctx.arc(cx, cy, ff * r.sp, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(" + r.rgb + "," + a + ")";
-    ctx.lineWidth = r.lw;
-    ctx.stroke();
-  });
-  return alive;
-}
-function aSparks(ctx, cx, cy, f, pts) {
-  if (f === 0) {
-    for (var i = 0; i < 38; i++) {
-      var a = (i / 38) * Math.PI * 2 + (Math.random() - 0.5) * 0.15,
-        sp = 0.8 + Math.random() * 1.5;
-      pts.push({
-        x: cx,
-        y: cy,
-        vx: Math.cos(a) * sp,
-        vy: Math.sin(a) * sp,
-        len: 7 + Math.random() * 11,
-        al: 1,
-        dc: 0.007 + Math.random() * 0.005,
-        col: G[Math.floor(Math.random() * G.length)],
-        lw: 1.3 + Math.random() * 1.2,
-      });
-    }
-  }
-  var alive = false;
-  pts.forEach(function (p) {
-    if (p.al <= 0) return;
-    alive = true;
-    var a = Math.atan2(p.vy, p.vx);
-    ctx.save();
-    ctx.globalAlpha = p.al;
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-    ctx.lineTo(p.x - Math.cos(a) * p.len, p.y - Math.sin(a) * p.len);
-    ctx.strokeStyle = p.col;
-    ctx.lineWidth = p.lw;
-    ctx.lineCap = "round";
-    ctx.stroke();
-    ctx.restore();
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vx *= 0.982;
-    p.vy *= 0.982;
-    p.al -= p.dc;
-  });
-  return alive;
-}
-function aConfetti(ctx, cx, cy, f, pts) {
-  if (f === 0) {
-    for (var i = 0; i < 50; i++) {
-      var a = (i / 50) * Math.PI * 2 + (Math.random() - 0.5) * 0.22,
-        sp = 0.6 + Math.random() * 1.2;
-      pts.push({
-        x: cx,
-        y: cy,
-        vx: Math.cos(a) * sp,
-        vy: Math.sin(a) * sp,
-        r: 2 + Math.random() * 2.5,
-        al: 1,
-        dc: 0.005 + Math.random() * 0.004,
-        gv: 0.016 + Math.random() * 0.012,
-        col: G[Math.floor(Math.random() * G.length)],
-      });
-    }
-  }
-  var alive = false;
-  pts.forEach(function (p) {
-    if (p.al <= 0) return;
-    alive = true;
-    ctx.save();
-    ctx.globalAlpha = p.al;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fillStyle = p.col;
-    ctx.fill();
-    ctx.restore();
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vy += p.gv;
-    p.vx *= 0.99;
-    p.al -= p.dc;
-  });
-  return alive;
-}
-function aStarburst(ctx, cx, cy, f) {
-  var t = Math.min(f / 100, 1);
-  if (t >= 1) return false;
-  var al = t < 0.4 ? t / 0.4 : 1 - (t - 0.4) / 0.6;
-  for (var i = 0; i < 8; i++) {
-    var a = (i / 8) * Math.PI * 2,
-      r = 30 * Math.sin(t * Math.PI * 0.9),
-      tx = cx + Math.cos(a) * r,
-      ty = cy + Math.sin(a) * r,
-      w = (3 + 2 * Math.sin(t * Math.PI)) * (1 - t * 0.5);
-    ctx.save();
-    ctx.globalAlpha = al * 0.92;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(tx, ty);
-    ctx.strokeStyle = i % 2 === 0 ? "#D4D8E0" : "#9EA4AF";
-    ctx.lineWidth = w;
-    ctx.lineCap = "round";
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(tx, ty, w * 0.7, 0, Math.PI * 2);
-    ctx.fillStyle = "#E8EAEF";
-    ctx.fill();
-    ctx.restore();
-  }
-  return true;
-}
-function aBloom(ctx, cx, cy, f) {
-  var t = Math.min(f / 120, 1);
-  if (t >= 1) return false;
-  var oR = 4 + 50 * Math.pow(t, 0.5),
-    oA = t < 0.25 ? t / 0.25 : Math.pow(1 - (t - 0.25) / 0.75, 1.6);
-  var g = ctx.createRadialGradient(cx, cy, 0, cx, cy, oR);
-  g.addColorStop(0, "rgba(200,204,212," + oA * 0.52 + ")");
-  g.addColorStop(0.5, "rgba(154,164,178," + oA * 0.28 + ")");
-  g.addColorStop(1, "rgba(154,164,178,0)");
-  ctx.beginPath();
-  ctx.arc(cx, cy, oR, 0, Math.PI * 2);
-  ctx.fillStyle = g;
-  ctx.fill();
-  return true;
-}
-
-function AnimCanvas(props) {
-  var ref = useRef(null);
-  useEffect(
-    function () {
-      var cv = ref.current;
-      if (!cv) return;
-      if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        props.onDone();
-        return;
-      }
-      var ctx = cv.getContext("2d"),
-        f = 0,
-        raf,
-        pts = [];
-      function tick() {
-        var bw = cv.width,
-          bh = cv.height;
-        ctx.clearRect(0, 0, bw, bh);
-        var alive = false;
-        var at = props.animType;
-        if (at === 1) alive = aRipple(ctx, props.ox, props.oy, f);
-        else if (at === 2) alive = aSparks(ctx, props.ox, props.oy, f, pts);
-        else if (at === 3) alive = aConfetti(ctx, props.ox, props.oy, f, pts);
-        else if (at === 4) alive = aStarburst(ctx, props.ox, props.oy, f);
-        else alive = aBloom(ctx, props.ox, props.oy, f);
-        f++;
-        if (alive) raf = requestAnimationFrame(tick);
-        else props.onDone();
-      }
-      raf = requestAnimationFrame(tick);
-      return function () {
-        cancelAnimationFrame(raf);
-      };
-    },
-    []
-  );
-  var canvasW = props.canvasW != null && props.canvasW > 0 ? props.canvasW : 390,
-    canvasH = props.canvasH != null && props.canvasH > 0 ? props.canvasH : 900;
-  return (
-    <canvas
-      ref={ref}
-      width={canvasW}
-      height={canvasH}
-      style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none", zIndex: 50 }}
-    />
-  );
-}
 
 function BarChart(props) {
   var data = props.data,
@@ -1598,10 +1407,6 @@ function CyclesTab(props) {
 function SettingsTab(props) {
   var habits = props.habits,
     setHabits = props.setHabits;
-  var animT = props.animT,
-    setAnimT = props.setAnimT;
-  var showAP = props.showAP,
-    setShowAP = props.setShowAP;
   var edS = useState(null);
   var ed = edS[0],
     setEd = edS[1];
@@ -1664,56 +1469,6 @@ function SettingsTab(props) {
       <div style={{ padding: "16px 24px 18px" }}>
         <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Settings</div>
         <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>My Habits</div>
-      </div>
-      <div style={{ padding: "0 16px 14px" }}>
-        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 7 }}>Habit check-off animation</div>
-        <button
-          onClick={() => setShowAP((p) => !p)}
-          type="button"
-          className="gt-focus-ring tb"
-          style={{ width: "100%", padding: "8px 12px", background: C.panel, border: "1.5px solid " + C.border, borderRadius: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: C.muted }}
-        >
-          <span>
-            Animation: <strong style={{ color: C.accent }}>{AN[animT - 1]}</strong>
-          </span>
-          <span>{showAP ? "^" : "v"}</span>
-        </button>
-        {showAP && (
-          <div style={{ marginTop: 5, background: C.panel, borderRadius: 12, border: "1.5px solid " + C.border, overflow: "hidden" }}>
-            {AN.map(function (name, i) {
-              return (
-                <button
-                  type="button"
-                  className="gt-focus-ring"
-                  key={i}
-                  onClick={function () {
-                    setAnimT(i + 1);
-                    setShowAP(false);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px 14px",
-                    background: animT === i + 1 ? C.gl : "transparent",
-                    border: "none",
-                    borderBottom: i < AN.length - 1 ? "1px solid " + C.border : "none",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    fontFamily: "'DM Sans',sans-serif",
-                    fontSize: 13,
-                    color: animT === i + 1 ? C.gd : C.text,
-                    fontWeight: animT === i + 1 ? 700 : 400,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 7,
-                  }}
-                >
-                  {animT === i + 1 && <span style={{ color: C.accent }}>v</span>}
-                  {name}
-                </button>
-              );
-            })}
-          </div>
-        )}
       </div>
       <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}>
         {habits.length === 0 && <div style={{ textAlign: "center", padding: "36px 20px", color: C.muted, fontSize: 13 }}>No habits yet.</div>}
@@ -5555,15 +5310,6 @@ export default function App() {
   var h13 = useState({});
   var sortRdy = h13[0],
     setSortRdy = h13[1];
-  var h14 = useState([]);
-  var anims = h14[0],
-    setAnims = h14[1];
-  var h15 = useState(1);
-  var animT = h15[0],
-    setAnimT = h15[1];
-  var h16 = useState(false);
-  var showAP = h16[0],
-    setShowAP = h16[1];
   var h17 = useState(null);
   var pendGym = h17[0],
     setPendGym = h17[1];
@@ -5957,15 +5703,6 @@ export default function App() {
     });
     D.fireAndForget(D.setCompletion(id, k, !was), "toggleHabit");
     if (!was) {
-      if (btn && phoneRef.current) {
-        var br = btn.getBoundingClientRect(),
-          pr = phoneRef.current.getBoundingClientRect();
-        var ox = br.left + br.width / 2 - pr.left,
-          oy = br.top + br.height / 2 - pr.top;
-        setAnims(function (a) {
-          return a.concat([{ id: Date.now() + Math.random(), ox: ox, oy: oy }]);
-        });
-      }
       setJustChk(function (p) {
         var n = Object.assign({}, p);
         n[id] = true;
@@ -6159,6 +5896,7 @@ export default function App() {
           overflowX: "hidden",
           boxSizing: "border-box",
           position: "relative",
+          paddingBottom: 100,
         }}
       >
           {paneTab === "home" && !selHabit && (
@@ -6285,7 +6023,7 @@ export default function App() {
                     gymOrphan = gym && habit.id === gym.id && done && !workoutLogHasDetails(logs[selDay]);
                   return (
                     <div key={habit.id} className={"hab" + (pop ? " glow" : "")} style={{ background: done ? C.gl : C.panel, borderRadius: 18, padding: "14px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: done ? "0 2px 18px rgba(0,0,0,0.35), 0 0 0 1px rgba(200,204,212,0.2)" : "0 3px 12px rgba(0,0,0,0.22)", border: "1.5px solid " + (done ? C.gm : C.border), transition: "background 0.4s ease,border-color 0.4s ease" }}>
-                      <button type="button" aria-pressed={done} aria-label={(done ? "Unmark " : "Mark ") + habit.name + " for " + selDay} className={"chk gt-focus-ring" + (habit.icon === ICON_GYM ? " gt-shimmer gt-shimmer-ring" : "")} onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "2px solid rgba(212,216,224,0.55)" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "inset 0 1px 0 rgba(255,255,255,0.12), 0 4px 14px rgba(0,0,0,0.38)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
+                      <button type="button" aria-pressed={done} aria-label={(done ? "Unmark " : "Mark ") + habit.name + " for " + selDay} className={"chk gt-focus-ring" + (pop ? " chk-celebrate" : "") + (habit.icon === ICON_GYM ? " gt-shimmer gt-shimmer-ring" : "")} onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "2px solid rgba(212,216,224,0.55)" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "inset 0 1px 0 rgba(255,255,255,0.12), 0 4px 14px rgba(0,0,0,0.38)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
                         {done && (
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ animation: pop ? "checkPop 0.8s cubic-bezier(0.34,1.56,0.64,1) both" : "none" }}>
                             <path d="M4 10.5L8.5 15L16 6" stroke={C.onAccent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -6421,24 +6159,16 @@ export default function App() {
             <SettingsTab
               habits={habits}
               setHabits={setHabits}
-              animT={animT}
-              setAnimT={setAnimT}
-              showAP={showAP}
-              setShowAP={setShowAP}
             />
           )}
       </div>
     );
   }
-  var animPhoneEl = phoneRef.current;
-  var phoneCanvasW = animPhoneEl && animPhoneEl.offsetWidth ? animPhoneEl.offsetWidth : 390;
-  var phoneCanvasH = animPhoneEl && animPhoneEl.offsetHeight ? animPhoneEl.offsetHeight : 900;
-
   return (
     <div>
       <style>
         {
-          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#0b0e14;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:transparent;display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 3px 14px rgba(0,0,0,0.22)}40%{box-shadow:0 0 0 4px rgba(200,204,212,0.32)}100%{box-shadow:0 5px 22px rgba(0,0,0,0.35),0 0 0 1px rgba(212,216,224,0.22)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
+          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#0b0e14;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:transparent;display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 3px 14px rgba(0,0,0,0.22)}40%{box-shadow:0 0 0 4px rgba(200,204,212,0.32)}100%{box-shadow:0 5px 22px rgba(0,0,0,0.35),0 0 0 1px rgba(212,216,224,0.22)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}@keyframes chkCelebrate{0%{box-shadow:0 0 0 0 rgba(200,204,212,0.55)}35%{transform:scale(1.22);box-shadow:0 0 0 7px rgba(200,204,212,0.45)}65%{transform:scale(0.95);box-shadow:0 0 0 3px rgba(200,204,212,0.2)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(200,204,212,0)}}.chk-celebrate{animation:chkCelebrate 0.4s cubic-bezier(0.34,1.56,0.64,1) both;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
         }
       </style>
       <div
@@ -6459,25 +6189,6 @@ export default function App() {
           paddingBottom: compact ? "env(safe-area-inset-bottom)" : 0,
         }}
       >
-        {anims.map(function (a) {
-          return (
-            <AnimCanvas
-              key={a.id}
-              ox={a.ox}
-              oy={a.oy}
-              canvasW={phoneCanvasW}
-              canvasH={phoneCanvasH}
-              animType={animT}
-              onDone={function () {
-                setAnims(function (x) {
-                  return x.filter(function (v) {
-                    return v.id !== a.id;
-                  });
-                });
-              }}
-            />
-          );
-        })}
         {pendGym && (
           <GymQ
             day={pendGym.day || tk}
@@ -6554,7 +6265,6 @@ export default function App() {
             {renderMainNavPane(navNextId)}
           </div>
         </div>
-        <div aria-hidden style={{ height: 80, flexShrink: 0, background: "transparent", pointerEvents: "none" }} />
         {tabsExp && (
           <div
             onClick={() => closePicker(true)}

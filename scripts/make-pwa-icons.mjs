@@ -2,8 +2,8 @@
  * Renders navy-silver PWA / favicon PNGs from inline SVG via sharp.
  * Run: npm run generate-icons
  *
- * Dumbbell: **wide silver bar** drawn first (`fill + hairline stroke`), then stroke-only plates on top —
- * survives sharp downscale at 48×180 (thin shafts above/between plates vanished).
+ * Classic dumbbell silhouette: horizontal bar with two thick filled plates per side (4 total).
+ * All shapes are filled silver gradient — reads clearly even at 48×48 favicon.
  *
  * Palette: C.bg #0B0E14, sheet #141824, lift #1A1F2E
  */
@@ -25,17 +25,10 @@ function svgIcon(opts) {
   var motifScaleFull = 16;
   var motifScale = maskable ? motifScaleFull * 0.72 : motifScaleFull;
 
-  var swPlateNum = 11 / motifScale;
-  var swPlate = String(swPlateNum.toFixed(3));
-
   var gOpen = '<g transform="translate(256,256) scale(' + motifScale + ') translate(-12,-12)">';
   var gClose = "</g>";
 
-  var strokeSilver = ' stroke="url(#silver)" fill="none" stroke-linecap="round" stroke-linejoin="round"';
-
-  /** Bar behind plates — edge-to-edge in 24px space */
-  var barRect =
-    '  <rect x="1" y="9.5" width="22" height="5" rx="2.5" fill="url(#silver)" stroke="url(#silver)" stroke-width="0.3"/>';
+  var fill = ' fill="url(#silver)"';
 
   var g = [
     '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">',
@@ -55,9 +48,11 @@ function svgIcon(opts) {
     '<rect x="10" y="10" width="492" height="492" rx="' + String(rInner) + '" fill="none" stroke="rgba(212,216,224,0.48)" stroke-width="2.5"/>',
     '<rect x="14" y="14" width="484" height="484" rx="' + String(rInnerHi) + '" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.75"/>',
     gOpen,
-    barRect,
-    '  <rect x="2" y="8" width="5" height="8" rx="1.5"' + strokeSilver + ' stroke-width="' + swPlate + '"/>',
-    '  <rect x="17" y="8" width="5" height="8" rx="1.5"' + strokeSilver + ' stroke-width="' + swPlate + '"/>',
+    '  <rect x="1" y="10.5" width="22" height="3" rx="1.5"' + fill + '/>',
+    '  <rect x="1.2" y="5" width="3.8" height="14" rx="1.4"' + fill + '/>',
+    '  <rect x="5.4" y="6.5" width="3.2" height="11" rx="1.2"' + fill + '/>',
+    '  <rect x="15.4" y="6.5" width="3.2" height="11" rx="1.2"' + fill + '/>',
+    '  <rect x="19" y="5" width="3.8" height="14" rx="1.4"' + fill + '/>',
     gClose,
     "</svg>",
   ].join("");
