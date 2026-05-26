@@ -2,10 +2,10 @@
  * Renders navy-silver PWA / favicon PNGs from inline SVG via sharp.
  * Run: npm run generate-icons
  *
- * Classic dumbbell silhouette: horizontal bar with two thick filled plates per side (4 total).
- * All shapes are filled silver gradient — reads clearly even at 48×48 favicon.
+ * Uses the same dumbbell icon as the Gainz tab (IGainz from icons.jsx),
+ * rendered as thick silver strokes on the CTA gradient background.
  *
- * Palette: C.bg #0B0E14, sheet #141824, lift #1A1F2E
+ * Palette: CTA gradient #2A3040 → #1A1F2E → #121620
  */
 import sharp from "sharp";
 import fs from "node:fs/promises";
@@ -25,18 +25,16 @@ function svgIcon(opts) {
   var motifScaleFull = 16;
   var motifScale = maskable ? motifScaleFull * 0.72 : motifScaleFull;
 
-  var gOpen = '<g transform="translate(256,256) scale(' + motifScale + ') translate(-12,-12)">';
+  var gOpen = '<g transform="translate(256,256) scale(' + motifScale + ') translate(-12,-12)" fill="url(#silver)" stroke="url(#silver)" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round">';
   var gClose = "</g>";
-
-  var fill = ' fill="url(#silver)"';
 
   var g = [
     '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">',
     "<defs>",
     '<linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">',
-    '<stop offset="0%" stop-color="#1A1F2E"/>',
-    '<stop offset="48%" stop-color="#141824"/>',
-    '<stop offset="100%" stop-color="#0B0E14"/>',
+    '<stop offset="0%" stop-color="#2A3040"/>',
+    '<stop offset="50%" stop-color="#1A1F2E"/>',
+    '<stop offset="100%" stop-color="#121620"/>',
     "</linearGradient>",
     '<linearGradient id="silver" x1="0%" y1="0%" x2="0%" y2="100%">',
     '<stop offset="0%" stop-color="#E8EAEF"/>',
@@ -48,11 +46,11 @@ function svgIcon(opts) {
     '<rect x="10" y="10" width="492" height="492" rx="' + String(rInner) + '" fill="none" stroke="rgba(212,216,224,0.48)" stroke-width="2.5"/>',
     '<rect x="14" y="14" width="484" height="484" rx="' + String(rInnerHi) + '" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.75"/>',
     gOpen,
-    '  <rect x="1" y="10.5" width="22" height="3" rx="1.5"' + fill + '/>',
-    '  <rect x="1.2" y="5" width="3.8" height="14" rx="1.4"' + fill + '/>',
-    '  <rect x="5.4" y="6.5" width="3.2" height="11" rx="1.2"' + fill + '/>',
-    '  <rect x="15.4" y="6.5" width="3.2" height="11" rx="1.2"' + fill + '/>',
-    '  <rect x="19" y="5" width="3.8" height="14" rx="1.4"' + fill + '/>',
+    '  <rect x="1.5" y="9.5" width="3.5" height="5" rx="1.2"/>',
+    '  <rect x="5" y="7" width="3" height="10" rx="1.2"/>',
+    '  <rect x="7.5" y="10.5" width="9" height="3" rx="1.5"/>',
+    '  <rect x="16" y="7" width="3" height="10" rx="1.2"/>',
+    '  <rect x="19" y="9.5" width="3.5" height="5" rx="1.2"/>',
     gClose,
     "</svg>",
   ].join("");
