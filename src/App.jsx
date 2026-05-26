@@ -4049,30 +4049,6 @@ function UnifiedCalendar(props) {
         })}
       </div>
 
-      {visibleCycs.length > 0 && (
-        <div style={{ padding: "0 14px 10px", display: "flex", flexDirection: "column", gap: 6 }}>
-          {visibleCycs.map(function (cyc) {
-            var col = cc(cyc.color || PAL[0]);
-            var isA = tk >= cyc.start && tk <= cyc.end;
-            return (
-              <div key={cyc.id} style={{ background: col.bg, border: "1.5px solid " + col.border, borderRadius: 12, padding: "7px 11px", display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: col.bar, flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: col.text, display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cyc.name}</span>
-                    <span style={{ fontSize: 9, opacity: 0.7, fontWeight: 500 }}>{"\u00B7 " + cyc.type}</span>
-                    {isA && <span style={{ fontSize: 8, fontWeight: 700, color: C.accent, background: C.gl, border: "1px solid " + C.gm, borderRadius: 99, padding: "1px 6px" }}>Active</span>}
-                  </div>
-                  <div style={{ fontSize: 10, color: col.text, opacity: 0.7 }}>
-                    {fmtDS(cyc.start)} {"\u2192"} {fmtDS(cyc.end)}{cyc.calories ? " \u00B7 " + cyc.calories + " kcal" : ""}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       <div style={{ margin: "0 14px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.panel, borderRadius: 14, padding: "8px 8px", border: "1.5px solid " + C.border }}>
         <button
           type="button"

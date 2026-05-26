@@ -142,6 +142,8 @@ body {
 .gt-shimmer-pill::before,
 .gt-shimmer-pill::after {
   border-radius: 0;
+  width: 500%;
+  height: 1200%;
 }
 
 .gt-shimmer-tab::before,
