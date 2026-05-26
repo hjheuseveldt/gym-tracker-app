@@ -378,3 +378,104 @@ textarea.gt-input:focus-visible {
   white-space: nowrap;
   border: 0;
 }
+
+/* ── Splash screen ── */
+
+.gt-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: none;
+}
+
+.gt-splash-logo {
+  animation: splash-logo-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.gt-splash-ring {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(200, 204, 212, 0.3);
+  box-shadow: 0 0 40px rgba(200, 204, 212, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.gt-splash-ring::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  width: 260%;
+  height: 260%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(0deg);
+  will-change: transform;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    rgba(255, 255, 255, 0) 0deg,
+    rgba(255, 255, 255, 0) 285deg,
+    rgba(220, 224, 232, 0.4) 306deg,
+    rgba(255, 255, 255, 0.9) 324deg,
+    rgba(248, 250, 255, 0.65) 336deg,
+    rgba(220, 224, 232, 0.3) 350deg,
+    rgba(255, 255, 255, 0) 360deg
+  );
+  mix-blend-mode: overlay;
+  opacity: 1;
+  animation: gt-shimmer-rotate 4s linear infinite;
+}
+
+.gt-splash-ring > * {
+  position: relative;
+  z-index: 2;
+}
+
+.gt-splash-text {
+  margin-top: 20px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: rgba(200, 204, 212, 0.85);
+  animation: splash-logo-in 0.5s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.gt-splash-out {
+  animation: splash-reveal 0.7s 0.1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes splash-logo-in {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes splash-reveal {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}

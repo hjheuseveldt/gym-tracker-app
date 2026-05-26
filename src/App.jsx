@@ -5307,6 +5307,12 @@ export default function App() {
   var h22 = useState(null);
   var bootErr = h22[0],
     setBootErr = h22[1];
+  var hSplash = useState(false);
+  var splashOut = hSplash[0],
+    setSplashOut = hSplash[1];
+  var hSplashDone = useState(false);
+  var splashDone = hSplashDone[0],
+    setSplashDone = hSplashDone[1];
   var h23 = useState(tk);
   var selDay = h23[0],
     setSelDay = h23[1];
@@ -5357,6 +5363,13 @@ export default function App() {
         setBooted(true);
       });
   }, []);
+
+  useEffect(function () {
+    if (!booted || splashOut) return;
+    var t1 = setTimeout(function () { setSplashOut(true); }, 300);
+    var t2 = setTimeout(function () { setSplashDone(true); }, 1100);
+    return function () { clearTimeout(t1); clearTimeout(t2); };
+  }, [booted]);
 
   function scrollStripToEnd() {
     var el = dayStripRef.current;
@@ -5832,23 +5845,14 @@ export default function App() {
   if (!booted) {
     return (
       <div>
-        <style>{"body{background:#0b0e14;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:transparent;display:block;min-height:100vh;}}@keyframes pulseDot{0%,100%{opacity:0.35;transform:scale(0.9)}50%{opacity:1;transform:scale(1.1)}}"}</style>
-        <div className="gt-page-bg" style={{ width: compact ? "100%" : 390, maxWidth: compact ? "100%" : undefined, height: compact ? "100dvh" : 844, borderRadius: compact ? 0 : 48, overflow: "hidden", boxShadow: compact ? "none" : "0 30px 80px rgba(0,0,0,0.22),0 0 0 10px #1a1a1a,0 0 0 12px #2a2a2a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", color: C.text }}>
-          <div style={{ marginBottom: 16, display: "flex", justifyContent: "center" }} aria-hidden="true">
-            <IconDumbbellMark size={52} color={C.accent} />
+        <style>{"body{background:#0b0e14;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:transparent;display:block;min-height:100vh;}}"}</style>
+        <div className={"gt-splash gt-page-bg"} style={{ fontFamily: "'DM Sans',sans-serif" }}>
+          <div className="gt-splash-logo">
+            <div className="gt-splash-ring" aria-hidden="true">
+              <IconDumbbellMark size={48} color={C.accent} />
+            </div>
           </div>
-          <div style={{ fontSize: 14, color: C.muted, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }}>GymTrack</div>
-          <div style={{ marginTop: 18, display: "flex", gap: 6 }}>
-            {[0, 1, 2].map(function (i) {
-              return (
-                <div
-                  key={i}
-                  className="boot-pulse"
-                  style={{ width: 8, height: 8, borderRadius: "50%", background: C.accent, animation: "pulseDot 1.1s ease-in-out infinite", animationDelay: i * 0.15 + "s" }}
-                />
-              );
-            })}
-          </div>
+          <div className="gt-splash-text">GymTrack</div>
         </div>
       </div>
     );
@@ -6416,6 +6420,16 @@ export default function App() {
           </div>
         )}
       </div>
+      {!splashDone && (
+        <div className={"gt-splash gt-page-bg" + (splashOut ? " gt-splash-out" : "")} style={{ fontFamily: "'DM Sans',sans-serif" }}>
+          <div className="gt-splash-logo">
+            <div className="gt-splash-ring" aria-hidden="true">
+              <IconDumbbellMark size={48} color={C.accent} />
+            </div>
+          </div>
+          <div className="gt-splash-text">GymTrack</div>
+        </div>
+      )}
     </div>
   );
 }
