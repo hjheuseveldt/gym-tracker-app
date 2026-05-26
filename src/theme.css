@@ -394,7 +394,7 @@ textarea.gt-input:focus-visible {
 }
 
 .gt-splash-logo {
-  animation: splash-logo-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: splash-logo-in 1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .gt-splash-ring {
@@ -450,11 +450,11 @@ textarea.gt-input:focus-visible {
   letter-spacing: 1.8px;
   text-transform: uppercase;
   color: rgba(200, 204, 212, 0.85);
-  animation: splash-logo-in 0.5s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: splash-logo-in 1s 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .gt-splash-out {
-  animation: splash-reveal 0.7s 0.1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: splash-reveal 1.4s 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   pointer-events: none;
 }
 

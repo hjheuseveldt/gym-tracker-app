@@ -5366,8 +5366,8 @@ export default function App() {
 
   useEffect(function () {
     if (!booted || splashOut) return;
-    var t1 = setTimeout(function () { setSplashOut(true); }, 300);
-    var t2 = setTimeout(function () { setSplashDone(true); }, 1100);
+    var t1 = setTimeout(function () { setSplashOut(true); }, 600);
+    var t2 = setTimeout(function () { setSplashDone(true); }, 2200);
     return function () { clearTimeout(t1); clearTimeout(t2); };
   }, [booted]);
 
