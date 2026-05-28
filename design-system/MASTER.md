@@ -1,78 +1,70 @@
 # GymTrack — Design system master
 
-_Source: ui-ux-pro-max corpus (Fitness/Gym + Wellness blending, Soft UI Evolution), adapted for GymTrack’s pastel green aesthetic. Generated without running `search.py` (Python unavailable in environment); aligns with [.cursor/skills/ui-ux-pro-max/SKILL.md](../.cursor/skills/ui-ux-pro-max/SKILL.md) workflow._
+Apple-style **dark glass** UI on navy–silver chrome (`#0B0E14` / `#F5F5F7`). Source: ui-ux-pro-max (Glassmorphism + Spatial UI on OLED dark base).
 
-## Product pattern
+## Material tiers
 
-- **Pattern:** Feature-rich + data-forward (calendar, workouts, streaks, cycles).
-- **Style priority:** Soft UI evolution + accessibility (readable contrast, clear focus).
-- **Motion:** Micro-interactions 150–220ms; one primary celebratory canvas effect at a time; respect `prefers-reduced-motion`.
+| Class | Use | Blur / vibrancy |
+|-------|-----|-----------------|
+| `.gt-card` | Habit rows, stat tiles, list rows, settings | `blur(20px) saturate(165%)` |
+| `.gt-card-elevated` | Hero KPIs, calendar dropdown, centered modals | `blur(32px) saturate(165%)` |
+| `.gt-card-done` | Completed habit row glass | Strong blur + success rim |
+| `.gt-sheet` | Bottom sheets (workout log, cycles, habits) | `blur(32px)` + sheet fill |
+| `.gt-scrim` | Modal overlays | `blur(8px)` + scrim color |
+| `.gt-glass` / `.gt-glass-strong` | Tab picker, floating chrome | Nav / launcher |
 
-## Color tokens
+Implementation: [`src/theme.css`](../src/theme.css). JS helper: `glassCard()` in [`src/App.jsx`](../src/App.jsx).
 
-| Token | Hex | Usage |
-|-------|-----|--------|
-| Background | `#FAF9F6` | App canvas |
-| Surface | `#FFFFFF` | Cards, sheets |
-| Text | `#1A2922` | Headings/body primary |
-| Muted | `#526B60` | Secondary labels (WCAG-aware on `#FAF9F6`) |
-| Border | `#D5E9DF` | Hairlines |
-| Primary | `#4CC774` | Actions, fills |
-| Primary dark | `#3AB860` | Gradients mid |
-| Tint green | `#E8F9EE` | Completed row wash |
-| Mid green | `#A8E6BC` | Borders, accents |
-| Error bg | `#F2E4E4` | Alerts (optional) |
+## Color tokens (semantic)
+
+| Token | Value | Usage |
+|-------|-------|--------|
+| Page base | `#0B0E14` | Canvas, `gt-page-bg` gradient |
+| Text | `#F5F5F7` | Primary copy |
+| Muted | `#8E8E93` | Labels, secondary |
+| Accent | `#C8CCD4` | Icons, links, chrome |
+| Border / glass rim | `rgba(255,255,255,0.14–0.2)` | Card edges (CSS), not heavy 1.5px everywhere |
+| Success (habit done) | Navy `#222836` + silver rim | No green hue |
+
+Legacy `C.panel` in JS is fallback only; surfaces should use `gt-card*` classes.
+
+## Glass recipe
+
+- **Fill:** translucent white 10–14% on gradient navy wash
+- **Border:** 1px light rim + `inset 0 1px 0 rgba(255,255,255,0.14)`
+- **Depth:** soft shadow `0 8px 32px rgba(0,0,0,0.42)` (elevated: 40px spread)
+- **Backdrop:** `-webkit-backdrop-filter` required for iOS Safari
 
 ## Typography
 
-- **Headings:** DM Serif Display — section titles (`26–28`), habit names prominent.
-- **UI:** DM Sans — labels, pills, tabs (`11–14`), weights 600/700.
+- **Headings:** DM Serif Display — sections, habit titles
+- **UI:** DM Sans — labels, tabs, forms (`11–14px`, weights 600/700)
 
 ## Radius & elevation
 
-- **Cards:** `16–22px`
-- **Pills:** `9999px`
-- **Nav bar picker:** Floating with `gap` from safe area (~18–24px from bottom).
-- **Shadow (rest):** `0 2px 9–14px rgba(26, 41, 34, 0.06–0.09)`
-- **Shadow (elevated FAB):** green-tint shadow with faint outer ring.
+- **Cards:** `14–18px` (habits `18px`)
+- **Sheets:** top corners `28px`
+- **Pills / nav:** `9999px`
+- **Charts / checkboxes:** solid fills — no glass (readability)
 
-## Components
+## Accessibility
 
-### Bottom navigation (`TabPicker`)
+- Text on glass: `C.text` / `C.muted` — target **4.5:1** on card surfaces
+- `prefers-reduced-motion`: reduce blur to `6px`, disable shimmer rotation
+- `@supports not (backdrop-filter)`: opaque `--gt-surface` fallback
+- Focus: `.gt-focus-ring`, 44px min tap targets
+- No emoji as UI icons — SVG only
 
-- Active: primary fill + white icon/text.
-- Inactive: translucent with scale; **focus-visible**: 3px ring.
-- Icons: SVG only (consistent 22px view box).
+## Anti-patterns
 
-### Today / habits
+- Glass on chart bars or tiny controls
+- Replacing habit “done” semantics with green washes
+- Light-mode `bg-white/10` cards on dark (too faint)
+- Duplicate borders on elements that already use `.gt-glass-strong`
 
-- Row: checklist target **44×44**; title + streak hierarchy; emoji allowed as **habit avatar** only.
-- Progress micro-bar under title for week visualization.
+## Components (quick ref)
 
-### Calendars (`CalView`, `UnifiedCalendar`)
-
-- Today: outline ring (`2px primary`).
-- Done: filled primary + **checkmark SVG** (not bare “v” text alone).
-- Non-color cues: icons in layer pills/KPI strips.
-
-### Forms (sheets)
-
-- Labels associated with controls (`htmlFor` / `id`).
-- Focus: visible ring `3px rgba(74,199,116,0.45)`.
-
-## Icons policy
-
-| Context | Treatment |
-|---------|-----------|
-| Tab bar, FAB, KPI pills, chrome | SVG only |
-| Habit picker / habit row | Emoji allowed as user-facing “avatar” |
-
-## Anti-patterns (avoid)
-
-- Emoji as the only semantic marker in dashboard KPIs — use SVG + label.
-- Neon orange/purple gradients (Fitness/Gym trope conflicts with GymTrack calm brand).
-- Long UI transitions (>350ms).
-
-## Page overrides
-
-Add page-specific Markdown under [`pages/`](./pages/) only when a screen consciously diverges (not required for MVP).
+- **Habits:** `.gt-card` / `.gt-card-done` + `.hab` motion
+- **Bottom nav:** `.gt-glass-strong` picker; launcher uses gradient CTA (not glass)
+- **Forms:** `.gt-input` (frosted field)
+- **Coach:** user bubbles = `gradCTA`; assistant = `.gt-card`

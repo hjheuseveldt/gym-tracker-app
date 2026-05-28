@@ -74,6 +74,16 @@ var C = {
   scrimTint: "rgba(8,10,16,0.3)",
   onAccent: "#E8EAEF",
 };
+
+/** Apple-style frosted glass surfaces (see theme.css .gt-card*). */
+function glassCard(opts) {
+  opts = opts || {};
+  var cn = opts.sheet ? "gt-sheet" : opts.done ? "gt-card-done" : opts.elevated ? "gt-card-elevated" : "gt-card";
+  var style = Object.assign({}, opts.style || {});
+  if (opts.borderRadius != null) style.borderRadius = opts.borderRadius;
+  return { className: cn, style: style };
+}
+
 /** First outset box-shadow vs remainder (comma before inset). Used when clip-path would hide outward glow on shimmer pills/tabs. */
 function splitFirstOutShadowLayer(boxShadowFull) {
   var re = /,\s*(?=inset\b)/,
@@ -341,14 +351,11 @@ function GymQ(props) {
   var saving = !!props.saving;
   var saveError = props.saveError || null;
   return (
-    <div style={{ position: "absolute", inset: 0, background: C.scrim, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
+    <div className="gt-scrim" style={{ position: "absolute", inset: 0, background: C.scrim, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
       <div
+        className="gt-sheet"
         style={{
-          background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")",
-          backdropFilter: "blur(28px)",
-          WebkitBackdropFilter: "blur(28px)",
           borderRadius: "28px 28px 0 0",
-          borderTop: "1px solid rgba(255,255,255,0.12)",
           padding: "24px 20px 48px",
           width: "100%",
           maxHeight: "88%",
@@ -385,7 +392,6 @@ function GymQ(props) {
               fontSize: 16,
               fontFamily: "'DM Sans',sans-serif",
               color: C.text,
-              background: C.panel,
               outline: "none",
             }}
           />
@@ -417,7 +423,6 @@ function GymQ(props) {
                 fontSize: 16,
                 fontFamily: "'DM Sans',sans-serif",
                 color: C.text,
-                background: C.panel,
                 outline: "none",
               }}
             />
@@ -485,7 +490,7 @@ function GymQ(props) {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {muscles.map(function (m) {
                 return (
-                  <div key={m} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.panel, borderRadius: 12, padding: "10px 14px", border: "1.5px solid " + C.border }}>
+                  <div key={m} className="gt-card" style={{display: "flex", alignItems: "center", justifyContent: "space-between",borderRadius: 12, padding: "10px 14px"}}>
                     <span style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{m}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <button
@@ -564,14 +569,11 @@ function WkDetail(props) {
   var log = props.log,
     k = props.dateKey;
   return (
-    <div style={{ position: "absolute", inset: 0, background: C.scrim, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
+    <div className="gt-scrim" style={{ position: "absolute", inset: 0, background: C.scrim, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
       <div
+        className="gt-sheet"
         style={{
-          background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")",
-          backdropFilter: "blur(28px)",
-          WebkitBackdropFilter: "blur(28px)",
           borderRadius: "28px 28px 0 0",
-          borderTop: "1px solid rgba(255,255,255,0.12)",
           padding: "24px 20px 48px",
           width: "100%",
           maxHeight: "75%",
@@ -588,18 +590,18 @@ function WkDetail(props) {
             x
           </button>
         </div>
-        <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+        <div className="gt-card" style={{borderRadius: 14, padding: "12px 14px", marginBottom: 10}}>
           <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 2 }}>Bodyweight</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{log.bodyweight} lbs</div>
         </div>
         {cardioMinutesOnLog(log) > 0 ? (
-          <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+          <div className="gt-card" style={{borderRadius: 14, padding: "12px 14px", marginBottom: 10}}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 2 }}>Cardio</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{cardioMinutesOnLog(log)} min</div>
           </div>
         ) : null}
         {log.muscles && log.muscles.length > 0 && (
-          <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", border: "1.5px solid " + C.border }}>
+          <div className="gt-card" style={{borderRadius: 14, padding: "12px 14px"}}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", marginBottom: 10 }}>Muscles</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {log.muscles.map(function (m) {
@@ -692,7 +694,7 @@ function CalView(props) {
           </div>
         );
       })}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.panel, borderRadius: 14, padding: "10px 14px", marginBottom: 12 }}>
+      <div className="gt-card" style={{display: "flex", alignItems: "center", justifyContent: "space-between",borderRadius: 14, padding: "10px 14px", marginBottom: 12}}>
         <button
           type="button"
           className="gt-focus-ring"
@@ -719,7 +721,7 @@ function CalView(props) {
           <IconChevronCal dir="right" />
         </button>
       </div>
-      <div style={{ background: C.panel, borderRadius: 18, padding: 14 }}>
+      <div className="gt-card" style={{borderRadius: 18, padding: 14}}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 6 }}>
           {DL.map(function (d) {
             return (
@@ -787,7 +789,7 @@ function CalView(props) {
           })}
         </div>
       </div>
-      <div style={{ marginTop: 12, background: C.panel, borderRadius: 14, padding: "12px 16px", display: "flex", justifyContent: "space-around" }}>
+      <div className="gt-card" style={{marginTop: 12,borderRadius: 14, padding: "12px 16px", display: "flex", justifyContent: "space-around"}}>
         {[
           { val: mDone, label: "This month" },
           { val: props.getStreak(h.id), label: "Streak" },
@@ -926,7 +928,7 @@ function GainzTab(props) {
         <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Your Progress</div>
       </div>
       {!gym && (
-        <div style={{ margin: "0 16px", background: C.panel, borderRadius: 14, padding: "18px", textAlign: "center", border: "1.5px solid " + C.border }}>
+        <div className="gt-card" style={{margin: "0 16px",borderRadius: 14, padding: "18px", textAlign: "center"}}>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>No gym habit yet</div>
           <div style={{ fontSize: 12, color: C.muted }}>Add a habit using the Gym (dumbbell) icon to start tracking workouts.</div>
         </div>
@@ -940,7 +942,7 @@ function GainzTab(props) {
             ].map(function (s, i) {
               var GCardI = s.Icon;
               return (
-                <div key={i} style={{ background: C.panel, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
+                <div key={i} className="gt-card" style={{borderRadius: 14, padding: "12px",textAlign: "center"}}>
                   <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
                     <GCardI size={20} color={C.accent} />
                   </div>
@@ -949,7 +951,7 @@ function GainzTab(props) {
                 </div>
               );
             })}
-            <div style={{ background: C.panel, borderRadius: 14, padding: "12px", border: "1.5px solid " + C.border, textAlign: "center" }}>
+            <div className="gt-card" style={{borderRadius: 14, padding: "12px",textAlign: "center"}}>
               <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
                 <IconUiScale size={20} color={C.accent} />
               </div>
@@ -967,11 +969,10 @@ function GainzTab(props) {
               )}
             </div>
             <div
+              className="gt-card"
               style={{
-                background: C.panel,
                 borderRadius: 14,
                 padding: "12px",
-                border: "1.5px solid " + C.border,
                 textAlign: "center",
                 gridColumn: "2 / 3",
                 justifySelf: "stretch",
@@ -992,7 +993,7 @@ function GainzTab(props) {
               )}
             </div>
           </div>
-          <div style={{ background: C.panel, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
+          <div className="gt-card" style={{borderRadius: 14, padding: "14px"}}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Weekly Volume</div>
               <div style={{ display: "flex", gap: 10 }}>
@@ -1051,7 +1052,7 @@ function GainzTab(props) {
               })}
             </div>
           </div>
-          <div style={{ background: C.panel, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
+          <div className="gt-card" style={{borderRadius: 14, padding: "14px"}}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Bodyweight</div>
               <div style={{ display: "flex", gap: 4 }}>
@@ -1072,7 +1073,7 @@ function GainzTab(props) {
             </div>
             {bwPts.length >= 2 ? <BwChart points={bwPts} /> : <div style={{ textAlign: "center", padding: "16px 0", color: C.muted, fontSize: 13 }}>Log 2+ sessions to see trend.</div>}
           </div>
-          <div style={{ background: C.panel, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
+          <div className="gt-card" style={{borderRadius: 14, padding: "14px"}}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Sets per Muscle - This Week</div>
             <BarChart
               data={MG.map(function (m) {
@@ -1081,7 +1082,7 @@ function GainzTab(props) {
               height={76}
             />
           </div>
-          <div style={{ background: C.panel, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
+          <div className="gt-card" style={{borderRadius: 14, padding: "14px"}}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Sets per Muscle - This Month</div>
             <BarChart
               data={MG.map(function (m) {
@@ -1090,7 +1091,7 @@ function GainzTab(props) {
               height={76}
             />
           </div>
-          <div style={{ background: C.panel, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border }}>
+          <div className="gt-card" style={{borderRadius: 14, padding: "14px"}}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Recent Sessions</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
               {allK
@@ -1216,7 +1217,7 @@ function CyclesTab(props) {
         })()}
       <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}>
         {cycles.length === 0 && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px", background: C.panel, borderRadius: 20, border: "1.5px dashed " + C.border }}>
+          <div className="gt-card" style={{display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px",borderRadius: 20, border: "1.5px dashed " + C.border}}>
             <div style={{ marginBottom: 10, display: "flex", justifyContent: "center", lineHeight: 0 }}>
               <IconUiChartTrend size={40} color={C.accent} />
             </div>
@@ -1232,7 +1233,7 @@ function CyclesTab(props) {
           var isA = tk >= cyc.start && tk <= cyc.end,
             isP = tk > cyc.end;
           return (
-            <div key={cyc.id} style={{ background: C.panel, borderRadius: 18, border: "1.5px solid " + (isA ? col.border : C.border), overflow: "hidden" }}>
+            <div key={cyc.id} className="gt-card" style={{borderRadius: 18, border: "1.5px solid " + (isA ? col.border : C.border), overflow: "hidden"}}>
               <div style={{ height: 4, background: col.bar, opacity: isP ? 0.4 : 1 }} />
               <div style={{ padding: "12px 14px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
@@ -1286,15 +1287,15 @@ function CyclesTab(props) {
         })}
       </div>
       {sf && (
-        <div style={{ position: "absolute", inset: 0, background: C.scrimMed, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
-          <div onClick={function (e) { e.stopPropagation(); }} style={{ background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")", backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)", borderRadius: "28px 28px 0 0", borderTop: "1px solid rgba(255,255,255,0.12)", padding: "22px 20px 48px", width: "100%", maxHeight: "92%", overflowY: "auto" }}>
+        <div className="gt-scrim" style={{ position: "absolute", inset: 0, background: C.scrimMed, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
+          <div onClick={function (e) { e.stopPropagation(); }} className="gt-sheet" style={{ borderRadius: "28px 28px 0 0", padding: "22px 20px 48px", width: "100%", maxHeight: "92%", overflowY: "auto" }}>
             <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 14px" }} />
             <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 16 }}>{ed ? "Edit Cycle" : "New Cycle"}</div>
             <div style={{ marginBottom: 14 }}>
               <label htmlFor="cycle-name-input" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
                 Name
               </label>
-              <input id="cycle-name-input" value={fn} onChange={(e) => setFn(e.target.value)} placeholder="e.g. Winter Bulk 2026" className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none" }} />
+              <input id="cycle-name-input" value={fn} onChange={(e) => setFn(e.target.value)} placeholder="e.g. Winter Bulk 2026" className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none" }} />
             </div>
             <div style={{ marginBottom: 14 }}>
               <div id="cycle-type-label" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
@@ -1370,26 +1371,26 @@ function CyclesTab(props) {
                 <label htmlFor="cycle-start" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
                   Start
                 </label>
-                <input id="cycle-start" type="date" value={fs} onChange={(e) => setFs(e.target.value)} className="gt-input" style={{ width: "100%", padding: "10px 9px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none" }} />
+                <input id="cycle-start" type="date" value={fs} onChange={(e) => setFs(e.target.value)} className="gt-input" style={{ width: "100%", padding: "10px 9px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none" }} />
               </div>
               <div style={{ flex: 1 }}>
                 <label htmlFor="cycle-end" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
                   End
                 </label>
-                <input id="cycle-end" type="date" value={fe} onChange={(e) => setFe(e.target.value)} className="gt-input" style={{ width: "100%", padding: "10px 9px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none" }} />
+                <input id="cycle-end" type="date" value={fe} onChange={(e) => setFe(e.target.value)} className="gt-input" style={{ width: "100%", padding: "10px 9px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none" }} />
               </div>
             </div>
             <div style={{ marginBottom: 14 }}>
               <label htmlFor="cycle-calories" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
                 Daily Calories
               </label>
-              <input id="cycle-calories" type="number" value={fca} onChange={(e) => setFca(e.target.value)} placeholder="e.g. 3200" className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none" }} />
+              <input id="cycle-calories" type="number" value={fca} onChange={(e) => setFca(e.target.value)} placeholder="e.g. 3200" className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none" }} />
             </div>
             <div style={{ marginBottom: 20 }}>
               <label htmlFor="cycle-supplements" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
                 Supplements
               </label>
-              <textarea id="cycle-supplements" value={fsu} onChange={(e) => setFsu(e.target.value)} placeholder="e.g. Creatine 5g, Whey 2x" rows={2} className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none", resize: "none" }} />
+              <textarea id="cycle-supplements" value={fsu} onChange={(e) => setFsu(e.target.value)} placeholder="e.g. Creatine 5g, Whey 2x" rows={2} className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none", resize: "none" }} />
             </div>
             <button onClick={save} style={{ width: "100%", padding: "14px", borderRadius: 16, background: fn.trim() && fs && fe ? C.gradCTA : C.border, border: "none", color: fn.trim() && fs && fe ? C.onAccent : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
               {ed ? "Save Changes" : "Add Cycle"}
@@ -1474,7 +1475,7 @@ function SettingsTab(props) {
         {habits.length === 0 && <div style={{ textAlign: "center", padding: "36px 20px", color: C.muted, fontSize: 13 }}>No habits yet.</div>}
         {habits.map(function (h, i) {
           return (
-            <div key={h.id} style={{ background: C.panel, borderRadius: 18, border: "1.5px solid " + C.border, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+            <div key={h.id} className="gt-card" style={{borderRadius: 18,padding: "12px 14px", display: "flex", alignItems: "center", gap: 10}}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: C.gl, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <HabitIcon id={h.icon} size={24} color={C.accent} />
               </div>
@@ -1542,8 +1543,8 @@ function SettingsTab(props) {
         })}
       </div>
       {ed && (
-        <div style={{ position: "absolute", inset: 0, background: C.scrimMed, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")", backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)", borderRadius: "28px 28px 0 0", borderTop: "1px solid rgba(255,255,255,0.12)", padding: "22px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
+        <div className="gt-scrim" style={{ position: "absolute", inset: 0, background: C.scrimMed, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
+          <div onClick={(e) => e.stopPropagation()} className="gt-sheet" style={{ borderRadius: "28px 28px 0 0", padding: "22px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
             <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 14px" }} />
             <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 16 }}>Edit Habit</div>
             <div style={{ marginBottom: 16 }}>
@@ -1572,7 +1573,7 @@ function SettingsTab(props) {
               <label htmlFor="habit-edit-name" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
                 Name
               </label>
-              <input id="habit-edit-name" value={fn} onChange={(e) => setFn(e.target.value)} className="gt-input" style={{ width: "100%", padding: "12px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none" }} />
+              <input id="habit-edit-name" value={fn} onChange={(e) => setFn(e.target.value)} className="gt-input" style={{ width: "100%", padding: "12px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none" }} />
             </div>
             <div style={{ marginBottom: 22 }}>
               <div id="habit-edit-schedule-label" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
@@ -1947,7 +1948,7 @@ function SleepCalendar(props) {
     return year + "-" + String(month + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
   }
   return (
-    <div style={{ background: C.panel, borderRadius: 14, padding: 12, border: "1.5px solid " + C.border }}>
+    <div className="gt-card" style={{borderRadius: 14, padding: 12}}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <button onClick={function () { props.onMonthChange(-1); }} style={{ background: "none", border: "none", fontSize: 18, color: C.accent, cursor: "pointer", padding: 2 }}>{"<"}</button>
         <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 15, color: C.text, fontWeight: 600 }}>
@@ -2023,7 +2024,7 @@ function SleepDayDetail(props) {
     data = props.data;
   if (!data) {
     return (
-      <div style={{ background: C.panel, borderRadius: 14, padding: "18px 14px", border: "1.5px dashed " + C.border, textAlign: "center" }}>
+      <div className="gt-card" style={{borderRadius: 14, padding: "18px 14px", border: "1.5px dashed " + C.border, textAlign: "center"}}>
         <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4 }}>{fmtDS(day)}</div>
         <div style={{ fontSize: 13, color: C.muted }}>No Oura data for this day</div>
       </div>
@@ -2039,7 +2040,7 @@ function SleepDayDetail(props) {
     { label: "Latency", val: data.latency != null ? Math.round(data.latency / 60) : null, unit: "min" },
   ];
   return (
-    <div style={{ background: C.panel, borderRadius: 14, padding: "14px", border: "1.5px solid " + C.border, display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="gt-card" style={{borderRadius: 14, padding: "14px",display: "flex", flexDirection: "column", gap: 12}}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>{fmtDS(day)}</div>
@@ -2272,7 +2273,7 @@ function SleepTab(props) {
           <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Last 7 Days</div>
           <div style={{ fontSize: 9, color: C.muted }}>score trend</div>
         </div>
-        <div style={{ background: C.panel, borderRadius: 11, padding: "8px 6px", border: "1.5px solid " + C.border }}>
+        <div className="gt-card" style={{borderRadius: 11, padding: "8px 6px"}}>
           <Sparkline data={sparkData} width={328} height={42} />
         </div>
       </div>
@@ -2443,6 +2444,7 @@ function AddFoodSheet(props) {
     <div
       onClick={props.onCancel}
       role="presentation"
+      className="gt-scrim"
       style={{
         position: "absolute",
         inset: 0,
@@ -2464,10 +2466,8 @@ function AddFoodSheet(props) {
         aria-modal="true"
         aria-labelledby="add-food-sheet-title"
         onClick={function (e) { e.stopPropagation(); }}
+        className="gt-card-elevated"
         style={{
-          background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
           width: "100%",
           maxWidth: "min(336px, 100%)",
           borderRadius: 20,
@@ -2476,14 +2476,12 @@ function AddFoodSheet(props) {
           fontFamily: "'DM Sans',sans-serif",
           maxHeight: "calc(100% - 24px)",
           overflowY: "auto",
-          boxShadow: "0 16px 42px rgba(0,0,0,0.55)",
-          border: "1.5px solid " + C.border,
           flexShrink: 0,
         }}
       >
         <div id="add-food-sheet-title" style={{ fontSize: 17, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.25 }}>{food.food_name}</div>
         {food.brand_name && <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{food.brand_name}</div>}
-        <div style={{ marginTop: 10, padding: "9px 12px", background: C.panel, borderRadius: 12, border: "1px solid " + C.border, fontSize: 11, color: C.muted }}>
+        <div className="gt-card" style={{marginTop: 10, padding: "9px 12px",borderRadius: 12,fontSize: 11, color: C.muted}}>
           Per <span style={{ color: C.text, fontWeight: 600 }}>{p.serving}</span> {"\u00B7"} <span style={{ color: C.text, fontWeight: 600 }}>{Math.round(p.calories)} cal</span>
           {p.protein != null && <span> {"\u00B7"} P {p.protein}g</span>}
           {p.carbs != null && <span> {"\u00B7"} C {p.carbs}g</span>}
@@ -2493,7 +2491,7 @@ function AddFoodSheet(props) {
           Servings
         </label>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button type="button" className="gt-focus-ring gt-min-tap" onClick={function () { bump(isCustom ? -1 : -0.5); }} aria-label="Decrease servings" style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.panel, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button type="button" className="gt-focus-ring gt-min-tap gt-card" onClick={function () { bump(isCustom ? -1 : -0.5); }} aria-label="Decrease servings" style={{width: 44, height: 44, borderRadius: 12,fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center"}}>
             {"\u2212"}
           </button>
           <input
@@ -2514,9 +2512,9 @@ function AddFoodSheet(props) {
             }}
             aria-label="Number of servings"
             className="gt-input"
-            style={{ flex: 1, padding: "10px 12px", borderRadius: 12, border: "1.5px solid " + C.border, fontSize: 17, fontWeight: 700, textAlign: "center", color: C.text, outline: "none", fontFamily: "'DM Sans',sans-serif", background: C.panel }}
+            style={{ flex: 1, padding: "10px 12px", borderRadius: 12, border: "1.5px solid " + C.border, fontSize: 17, fontWeight: 700, textAlign: "center", color: C.text, outline: "none", fontFamily: "'DM Sans',sans-serif",}}
           />
-          <button type="button" className="gt-focus-ring gt-min-tap" onClick={function () { bump(isCustom ? 1 : 0.5); }} aria-label="Increase servings" style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.panel, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button type="button" className="gt-focus-ring gt-min-tap gt-card" onClick={function () { bump(isCustom ? 1 : 0.5); }} aria-label="Increase servings" style={{width: 44, height: 44, borderRadius: 12,fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center"}}>
             +
           </button>
         </div>
@@ -2524,7 +2522,7 @@ function AddFoodSheet(props) {
           = <span style={{ color: C.text, fontWeight: 700 }}>{Math.round(p.calories * qEff)} cal</span>
         </div>
         <div style={{ display: "flex", gap: 9, marginTop: 17 }}>
-          <button onClick={props.onCancel} style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.panel, fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Cancel</button>
+          <button onClick={props.onCancel} className="gt-card" style={{flex: 1, padding: "11px", borderRadius: 12,fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif"}}>Cancel</button>
           <button
             onClick={function () {
               var nv = qty;
@@ -2642,7 +2640,6 @@ function CustomFoodSheet(props) {
     color: C.text,
     outline: "none",
     boxSizing: "border-box",
-    background: C.panel,
   };
   var labelStyle = {
     fontSize: 11,
@@ -2658,6 +2655,7 @@ function CustomFoodSheet(props) {
     <div
       onClick={props.onClose}
       role="presentation"
+      className="gt-scrim"
       style={{
         position: "absolute",
         inset: 0,
@@ -2681,10 +2679,8 @@ function CustomFoodSheet(props) {
         onClick={function (e) {
           e.stopPropagation();
         }}
+        className="gt-card-elevated"
         style={{
-          background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
           width: "100%",
           maxWidth: "min(336px, 100%)",
           borderRadius: 20,
@@ -2693,8 +2689,6 @@ function CustomFoodSheet(props) {
           fontFamily: "'DM Sans',sans-serif",
           maxHeight: "calc(100% - 24px)",
           overflowY: "auto",
-          boxShadow: "0 16px 42px rgba(0,0,0,0.55)",
-          border: "1.5px solid " + C.border,
           flexShrink: 0,
         }}
       >
@@ -2752,7 +2746,7 @@ function CustomFoodSheet(props) {
           <input id="cf-f" type="number" inputMode="decimal" min={0} step="any" value={fatStr} onChange={function (e) { setFatStr(e.target.value); }} className="gt-input" placeholder="0" style={inputStyle} />
         </div>
         <div style={{ display: "flex", gap: 9, marginTop: 17 }}>
-          <button onClick={props.onClose} style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.panel, fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+          <button onClick={props.onClose} className="gt-card" style={{flex: 1, padding: "11px", borderRadius: 12,fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif"}}>
             Cancel
           </button>
           <button
@@ -2797,15 +2791,14 @@ function DayNav(props) {
   var nextDisabled = diff <= 0;
   return (
     <div
+      className="gt-card"
       style={{
         margin: "0 16px 0",
         display: "flex",
         alignItems: "center",
         gap: 6,
-        background: C.panel,
         borderRadius: 16,
         padding: 6,
-        border: "1px solid " + C.border,
         position: "relative",
         zIndex: 2,
       }}
@@ -2882,13 +2875,12 @@ function CalCalendar(props) {
 
   return (
     <div
+      className="gt-card-elevated"
       style={{
         margin: "-8px 16px 14px",
-        background: C.panel,
         borderRadius: 18,
         padding: 14,
         paddingTop: 18,
-        border: "1.5px solid " + C.border,
         boxShadow: "0 9px 26px rgba(0,0,0,0.45)",
         animation: "slideUp 0.18s ease both",
         position: "relative",
@@ -3335,8 +3327,6 @@ function CalorieTab(props) {
               minWidth: 0,
               padding: "12px 14px",
               borderRadius: 14,
-              border: "1.5px solid " + C.border,
-              background: C.panel,
               fontSize: 14,
               fontFamily: "'DM Sans',sans-serif",
               color: C.text,
@@ -3375,7 +3365,7 @@ function CalorieTab(props) {
           </button>
         </div>
         {(q.trim() || searching) && (
-          <div style={{ marginTop: 8, background: C.panel, borderRadius: 14, border: "1.5px solid " + C.border, overflow: "hidden", maxHeight: 280, overflowY: "auto" }}>
+          <div className="gt-card" style={{marginTop: 8,borderRadius: 14,overflow: "hidden", maxHeight: 280, overflowY: "auto"}}>
             {searching && <div style={{ padding: "12px 14px", fontSize: 13, color: C.muted }}>Searching{"\u2026"}</div>}
             {!searching && results.length === 0 && q.trim() && <div style={{ padding: "12px 14px", fontSize: 13, color: C.muted }}>No results.</div>}
             {results.map(function (f, i) {
@@ -3427,7 +3417,7 @@ function CalorieTab(props) {
         <div style={{ fontSize: 12, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, padding: "6px 4px 10px" }}>Log</div>
         {loading && <div style={{ padding: "18px 14px", fontSize: 13, color: C.muted, textAlign: "center" }}>Loading{"\u2026"}</div>}
         {!loading && entries.length === 0 && (
-          <div style={{ padding: "28px 20px", background: C.panel, borderRadius: 16, border: "1.5px dashed " + C.border, textAlign: "center" }}>
+          <div className="gt-card" style={{padding: "28px 20px",borderRadius: 16, border: "1.5px dashed " + C.border, textAlign: "center"}}>
             <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", lineHeight: 0 }}>
               <IconUiBowl size={36} color={C.accent} />
             </div>
@@ -3447,11 +3437,10 @@ function CalorieTab(props) {
           return (
             <div
               key={e.id}
+              className="gt-card"
               style={{
-                background: C.panel,
                 borderRadius: 14,
                 padding: "12px 14px",
-                border: "1px solid " + C.border,
                 marginBottom: 8,
                 display: "flex",
                 alignItems: "flex-start",
@@ -3474,7 +3463,7 @@ function CalorieTab(props) {
                       if (ic) updateEntryServings(e, Math.max(1, Math.round(cur || 1) - 1));
                       else updateEntryServings(e, Math.max(0.25, cur - 0.5));
                     }}
-                    style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.panel, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                    style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                   >
                     {"\u2212"}
                   </button>
@@ -3488,7 +3477,7 @@ function CalorieTab(props) {
                     onChange={function (ev) {
                       updateEntryServings(e, ev.target.value);
                     }}
-                    style={{ width: 72, padding: "8px 6px", borderRadius: 12, border: "1.5px solid " + C.border, fontSize: 15, fontWeight: 700, textAlign: "center", color: C.text, outline: "none", fontFamily: "'DM Sans',sans-serif", background: C.panel, flexShrink: 0 }}
+                    style={{ width: 72, padding: "8px 6px", borderRadius: 12, border: "1.5px solid " + C.border, fontSize: 15, fontWeight: 700, textAlign: "center", color: C.text, outline: "none", fontFamily: "'DM Sans',sans-serif", flexShrink: 0 }}
                   />
                   <button
                     type="button"
@@ -3499,7 +3488,7 @@ function CalorieTab(props) {
                       if (ic) updateEntryServings(e, Math.round(cur || 1) + 1);
                       else updateEntryServings(e, cur + 0.5);
                     }}
-                    style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, background: C.panel, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                    style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid " + C.border, fontSize: 20, fontWeight: 700, color: C.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                   >
                     +
                   </button>
@@ -4038,7 +4027,7 @@ function UnifiedCalendar(props) {
         {kpis.map(function (k2, i) {
           var KpiI = k2.Icon;
           return (
-            <div key={i} style={{ background: C.panel, borderRadius: 14, padding: "10px 6px", border: "1.5px solid " + C.border, textAlign: "center" }}>
+            <div key={i} className="gt-card" style={{borderRadius: 14, padding: "10px 6px",textAlign: "center"}}>
               <div style={{ display: "flex", justifyContent: "center", lineHeight: 0 }}>
                 <KpiI size={17} color={C.accent} />
               </div>
@@ -4049,7 +4038,7 @@ function UnifiedCalendar(props) {
         })}
       </div>
 
-      <div style={{ margin: "0 14px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.panel, borderRadius: 14, padding: "8px 8px", border: "1.5px solid " + C.border }}>
+      <div className="gt-card" style={{margin: "0 14px 10px", display: "flex", alignItems: "center", justifyContent: "space-between",borderRadius: 14, padding: "8px 8px"}}>
         <button
           type="button"
           className="gt-focus-ring"
@@ -4110,7 +4099,7 @@ function UnifiedCalendar(props) {
         })}
       </div>
 
-      <div style={{ margin: "0 14px", background: C.panel, borderRadius: 18, padding: 14, border: "1.5px solid " + C.border }}>
+      <div className="gt-card" style={{margin: "0 14px",borderRadius: 18, padding: 14}}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 8 }}>
           {DL.map(function (d) {
             return (
@@ -4294,14 +4283,16 @@ function DaySummarySheet(props) {
 
   return (
     <div
+      className="gt-scrim"
       style={{ position: "absolute", inset: 0, background: C.scrim, display: "flex", alignItems: "flex-end", zIndex: 200, animation: "fadeIn 0.18s ease both" }}
       onClick={props.onClose}
     >
       <div
+        className="gt-sheet"
         onClick={function (e) {
           e.stopPropagation();
         }}
-        style={{ background: "linear-gradient(180deg," + C.sheet + "," + C.bg + ")", backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)", borderRadius: "28px 28px 0 0", borderTop: "1px solid rgba(255,255,255,0.12)", padding: "20px 18px 44px", width: "100%", maxHeight: "85%", overflowY: "auto", animation: "slideUp 0.24s cubic-bezier(0.34,1.56,0.64,1) both" }}
+        style={{ borderRadius: "28px 28px 0 0", padding: "20px 18px 44px", width: "100%", maxHeight: "85%", overflowY: "auto", animation: "slideUp 0.24s cubic-bezier(0.34,1.56,0.64,1) both" }}
       >
         <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 14px" }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
@@ -4335,7 +4326,7 @@ function DaySummarySheet(props) {
           </div>
         )}
 
-        <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+        <div className="gt-card" style={{borderRadius: 14, padding: "12px 14px", marginBottom: 10}}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Sleep</div>
             <span style={{ display: "flex", lineHeight: 0 }}>
@@ -4369,7 +4360,7 @@ function DaySummarySheet(props) {
           )}
         </div>
 
-        <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+        <div className="gt-card" style={{borderRadius: 14, padding: "12px 14px", marginBottom: 10}}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Workout</div>
             <span style={{ display: "flex", lineHeight: 0 }}>
@@ -4428,7 +4419,7 @@ function DaySummarySheet(props) {
           )}
         </div>
 
-        <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", marginBottom: 10, border: "1.5px solid " + C.border }}>
+        <div className="gt-card" style={{borderRadius: 14, padding: "12px 14px", marginBottom: 10}}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
               Habits {hd.total > 0 ? "(" + hd.done + "/" + hd.total + ")" : ""}
@@ -4463,7 +4454,7 @@ function DaySummarySheet(props) {
           )}
         </div>
 
-        <div style={{ background: C.panel, borderRadius: 14, padding: "12px 14px", border: "1.5px solid " + C.border }}>
+        <div className="gt-card-elevated" style={{ borderRadius: 14, padding: "12px 14px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Calories</div>
             <span style={{ display: "flex", lineHeight: 0 }}>
@@ -5027,7 +5018,7 @@ function CoachTab(props) {
           </div>
         )}
         {!hl.items.length && !hl.loading && !hl.error && (
-          <div style={{ background: C.panel, border: "1.5px dashed " + C.border, borderRadius: 14, padding: "14px 14px", textAlign: "center" }}>
+          <div className="gt-card" style={{border: "1.5px dashed " + C.border, borderRadius: 14, padding: "14px 14px", textAlign: "center"}}>
             <div style={{ fontSize: 12, color: C.text, fontWeight: 600, marginBottom: 4 }}>No highlights yet</div>
             <div style={{ fontSize: 11, color: C.muted }}>Log a few workouts and sleep nights, then tap Refresh.</div>
           </div>
@@ -5084,13 +5075,13 @@ function CoachTab(props) {
               return (
                 <div key={i} style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", marginBottom: 7 }}>
                   <div
+                    className={isUser ? "" : "gt-card"}
                     style={{
                       maxWidth: "84%",
                       padding: "8px 12px",
                       borderRadius: 14,
-                      background: isUser ? C.gradCTA : C.panel,
+                      background: isUser ? C.gradCTA : undefined,
                       color: isUser ? C.onAccent : C.text,
-                      border: isUser ? "none" : "1.5px solid " + C.border,
                       fontSize: 13,
                       lineHeight: 1.5,
                       whiteSpace: "pre-wrap",
@@ -5113,12 +5104,10 @@ function CoachTab(props) {
                   <button
                     key={i}
                     type="button"
-                    className="gt-focus-ring"
+                    className="gt-focus-ring gt-card"
                     onClick={function () { sendMessage(qp); }}
                     style={{
                       flexShrink: 0,
-                      background: C.panel,
-                      border: "1.5px solid " + C.border,
                       borderRadius: 99,
                       padding: "10px 14px",
                       minHeight: 44,
@@ -5169,7 +5158,6 @@ function CoachTab(props) {
                 fontSize: 13,
                 fontFamily: "'DM Sans',sans-serif",
                 color: C.text,
-                background: C.panel,
                 outline: "none",
                 maxHeight: 80,
                 lineHeight: 1.4,
@@ -5933,7 +5921,7 @@ export default function App() {
                   type="button"
                   className="gt-focus-ring gt-min-tap"
                   onClick={function () { if (dateInputRef.current) { try { dateInputRef.current.showPicker(); } catch (e) { dateInputRef.current.click(); } } }}
-                  style={{ flex: "0 0 auto", width: 44, height: 44, borderRadius: 12, background: C.panel, border: "1.5px solid " + C.border, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.text }}
+                  style={{ flex: "0 0 auto", width: 44, height: 44, borderRadius: 12, border: "1.5px solid " + C.border, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.text }}
                   aria-label="Pick a date"
                 >
                   <ICal color={C.text} />
@@ -5976,7 +5964,7 @@ export default function App() {
                 </div>
               )}
               {selH.length === 0 && habits.length === 0 && (
-                <div style={{ margin: "16px 14px 0", display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px", background: C.panel, borderRadius: 22, border: "1.5px dashed " + C.border }}>
+                <div className="gt-card" style={{margin: "16px 14px 0", display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px",borderRadius: 22, border: "1.5px dashed " + C.border}}>
                   <div style={{ marginBottom: 14, display: "flex", justifyContent: "center", lineHeight: 0 }} aria-hidden="true">
                     <IconSprout size={52} />
                   </div>
@@ -5988,7 +5976,7 @@ export default function App() {
                 </div>
               )}
               {selH.length === 0 && habits.length > 0 && (
-                <div style={{ margin: "10px 14px 0", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 16px", background: C.panel, borderRadius: 18, border: "1.5px dashed " + C.border }}>
+                <div className="gt-card" style={{margin: "10px 14px 0", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 16px",borderRadius: 18, border: "1.5px dashed " + C.border}}>
                   <div style={{ marginBottom: 10, opacity: 0.65 }} aria-hidden="true">
                     <ICal color={C.muted} />
                   </div>
@@ -6005,7 +5993,7 @@ export default function App() {
                     pop = justChk[habit.id],
                     gymOrphan = gym && habit.id === gym.id && done && !workoutLogHasDetails(logs[selDay]);
                   return (
-                    <div key={habit.id} className={"hab" + (pop ? " glow" : "")} style={{ background: done ? C.gl : C.panel, borderRadius: 18, padding: "14px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: done ? "0 2px 18px rgba(0,0,0,0.35), 0 0 0 1px rgba(200,204,212,0.2)" : "0 3px 12px rgba(0,0,0,0.22)", border: "1.5px solid " + (done ? C.gm : C.border), transition: "background 0.4s ease,border-color 0.4s ease" }}>
+                    <div key={habit.id} className={"hab" + (pop ? " glow" : "") + (done ? " gt-card-done" : " gt-card")} style={{ borderRadius: 18, padding: "14px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: done ? "0 2px 18px rgba(0,0,0,0.35), 0 0 0 1px rgba(200,204,212,0.2)" : "0 3px 12px rgba(0,0,0,0.22)", transition: "box-shadow 0.4s ease" }}>
                       <button type="button" aria-pressed={done} aria-label={(done ? "Unmark " : "Mark ") + habit.name + " for " + selDay} className={"chk gt-focus-ring" + (pop ? " chk-celebrate" : "") + (habit.icon === ICON_GYM ? " gt-shimmer gt-shimmer-ring" : "")} onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "2px solid rgba(212,216,224,0.55)" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "inset 0 1px 0 rgba(255,255,255,0.12), 0 4px 14px rgba(0,0,0,0.38)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
                         {done && (
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ animation: pop ? "checkPop 0.8s cubic-bezier(0.34,1.56,0.64,1) both" : "none" }}>
@@ -6037,7 +6025,7 @@ export default function App() {
                         {gymOrphan && (
                           <button
                             type="button"
-                            className="gt-focus-ring"
+                            className="gt-focus-ring gt-card"
                             onClick={function (e) {
                               e.stopPropagation();
                               setGymSaveErr(null);
@@ -6048,7 +6036,6 @@ export default function App() {
                               padding: "5px 10px",
                               borderRadius: 8,
                               border: "1px solid " + C.gm,
-                              background: C.panel,
                               color: C.gd,
                               fontSize: 11,
                               fontWeight: 700,
@@ -6251,6 +6238,7 @@ export default function App() {
         {tabsExp && (
           <div
             onClick={() => closePicker(true)}
+            className="gt-scrim"
             style={{ position: "absolute", inset: 0, background: C.scrimTint, zIndex: 9, animation: "fadeIn 0.18s ease both" }}
           />
         )}
@@ -6313,7 +6301,6 @@ export default function App() {
                 borderRadius: 32,
                 padding: "8px 0",
                 boxShadow: "0 14px 44px rgba(0,0,0,0.55)",
-                border: "1.5px solid " + C.border,
                 animation: "slideUp 0.22s cubic-bezier(0.34,1.56,0.64,1) both",
                 overflow: "hidden",
               }}
@@ -6337,8 +6324,8 @@ export default function App() {
           )}
         </div>
         {showAdd && (
-          <div style={{ position: "absolute", inset: 0, background: C.scrimMed, display: "flex", alignItems: "flex-end", zIndex: 100 }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ background: "linear-gradient(180deg," + C.sheet + " 0%, " + C.bg + " 100%)", backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)", borderTop: "1px solid rgba(255,255,255,0.12)", borderRadius: "28px 28px 0 0", padding: "22px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
+          <div className="gt-scrim" style={{ position: "absolute", inset: 0, background: C.scrimMed, display: "flex", alignItems: "flex-end", zIndex: 100 }}>
+            <div onClick={(e) => e.stopPropagation()} className="gt-sheet" style={{ borderRadius: "28px 28px 0 0", padding: "22px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
               <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 18px" }} />
               <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 18 }}>New Habit</div>
               {gym && newIconId === ICON_GYM && <div style={{ background: C.red, borderRadius: 9, padding: "7px 11px", marginBottom: 10, fontSize: 12, color: C.redT, fontWeight: 600 }}>You already have a gym habit.</div>}
@@ -6389,7 +6376,7 @@ export default function App() {
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") addHabit(); }}
                   placeholder="e.g. Journal for 5 minutes"
-                  style={{ width: "100%", padding: "12px 13px", border: "1.5px solid " + C.border, borderRadius: 12, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, background: C.panel, outline: "none", boxSizing: "border-box" }}
+                  style={{ width: "100%", padding: "12px 13px", border: "1.5px solid " + C.border, borderRadius: 12, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none", boxSizing: "border-box" }}
                 />
               </div>
               <div style={{ marginBottom: 22 }}>

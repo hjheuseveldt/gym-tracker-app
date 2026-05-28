@@ -67,18 +67,83 @@ body {
 
   --gt-focus-ring: rgba(212, 216, 224, 0.55);
 
+  --gt-glass-blur: 20px;
+  --gt-glass-blur-strong: 32px;
+  --gt-glass-saturate: 165%;
   --gt-glass-fill: rgba(255, 255, 255, 0.045);
   --gt-glass-fill-strong: rgba(255, 255, 255, 0.068);
-  --gt-glass-border: rgba(200, 204, 212, 0.38);
-  --gt-glass-border-bright: rgba(212, 216, 224, 0.46);
+  --gt-glass-fill-card: rgba(255, 255, 255, 0.1);
+  --gt-glass-fill-card-hi: rgba(255, 255, 255, 0.14);
+  --gt-glass-fill-sheet: rgba(255, 255, 255, 0.12);
+  --gt-glass-border: rgba(255, 255, 255, 0.14);
+  --gt-glass-border-bright: rgba(255, 255, 255, 0.2);
   --gt-glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.14);
   --gt-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.42);
+  --gt-glass-shadow-elevated: 0 12px 40px rgba(0, 0, 0, 0.48);
 
   --gt-scrim: rgba(8, 10, 16, 0.65);
   --gt-scrim-soft: rgba(8, 10, 16, 0.5);
 
-  --gt-input-bg: rgba(255, 255, 255, 0.045);
+  --gt-input-bg: rgba(255, 255, 255, 0.06);
   --gt-input-border: rgba(200, 204, 212, 0.38);
+}
+
+/* Apple-style frosted glass — fallback when backdrop-filter unsupported */
+.gt-card,
+.gt-card-elevated,
+.gt-sheet,
+.gt-glass,
+.gt-glass-strong {
+  background: var(--gt-surface);
+  border: 1px solid var(--gt-border);
+  box-shadow: var(--gt-glass-inset), var(--gt-glass-shadow);
+}
+
+.gt-card {
+  background: linear-gradient(165deg, rgba(62, 68, 84, 0.28) 0%, rgba(26, 31, 46, 0.52) 100%), var(--gt-glass-fill-card);
+}
+
+.gt-card-elevated {
+  background: linear-gradient(165deg, rgba(72, 78, 94, 0.34) 0%, rgba(30, 36, 50, 0.62) 100%), var(--gt-glass-fill-card-hi);
+  box-shadow: var(--gt-glass-inset), var(--gt-glass-shadow-elevated);
+}
+
+.gt-card-done {
+  background: linear-gradient(165deg, rgba(50, 58, 76, 0.38) 0%, rgba(34, 40, 54, 0.65) 100%), var(--gt-success-glass);
+  border-color: var(--gt-success-border);
+}
+
+.gt-sheet {
+  background: linear-gradient(180deg, rgba(72, 78, 94, 0.36) 0%, rgba(20, 24, 36, 0.72) 100%), var(--gt-glass-fill-sheet);
+  border: 1px solid var(--gt-glass-border-bright);
+  box-shadow: var(--gt-glass-inset), 0 -8px 48px rgba(0, 0, 0, 0.5);
+}
+
+.gt-scrim {
+  background: var(--gt-scrim);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .gt-card {
+    backdrop-filter: blur(var(--gt-glass-blur)) saturate(var(--gt-glass-saturate));
+    -webkit-backdrop-filter: blur(var(--gt-glass-blur)) saturate(var(--gt-glass-saturate));
+  }
+
+  .gt-card-elevated,
+  .gt-card-done {
+    backdrop-filter: blur(var(--gt-glass-blur-strong)) saturate(var(--gt-glass-saturate));
+    -webkit-backdrop-filter: blur(var(--gt-glass-blur-strong)) saturate(var(--gt-glass-saturate));
+  }
+
+  .gt-sheet {
+    backdrop-filter: blur(var(--gt-glass-blur-strong)) saturate(var(--gt-glass-saturate));
+    -webkit-backdrop-filter: blur(var(--gt-glass-blur-strong)) saturate(var(--gt-glass-saturate));
+  }
+
+  .gt-scrim {
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+  }
 }
 
 .gt-page-bg {
@@ -91,16 +156,24 @@ body {
   background: linear-gradient(165deg, rgba(62, 68, 84, 0.32) 0%, rgba(26, 31, 46, 0.58) 100%), var(--gt-glass-fill);
   border: 1px solid var(--gt-glass-border);
   box-shadow: var(--gt-glass-inset), var(--gt-glass-shadow);
-  backdrop-filter: blur(22px) saturate(145%);
-  -webkit-backdrop-filter: blur(22px) saturate(145%);
 }
 
 .gt-glass-strong {
   background: linear-gradient(165deg, rgba(72, 78, 94, 0.38) 0%, rgba(30, 36, 50, 0.68) 100%), var(--gt-glass-fill-strong);
   border: 1px solid var(--gt-glass-border-bright);
-  box-shadow: var(--gt-glass-inset), 0 12px 40px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(28px) saturate(150%);
-  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  box-shadow: var(--gt-glass-inset), var(--gt-glass-shadow-elevated);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .gt-glass {
+    backdrop-filter: blur(var(--gt-glass-blur)) saturate(var(--gt-glass-saturate));
+    -webkit-backdrop-filter: blur(var(--gt-glass-blur)) saturate(var(--gt-glass-saturate));
+  }
+
+  .gt-glass-strong {
+    backdrop-filter: blur(var(--gt-glass-blur-strong)) saturate(var(--gt-glass-saturate));
+    -webkit-backdrop-filter: blur(var(--gt-glass-blur-strong)) saturate(var(--gt-glass-saturate));
+  }
 }
 
 .gt-btn-primary {
@@ -268,10 +341,20 @@ body {
 .gt-input,
 input.gt-input,
 textarea.gt-input {
-  background: var(--gt-input-bg) !important;
+  background: linear-gradient(165deg, rgba(62, 68, 84, 0.22) 0%, rgba(26, 31, 46, 0.45) 100%), var(--gt-input-bg) !important;
   color: var(--gt-text) !important;
   border-color: var(--gt-input-border) !important;
   caret-color: var(--gt-accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .gt-input,
+  input.gt-input,
+  textarea.gt-input {
+    backdrop-filter: blur(12px) saturate(var(--gt-glass-saturate));
+    -webkit-backdrop-filter: blur(12px) saturate(var(--gt-glass-saturate));
+  }
 }
 
 input.gt-input::placeholder,
@@ -286,6 +369,17 @@ textarea.gt-input:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .gt-card,
+  .gt-card-elevated,
+  .gt-card-done,
+  .gt-sheet,
+  .gt-glass,
+  .gt-glass-strong,
+  .gt-scrim {
+    backdrop-filter: blur(6px) saturate(110%);
+    -webkit-backdrop-filter: blur(6px) saturate(110%);
+  }
+
   .hab,
   .tb {
     animation: none !important;
