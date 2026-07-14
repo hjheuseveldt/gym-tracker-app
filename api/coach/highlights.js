@@ -1,4 +1,4 @@
-import { anthropicComplete } from "../_lib/anthropic.js";
+import { xaiComplete } from "../_lib/xai.js";
 import { highlightsSystemPrompt } from "../_lib/coachPrompt.js";
 
 export const config = { maxDuration: 30 };
@@ -63,7 +63,7 @@ export default async function handler(req, res) {
       content:
         "Produce the JSON array of 4-6 highlight cards now based on the signals and user_data provided in the system prompt.",
     };
-    const { text } = await anthropicComplete({
+    const { text } = await xaiComplete({
       system,
       messages: [userMsg],
       temperature: 0.7,

@@ -48,7 +48,7 @@ function coachDevPlugin(env) {
             return;
           }
           try {
-            if (env.ANTHROPIC_API_KEY) process.env.ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY;
+            if (env.XAI_API_KEY) process.env.XAI_API_KEY = env.XAI_API_KEY;
             const mod = await import(modPath + "?t=" + Date.now());
             await mod.default(req, res);
           } catch (err) {
@@ -62,6 +62,7 @@ function coachDevPlugin(env) {
       };
       mount("/api/coach/chat", "./api/coach/chat.js");
       mount("/api/coach/highlights", "./api/coach/highlights.js");
+      mount("/api/food/analyze", "./api/food/analyze.js");
     },
   };
 }
