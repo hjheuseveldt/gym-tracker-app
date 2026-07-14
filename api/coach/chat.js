@@ -1,4 +1,4 @@
-import { anthropicStreamToResponse } from "../_lib/anthropic.js";
+import { xaiStreamToResponse } from "../_lib/xai.js";
 import { chatSystemPrompt } from "../_lib/coachPrompt.js";
 
 export const config = { maxDuration: 60 };
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
       res.end(JSON.stringify({ error: "no usable messages" }));
       return;
     }
-    await anthropicStreamToResponse(res, { system, messages: cleanMessages });
+    await xaiStreamToResponse(res, { system, messages: cleanMessages });
   } catch (err) {
     if (!res.headersSent) {
       res.statusCode = err && err.code === "NO_KEY" ? 503 : 500;

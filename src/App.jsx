@@ -28,6 +28,7 @@ import {
   IconUiSparkles,
   IconUiAlert,
   IconUiEye,
+  IconUiCamera,
 } from "./icons.jsx";
 
 var APP_NAV_TABS = [
@@ -2356,6 +2357,60 @@ function newCustomFoodId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return "custom:" + crypto.randomUUID();
   return "custom:" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 14);
 }
+function newScanFoodId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return "scan:" + crypto.randomUUID();
+  return "scan:" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 14);
+}
+
+/** Compress a File/Blob to JPEG base64 (no data-URL prefix) for meal analyze. */
+function compressImageForScan(file, maxEdge, quality) {
+  var edge = maxEdge || 1280;
+  var q = quality == null ? 0.8 : quality;
+  return new Promise(function (resolve, reject) {
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      try {
+        var w = img.naturalWidth || img.width;
+        var h = img.naturalHeight || img.height;
+        if (!w || !h) {
+          URL.revokeObjectURL(url);
+          reject(new Error("Could not read image dimensions"));
+          return;
+        }
+        var scale = Math.min(1, edge / Math.max(w, h));
+        var cw = Math.max(1, Math.round(w * scale));
+        var ch = Math.max(1, Math.round(h * scale));
+        var canvas = document.createElement("canvas");
+        canvas.width = cw;
+        canvas.height = ch;
+        var ctx = canvas.getContext("2d");
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          reject(new Error("Canvas unavailable"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, cw, ch);
+        var dataUrl = canvas.toDataURL("image/jpeg", q);
+        URL.revokeObjectURL(url);
+        var comma = dataUrl.indexOf(",");
+        resolve({
+          imageBase64: comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl,
+          mimeType: "image/jpeg",
+          previewUrl: dataUrl,
+        });
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not load image"));
+    };
+    img.src = url;
+  });
+}
 /** FatSecret-shaped item from custom_foods table row */
 function foodFromCustomRow(row) {
   return {
@@ -2776,6 +2831,267 @@ function CustomFoodSheet(props) {
   );
 }
 
+function MealScanSheet(props) {
+  var estimate = props.estimate || {};
+  var portalRootRef = props.portalRoot;
+  var hostS = useState(function () {
+    return portalRootRef && portalRootRef.current;
+  });
+  var portalHost = hostS[0],
+    setPortalHost = hostS[1];
+  useLayoutEffect(
+    function () {
+      var el = portalRootRef && portalRootRef.current;
+      setPortalHost(function (prev) {
+        var next = el || null;
+        return Object.is(prev, next) ? prev : next;
+      });
+    },
+    [portalRootRef]
+  );
+
+  var nmS = useState(estimate.food_name || "");
+  var srvS = useState(estimate.serving_description || "1 serving");
+  var calS = useState(estimate.calories != null ? String(estimate.calories) : "");
+  var pS = useState(estimate.protein != null ? String(estimate.protein) : "");
+  var carbS = useState(estimate.carbs != null ? String(estimate.carbs) : "");
+  var fatS = useState(estimate.fat != null ? String(estimate.fat) : "");
+  var savingS = useState(false);
+  var nm = nmS[0],
+    setNm = nmS[1];
+  var srv = srvS[0],
+    setSrv = srvS[1];
+  var calStr = calS[0],
+    setCalStr = calS[1];
+  var pStr = pS[0],
+    setPStr = pS[1];
+  var carbStr = carbS[0],
+    setCarbStr = carbS[1];
+  var fatStr = fatS[0],
+    setFatStr = fatS[1];
+  var saving = savingS[0],
+    setSaving = savingS[1];
+
+  function parseNut(x) {
+    var n = parseFloat(String(x).trim());
+    return Number.isFinite(n) ? n : NaN;
+  }
+  function validForm() {
+    if (!nm.trim()) return null;
+    var cal = parseNut(calStr);
+    var prot = parseNut(pStr);
+    var crb = parseNut(carbStr);
+    var ft = parseNut(fatStr);
+    if (!(cal >= 0) || !Number.isFinite(cal)) return null;
+    if (!Number.isFinite(prot) || prot < 0) return null;
+    if (!Number.isFinite(crb) || crb < 0) return null;
+    if (!Number.isFinite(ft) || ft < 0) return null;
+    return {
+      food_name: nm.trim(),
+      serving_description: (srv.trim() || "1 serving").slice(0, 120),
+      calories: Math.round(cal * 10) / 10,
+      protein: Math.round(prot * 10) / 10,
+      carbs: Math.round(crb * 10) / 10,
+      fat: Math.round(ft * 10) / 10,
+    };
+  }
+
+  function confirm() {
+    var v = validForm();
+    if (!v || saving) return;
+    setSaving(true);
+    Promise.resolve(props.onConfirm(v)).finally(function () {
+      setSaving(false);
+    });
+  }
+
+  if (!portalHost) return null;
+
+  var vNow = validForm();
+  var canSave = !!vNow && !saving;
+  var inputStyle = {
+    width: "100%",
+    padding: "11px 12px",
+    borderRadius: 12,
+    border: "1.5px solid " + C.border,
+    fontSize: 15,
+    fontFamily: "'DM Sans',sans-serif",
+    color: C.text,
+    outline: "none",
+    boxSizing: "border-box",
+  };
+  var labelStyle = {
+    fontSize: 11,
+    color: C.muted,
+    fontWeight: 600,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    display: "block",
+  };
+  var conf = estimate.confidence;
+  var confLabel = conf === "high" ? "High confidence" : conf === "low" ? "Low confidence — edit carefully" : "Estimate — edit before logging";
+
+  return createPortal(
+    <div
+      onClick={props.onCancel}
+      role="presentation"
+      className="gt-scrim"
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: C.scrimSoft,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingTop: "max(12px, env(safe-area-inset-top))",
+        paddingRight: "max(12px, env(safe-area-inset-right))",
+        paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+        paddingLeft: "max(12px, env(safe-area-inset-left))",
+        boxSizing: "border-box",
+        zIndex: 250,
+        animation: "fadeIn 0.18s ease both",
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="meal-scan-sheet-title"
+        onClick={function (e) {
+          e.stopPropagation();
+        }}
+        className="gt-card-elevated"
+        style={{
+          width: "100%",
+          maxWidth: "min(336px, 100%)",
+          borderRadius: 20,
+          padding: "16px 16px 18px",
+          animation: "slideUp 0.24s cubic-bezier(0.34,1.56,0.64,1) both",
+          fontFamily: "'DM Sans',sans-serif",
+          maxHeight: "calc(100% - 24px)",
+          overflowY: "auto",
+          flexShrink: 0,
+        }}
+      >
+        <div id="meal-scan-sheet-title" style={{ fontSize: 17, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.25 }}>
+          Review meal scan
+        </div>
+        <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{confLabel}</div>
+        {estimate.notes ? (
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.4 }}>{estimate.notes}</div>
+        ) : null}
+        {props.previewUrl ? (
+          <img
+            src={props.previewUrl}
+            alt=""
+            style={{
+              display: "block",
+              width: "100%",
+              maxHeight: 120,
+              objectFit: "cover",
+              borderRadius: 12,
+              marginTop: 12,
+            }}
+          />
+        ) : null}
+        <div style={{ marginTop: 14 }}>
+          <label htmlFor="ms-name" style={labelStyle}>
+            Food name
+          </label>
+          <input
+            id="ms-name"
+            value={nm}
+            onChange={function (e) {
+              setNm(e.target.value);
+            }}
+            className="gt-input"
+            style={inputStyle}
+          />
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <label htmlFor="ms-srv" style={labelStyle}>
+            Serving
+          </label>
+          <input
+            id="ms-srv"
+            value={srv}
+            onChange={function (e) {
+              setSrv(e.target.value);
+            }}
+            className="gt-input"
+            placeholder="1 serving"
+            style={inputStyle}
+          />
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <label htmlFor="ms-cal" style={labelStyle}>
+            Calories
+          </label>
+          <input
+            id="ms-cal"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            value={calStr}
+            onChange={function (e) {
+              setCalStr(e.target.value);
+            }}
+            className="gt-input"
+            style={inputStyle}
+          />
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <div style={{ ...labelStyle, marginBottom: 8 }}>Macros (g)</div>
+          <label htmlFor="ms-p" style={labelStyle}>
+            Protein
+          </label>
+          <input id="ms-p" type="number" inputMode="decimal" min={0} step="any" value={pStr} onChange={function (e) { setPStr(e.target.value); }} className="gt-input" style={inputStyle} />
+          <label htmlFor="ms-c" style={{ ...labelStyle, marginTop: 10 }}>
+            Carbs
+          </label>
+          <input id="ms-c" type="number" inputMode="decimal" min={0} step="any" value={carbStr} onChange={function (e) { setCarbStr(e.target.value); }} className="gt-input" style={inputStyle} />
+          <label htmlFor="ms-f" style={{ ...labelStyle, marginTop: 10 }}>
+            Fat
+          </label>
+          <input id="ms-f" type="number" inputMode="decimal" min={0} step="any" value={fatStr} onChange={function (e) { setFatStr(e.target.value); }} className="gt-input" style={inputStyle} />
+        </div>
+        <div style={{ display: "flex", gap: 9, marginTop: 17 }}>
+          <button
+            type="button"
+            onClick={props.onCancel}
+            className="gt-card"
+            style={{ flex: 1, padding: "11px", borderRadius: 12, fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={confirm}
+            disabled={!canSave}
+            style={{
+              flex: 1.4,
+              padding: "11px",
+              borderRadius: 12,
+              border: "none",
+              background: canSave ? C.gradCTA : C.border,
+              color: canSave ? C.onAccent : C.muted,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: canSave ? "pointer" : "default",
+              opacity: canSave ? 1 : 0.62,
+              fontFamily: "'DM Sans',sans-serif",
+              boxShadow: canSave ? C.shadowCTASoft : "none",
+            }}
+          >
+            {saving ? "Adding\u2026" : "Add to log"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    portalHost
+  );
+}
+
 function DayNav(props) {
   var date = props.date;
   var open = props.calOpen;
@@ -3015,6 +3331,19 @@ function CalorieTab(props) {
   var cfsS = useState(false);
   var customFoodOpen = cfsS[0],
     setCustomFoodOpen = cfsS[1];
+  var scanEstS = useState(null);
+  var scanEstimate = scanEstS[0],
+    setScanEstimate = scanEstS[1];
+  var scanPrevS = useState(null);
+  var scanPreview = scanPrevS[0],
+    setScanPreview = scanPrevS[1];
+  var scanBusyS = useState(false);
+  var scanBusy = scanBusyS[0],
+    setScanBusy = scanBusyS[1];
+  var scanInputRef = useRef(null);
+  var scanSessionS = useState(0);
+  var scanSession = scanSessionS[0],
+    setScanSession = scanSessionS[1];
 
   useEffect(
     function () {
@@ -3193,6 +3522,88 @@ function CalorieTab(props) {
       });
   }
 
+  function logScannedMeal(edited) {
+    if (!supaReady()) {
+      setError("Supabase isn't configured \u2014 set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+      return Promise.reject(new Error("no supabase"));
+    }
+    var row = {
+      log_date: selDate,
+      food_id: newScanFoodId(),
+      food_name: edited.food_name,
+      brand_name: null,
+      serving_description: edited.serving_description || "1 serving",
+      servings: 1,
+      calories: edited.calories,
+      protein: edited.protein,
+      carbs: edited.carbs,
+      fat: edited.fat,
+    };
+    return supabase
+      .from("food_log")
+      .insert(row)
+      .select()
+      .single()
+      .then(function (res) {
+        if (res.error) {
+          setError(res.error.message);
+          throw res.error;
+        }
+        setEntries(function (prev) {
+          return [res.data].concat(prev);
+        });
+        setScanEstimate(null);
+        setScanPreview(null);
+        setQ("");
+        setResults([]);
+      });
+  }
+
+  function onMealPhotoSelected(file) {
+    if (!file || scanBusy) return;
+    var type = (file.type || "").toLowerCase();
+    if (type && type.indexOf("image/") !== 0) {
+      setError("Please choose a photo of your meal.");
+      return;
+    }
+    setScanBusy(true);
+    setError(null);
+    compressImageForScan(file, 1280, 0.8)
+      .then(function (packed) {
+        setScanPreview(packed.previewUrl);
+        return fetch("/api/food/analyze", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            imageBase64: packed.imageBase64,
+            mimeType: packed.mimeType,
+          }),
+        }).then(function (r) {
+          return r.json().then(function (data) {
+            if (!r.ok) {
+              var msg = (data && data.error) || "Scan failed (" + r.status + ")";
+              if (/NO_KEY|XAI_API_KEY|not set/i.test(msg)) {
+                msg = "Add XAI_API_KEY to .env.local (then restart dev server) to scan meals.";
+              }
+              throw new Error(msg);
+            }
+            if (!data || !data.estimate) throw new Error("No estimate returned");
+            setScanSession(function (n) {
+              return n + 1;
+            });
+            setScanEstimate(data.estimate);
+          });
+        });
+      })
+      .catch(function (e) {
+        setError(String((e && e.message) || e));
+        setScanEstimate(null);
+      })
+      .finally(function () {
+        setScanBusy(false);
+      });
+  }
+
   function updateEntryServings(entry, newServings) {
     var ic = isCustomFoodId(entry.food_id);
     var s = ic ? Math.max(1, Math.round(Number(newServings) || 1)) : Math.max(0.25, +newServings);
@@ -3334,6 +3745,48 @@ function CalorieTab(props) {
               boxSizing: "border-box",
             }}
           />
+          <input
+            ref={scanInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            aria-hidden="true"
+            tabIndex={-1}
+            style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
+            onChange={function (e) {
+              var f = e.target.files && e.target.files[0];
+              e.target.value = "";
+              if (f) onMealPhotoSelected(f);
+            }}
+          />
+          <button
+            type="button"
+            aria-label="Scan meal photo"
+            className="gt-focus-ring gt-min-tap"
+            disabled={scanBusy}
+            onClick={function () {
+              if (scanBusy) return;
+              if (scanInputRef.current) scanInputRef.current.click();
+            }}
+            style={{
+              flexShrink: 0,
+              width: 44,
+              height: 44,
+              borderRadius: 14,
+              border: "1.5px solid " + C.border,
+              cursor: scanBusy ? "default" : "pointer",
+              fontFamily: "'DM Sans',sans-serif",
+              color: C.text,
+              background: C.sheet,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: scanBusy ? 0.55 : 1,
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            <IconUiCamera size={20} color={C.text} />
+          </button>
           <button
             type="button"
             aria-label="Add custom food"
@@ -3364,6 +3817,11 @@ function CalorieTab(props) {
             +
           </button>
         </div>
+        {scanBusy && (
+          <div style={{ marginTop: 8, padding: "10px 12px", borderRadius: 12, fontSize: 13, color: C.muted, background: C.sheet }}>
+            Analyzing meal photo{"\u2026"}
+          </div>
+        )}
         {(q.trim() || searching) && (
           <div className="gt-card" style={{marginTop: 8,borderRadius: 14,overflow: "hidden", maxHeight: 280, overflowY: "auto"}}>
             {searching && <div style={{ padding: "12px 14px", fontSize: 13, color: C.muted }}>Searching{"\u2026"}</div>}
@@ -3541,6 +3999,22 @@ function CalorieTab(props) {
           }}
           onSaveError={function (msg) {
             setError(msg);
+          }}
+        />
+      )}
+
+      {scanEstimate && (
+        <MealScanSheet
+          key={"scan-" + scanSession}
+          portalRoot={props.portalRoot}
+          estimate={scanEstimate}
+          previewUrl={scanPreview}
+          onCancel={function () {
+            setScanEstimate(null);
+            setScanPreview(null);
+          }}
+          onConfirm={function (edited) {
+            return logScannedMeal(edited);
           }}
         />
       )}
@@ -4758,10 +5232,16 @@ function streamCoachChat(payload, onDelta, onDone, onError) {
             if (!json || json === "[DONE]") continue;
             try {
               var parsed = JSON.parse(json);
-              if (parsed.type === "content_block_delta" && parsed.delta && parsed.delta.type === "text_delta") {
-                onDelta(parsed.delta.text || "");
-              } else if (parsed.type === "error") {
-                onError((parsed.error && parsed.error.message) || "stream error");
+              if (parsed.error) {
+                onError(
+                  (typeof parsed.error === "string" ? parsed.error : parsed.error.message) || "stream error"
+                );
+                continue;
+              }
+              var choice = parsed.choices && parsed.choices[0];
+              var delta = choice && choice.delta;
+              if (delta && typeof delta.content === "string" && delta.content) {
+                onDelta(delta.content);
               }
             } catch (_e) {}
           }
@@ -4974,10 +5454,10 @@ function CoachTab(props) {
   }
 
   var quickPrompts = ["Plan tomorrow's lift", "Why was my sleep low?", "Am I eating enough?", "What's lagging this week?"];
-  var keyMsgPattern = /NO_KEY|ANTHROPIC_API_KEY|not set/;
+  var keyMsgPattern = /NO_KEY|XAI_API_KEY|not set/;
   function renderErr(e) {
     if (!e) return null;
-    if (keyMsgPattern.test(e)) return "Add ANTHROPIC_API_KEY to .env.local (then restart dev server) to enable Coach.";
+    if (keyMsgPattern.test(e)) return "Add XAI_API_KEY to .env.local (then restart dev server) to enable Coach.";
     return e;
   }
 

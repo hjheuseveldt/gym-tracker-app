@@ -411,3 +411,14 @@ export function IconUiEye(props) {
     </svg>
   );
 }
+
+export function IconUiCamera(props) {
+  var c = props.color || DEF_PRI,
+    s = props.size || 20;
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z" />
+      <circle cx="12" cy="13" r="3.2" />
+    </svg>
+  );
+}
