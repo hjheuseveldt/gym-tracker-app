@@ -128,11 +128,11 @@ export default async function handler(req, res) {
       content: [
         {
           type: "text",
-          text: "Estimate the nutrition for the food in this photo. Return JSON only.",
+          text: "Estimate nutrition for this meal. JSON only.",
         },
         {
           type: "image_url",
-          image_url: { url: dataUrl, detail: "high" },
+          image_url: { url: dataUrl, detail: "low" },
         },
       ],
     };
@@ -140,8 +140,10 @@ export default async function handler(req, res) {
     const { text } = await xaiComplete({
       system: SYSTEM_PROMPT,
       messages: [userMsg],
+      model: "grok-4.3",
       temperature: 0.2,
-      maxTokens: 600,
+      maxTokens: 250,
+      reasoningEffort: "none",
     });
 
     let parsed;

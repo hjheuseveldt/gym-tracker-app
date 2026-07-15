@@ -28,7 +28,7 @@ function buildMessages({ system, messages }) {
 }
 
 // Non-streaming call. Returns the assistant text.
-export async function xaiComplete({ system, messages, model, maxTokens, temperature }) {
+export async function xaiComplete({ system, messages, model, maxTokens, temperature, reasoningEffort }) {
   const key = requireKey();
   const body = {
     model: model || DEFAULT_MODEL,
@@ -36,6 +36,10 @@ export async function xaiComplete({ system, messages, model, maxTokens, temperat
     temperature: temperature == null ? 0.7 : temperature,
     messages: buildMessages({ system, messages }),
   };
+  // grok-4.3: none | low | medium | high — skips costly thinking when set.
+  if (reasoningEffort != null && reasoningEffort !== "") {
+    body.reasoning_effort = reasoningEffort;
+  }
   const r = await fetch(XAI_URL, {
     method: "POST",
     headers: {
