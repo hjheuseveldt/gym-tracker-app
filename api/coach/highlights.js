@@ -1,7 +1,15 @@
-import { xaiComplete } from "../_lib/xai.js";
+import {
+  xaiComplete,
+  rateLimitOrThrow,
+  clientKeyFromReq,
+  xaiErrorStatus,
+} from "../_lib/xai.js";
 import { highlightsSystemPrompt } from "../_lib/coachPrompt.js";
 
 export const config = { maxDuration: 30 };
+
+const MAX_CONTEXT_CHARS = 10_000;
+const MAX_SIGNALS_CHARS = 4_000;
 
 async function readJsonBody(req) {
   if (req.body && typeof req.body === "object") return req.body;
@@ -9,6 +17,11 @@ async function readJsonBody(req) {
     let raw = "";
     req.on("data", (c) => {
       raw += c;
+      if (raw.length > 200_000) {
+        const err = new Error("Body too large");
+        err.status = 413;
+        reject(err);
+      }
     });
     req.on("end", () => {
       if (!raw) return resolve({});
@@ -54,20 +67,25 @@ export default async function handler(req, res) {
     return;
   }
   try {
+    rateLimitOrThrow("hl:" + clientKeyFromReq(req), 3, 60_000);
+
     const body = await readJsonBody(req);
-    const signalsJson = JSON.stringify(body.signals || [], null, 2);
-    const contextJson = JSON.stringify(body.context || {}, null, 2);
+    let signalsJson = JSON.stringify(body.signals || []);
+    let contextJson = JSON.stringify(body.context || {});
+    if (signalsJson.length > MAX_SIGNALS_CHARS) signalsJson = signalsJson.slice(0, MAX_SIGNALS_CHARS) + "…";
+    if (contextJson.length > MAX_CONTEXT_CHARS) contextJson = contextJson.slice(0, MAX_CONTEXT_CHARS) + "…";
     const system = highlightsSystemPrompt(signalsJson, contextJson);
     const userMsg = {
       role: "user",
-      content:
-        "Produce the JSON array of 4-6 highlight cards now based on the signals and user_data provided in the system prompt.",
+      content: "Return JSON array of 4-6 highlight cards now.",
     };
     const { text } = await xaiComplete({
       system,
       messages: [userMsg],
-      temperature: 0.7,
-      maxTokens: 1400,
+      model: "grok-4.3",
+      temperature: 0.4,
+      maxTokens: 700,
+      reasoningEffort: "none",
     });
     let parsed;
     try {
@@ -90,7 +108,7 @@ export default async function handler(req, res) {
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ highlights: cards }));
   } catch (err) {
-    res.statusCode = err && err.code === "NO_KEY" ? 503 : 500;
+    res.statusCode = xaiErrorStatus(err);
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ error: String((err && err.message) || err) }));
   }

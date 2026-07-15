@@ -49,6 +49,7 @@ function coachDevPlugin(env) {
           }
           try {
             if (env.XAI_API_KEY) process.env.XAI_API_KEY = env.XAI_API_KEY;
+            if (env.XAI_ENABLED) process.env.XAI_ENABLED = env.XAI_ENABLED;
             const mod = await import(modPath + "?t=" + Date.now());
             await mod.default(req, res);
           } catch (err) {
