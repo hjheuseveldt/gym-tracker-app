@@ -3568,7 +3568,7 @@ function CalorieTab(props) {
     }
     setScanBusy(true);
     setError(null);
-    compressImageForScan(file, 768, 0.72)
+    compressImageForScan(file, 640, 0.65)
       .then(function (packed) {
         setScanPreview(packed.previewUrl);
         return fetch("/api/food/analyze", {
@@ -3582,8 +3582,13 @@ function CalorieTab(props) {
           return r.json().then(function (data) {
             if (!r.ok) {
               var msg = (data && data.error) || "Scan failed (" + r.status + ")";
-              if (/NO_KEY|XAI_API_KEY|not set/i.test(msg)) {
-                msg = "Add XAI_API_KEY to .env.local (then restart dev server) to scan meals.";
+              if (/NO_KEY|DISABLED|XAI_ENABLED|XAI_API_KEY|not set/i.test(msg)) {
+                if (/DISABLED|XAI_ENABLED/i.test(msg)) {
+                  msg =
+                    "AI is paused to stop spend. Rotate your xAI key, then set XAI_ENABLED=1 in Vercel and redeploy.";
+                } else {
+                  msg = "Add XAI_API_KEY (and XAI_ENABLED=1) to enable meal scan.";
+                }
               }
               throw new Error(msg);
             }
@@ -5352,13 +5357,6 @@ function CoachTab(props) {
       });
   }
 
-  useEffect(
-    function () {
-      fetchHighlights(false);
-    },
-    [calLoaded, ctxHash]
-  );
-
   var msgsS = useState(function () {
     try {
       var raw = localStorage.getItem("coachChat");
@@ -5454,10 +5452,13 @@ function CoachTab(props) {
   }
 
   var quickPrompts = ["Plan tomorrow's lift", "Why was my sleep low?", "Am I eating enough?", "What's lagging this week?"];
-  var keyMsgPattern = /NO_KEY|XAI_API_KEY|not set/;
+  var keyMsgPattern = /NO_KEY|DISABLED|XAI_ENABLED|XAI_API_KEY|not set/;
   function renderErr(e) {
     if (!e) return null;
-    if (keyMsgPattern.test(e)) return "Add XAI_API_KEY to .env.local (then restart dev server) to enable Coach.";
+    if (/DISABLED|XAI_ENABLED/i.test(e)) {
+      return "AI is paused to stop spend. Rotate your xAI key, then set XAI_ENABLED=1 in Vercel and redeploy.";
+    }
+    if (keyMsgPattern.test(e)) return "Add XAI_API_KEY (and XAI_ENABLED=1) in Vercel / .env.local to enable Coach.";
     return e;
   }
 

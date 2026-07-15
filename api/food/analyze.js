@@ -1,37 +1,35 @@
-import { xaiComplete } from "../_lib/xai.js";
+import {
+  xaiComplete,
+  rateLimitOrThrow,
+  clientKeyFromReq,
+  xaiErrorStatus,
+} from "../_lib/xai.js";
 
-export const config = { maxDuration: 60 };
+export const config = { maxDuration: 45 };
 
-const MAX_IMAGE_CHARS = 8_000_000; // ~6MB base64 is plenty after client compress
+const MAX_IMAGE_CHARS = 1_200_000; // tighter cap after client compress (~900KB)
 const ALLOWED_MIME = { "image/jpeg": true, "image/jpg": true, "image/png": true };
 
-const SYSTEM_PROMPT = `You estimate nutrition from a photo of food or a meal.
-Respond with JSON only — no markdown fences, no commentary.
-Shape:
-{
-  "food_name": string (short dish name),
-  "serving_description": string (what you estimated, e.g. "1 plate" or "200g"),
-  "calories": number,
-  "protein": number,
-  "carbs": number,
-  "fat": number,
-  "confidence": "low" | "medium" | "high",
-  "notes": string (brief caveat, optional)
-}
-Rules:
-- Numbers are for the entire portion visible (totals, not per 100g).
-- protein, carbs, fat are grams; calories are kcal. All must be >= 0.
-- Prefer a single combined estimate for the plate if multiple foods are visible.
-- If the image is not food, still return the JSON shape with food_name "Unknown" and zeros, confidence "low", and a note.`;
+const SYSTEM_PROMPT = `Estimate nutrition from a meal photo. JSON only, no fences.
+{"food_name":string,"serving_description":string,"calories":number,"protein":number,"carbs":number,"fat":number,"confidence":"low"|"medium"|"high","notes":string}
+Numbers are for the visible portion. Macros in grams. Prefer one combined plate estimate.`;
 
 async function readJsonBody(req) {
   if (req.body && typeof req.body === "object") return req.body;
   return await new Promise((resolve, reject) => {
     let raw = "";
+    let tooBig = false;
     req.on("data", (c) => {
       raw += c;
+      if (raw.length > 2_000_000) tooBig = true;
     });
     req.on("end", () => {
+      if (tooBig) {
+        const err = new Error("Body too large");
+        err.status = 413;
+        reject(err);
+        return;
+      }
       if (!raw) return resolve({});
       try {
         resolve(JSON.parse(raw));
@@ -92,6 +90,8 @@ export default async function handler(req, res) {
     return;
   }
   try {
+    rateLimitOrThrow("food:" + clientKeyFromReq(req), 6, 60_000);
+
     const body = await readJsonBody(req);
     let mimeType = typeof body.mimeType === "string" ? body.mimeType.toLowerCase().trim() : "image/jpeg";
     if (mimeType === "image/jpg") mimeType = "image/jpeg";
@@ -102,7 +102,6 @@ export default async function handler(req, res) {
       return;
     }
     let imageBase64 = typeof body.imageBase64 === "string" ? body.imageBase64.trim() : "";
-    // Allow data-URL prefix
     const dataUrlMatch = /^data:(image\/(?:jpeg|jpg|png));base64,(.+)$/i.exec(imageBase64);
     if (dataUrlMatch) {
       mimeType = dataUrlMatch[1].toLowerCase() === "image/jpg" ? "image/jpeg" : dataUrlMatch[1].toLowerCase();
@@ -126,14 +125,8 @@ export default async function handler(req, res) {
     const userMsg = {
       role: "user",
       content: [
-        {
-          type: "text",
-          text: "Estimate nutrition for this meal. JSON only.",
-        },
-        {
-          type: "image_url",
-          image_url: { url: dataUrl, detail: "low" },
-        },
+        { type: "text", text: "Estimate nutrition. JSON only." },
+        { type: "image_url", image_url: { url: dataUrl, detail: "low" } },
       ],
     };
 
@@ -141,8 +134,8 @@ export default async function handler(req, res) {
       system: SYSTEM_PROMPT,
       messages: [userMsg],
       model: "grok-4.3",
-      temperature: 0.2,
-      maxTokens: 250,
+      temperature: 0.1,
+      maxTokens: 200,
       reasoningEffort: "none",
     });
 
@@ -168,7 +161,7 @@ export default async function handler(req, res) {
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ estimate }));
   } catch (err) {
-    res.statusCode = err && err.code === "NO_KEY" ? 503 : 500;
+    res.statusCode = xaiErrorStatus(err);
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ error: String((err && err.message) || err) }));
   }

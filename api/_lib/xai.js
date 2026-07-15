@@ -1,10 +1,23 @@
 // Thin wrapper around xAI (Grok) Chat Completions API.
 // OpenAI-compatible — no SDK dependency, just fetch.
+//
+// Spend guard (emergency):
+// - Set XAI_ENABLED=1 (or "true") in the server env to allow calls.
+// - Without that flag, every call fails closed so a leaked/abused key path stops.
+// - Prefer grok-4.3 + reasoning_effort=none for cost.
 
 const XAI_URL = "https://api.x.ai/v1/chat/completions";
-export const DEFAULT_MODEL = "grok-4.5";
+export const DEFAULT_MODEL = "grok-4.3";
 
 function requireKey() {
+  const enabled = process.env.XAI_ENABLED;
+  if (enabled !== "1" && enabled !== "true") {
+    const err = new Error(
+      "XAI_ENABLED is off — set XAI_ENABLED=1 in Vercel after rotating your xAI key to re-enable AI"
+    );
+    err.code = "DISABLED";
+    throw err;
+  }
   const key = process.env.XAI_API_KEY;
   if (!key) {
     const err = new Error("XAI_API_KEY environment variable is not set");
@@ -27,19 +40,56 @@ function buildMessages({ system, messages }) {
   return out;
 }
 
+function applyDefaults(body, { reasoningEffort }) {
+  // Default off to avoid burning thinking tokens. Callers can override.
+  const effort = reasoningEffort == null ? "none" : reasoningEffort;
+  if (effort !== "") body.reasoning_effort = effort;
+  return body;
+}
+
+// Simple per-instance rate limit (helps on warm lambdas / Node server; fails soft on cold starts).
+const rateBuckets = new Map();
+export function rateLimitOrThrow(bucketKey, max, windowMs) {
+  const now = Date.now();
+  let b = rateBuckets.get(bucketKey);
+  if (!b || now > b.resetAt) {
+    b = { count: 0, resetAt: now + windowMs };
+    rateBuckets.set(bucketKey, b);
+  }
+  b.count += 1;
+  if (b.count > max) {
+    const err = new Error("Rate limit exceeded — try again in a minute");
+    err.code = "RATE_LIMIT";
+    err.status = 429;
+    throw err;
+  }
+}
+
+export function clientKeyFromReq(req) {
+  const xf = (req && (req.headers["x-forwarded-for"] || req.headers["x-real-ip"])) || "";
+  const first = String(xf).split(",")[0].trim();
+  return first || (req && req.socket && req.socket.remoteAddress) || "unknown";
+}
+
+export function xaiErrorStatus(err) {
+  if (!err) return 500;
+  if (err.code === "NO_KEY" || err.code === "DISABLED") return 503;
+  if (err.code === "RATE_LIMIT" || err.status === 429) return 429;
+  return err.status && Number.isFinite(err.status) ? err.status : 500;
+}
+
 // Non-streaming call. Returns the assistant text.
 export async function xaiComplete({ system, messages, model, maxTokens, temperature, reasoningEffort }) {
   const key = requireKey();
-  const body = {
-    model: model || DEFAULT_MODEL,
-    max_tokens: maxTokens || 1200,
-    temperature: temperature == null ? 0.7 : temperature,
-    messages: buildMessages({ system, messages }),
-  };
-  // grok-4.3: none | low | medium | high — skips costly thinking when set.
-  if (reasoningEffort != null && reasoningEffort !== "") {
-    body.reasoning_effort = reasoningEffort;
-  }
+  const body = applyDefaults(
+    {
+      model: model || DEFAULT_MODEL,
+      max_tokens: maxTokens || 600,
+      temperature: temperature == null ? 0.7 : temperature,
+      messages: buildMessages({ system, messages }),
+    },
+    { reasoningEffort }
+  );
   const r = await fetch(XAI_URL, {
     method: "POST",
     headers: {
@@ -71,15 +121,18 @@ export async function xaiComplete({ system, messages, model, maxTokens, temperat
 
 // Streams the assistant response to the given Node response object as SSE
 // (OpenAI-compatible chat.completion.chunk events).
-export async function xaiStreamToResponse(res, { system, messages, model, maxTokens, temperature }) {
+export async function xaiStreamToResponse(res, { system, messages, model, maxTokens, temperature, reasoningEffort }) {
   const key = requireKey();
-  const body = {
-    model: model || DEFAULT_MODEL,
-    max_tokens: maxTokens || 1500,
-    temperature: temperature == null ? 0.8 : temperature,
-    messages: buildMessages({ system, messages }),
-    stream: true,
-  };
+  const body = applyDefaults(
+    {
+      model: model || DEFAULT_MODEL,
+      max_tokens: maxTokens || 700,
+      temperature: temperature == null ? 0.8 : temperature,
+      messages: buildMessages({ system, messages }),
+      stream: true,
+    },
+    { reasoningEffort }
+  );
 
   const upstream = await fetch(XAI_URL, {
     method: "POST",
