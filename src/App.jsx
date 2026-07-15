@@ -3568,7 +3568,7 @@ function CalorieTab(props) {
     }
     setScanBusy(true);
     setError(null);
-    compressImageForScan(file, 1280, 0.8)
+    compressImageForScan(file, 768, 0.72)
       .then(function (packed) {
         setScanPreview(packed.previewUrl);
         return fetch("/api/food/analyze", {
