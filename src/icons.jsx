@@ -2,8 +2,9 @@ var DEF_PRI = "#C8CCD4";
 var DEF = DEF_PRI;
 
 export var ICON_GYM = "gym";
+export var ICON_WAKE = "wake";
 
-export var HABIT_ICON_ORDER = ["star", "run", "book", "water", "calm", "gym", "target", "plant", "write", "music", "mind", "dawn", "food", "rest", "bike"];
+export var HABIT_ICON_ORDER = ["star", "run", "book", "water", "calm", "gym", "wake", "target", "plant", "write", "music", "mind", "dawn", "food", "rest", "bike"];
 
 var LEGACY_EMOJI = {
   "\u2B50": "star",
@@ -12,6 +13,7 @@ var LEGACY_EMOJI = {
   "\uD83D\uDCA7": "water",
   "\uD83E\uDDD8": "calm",
   "\uD83D\uDCAA": "gym",
+  "\u23F0": "wake",
   "\uD83C\uDFAF": "target",
   "\uD83C\uDF31": "plant",
   "\u270D": "write",
@@ -87,6 +89,15 @@ export function HabitIcon(props) {
           <path d="M4 13h16" />
           <rect x="2" y="9" width="5" height="8" rx="1.25" />
           <rect x="17" y="9" width="5" height="8" rx="1.25" />
+        </svg>
+      );
+    case "wake":
+      return (
+        <svg {...p}>
+          <circle cx="12" cy="13" r="7" />
+          <path d="M12 13V9.5" />
+          <path d="M12 13l2.8 1.8" />
+          <path d="M5.5 4.5L3.5 6.5M18.5 4.5l2 2" />
         </svg>
       );
     case "target":
@@ -322,6 +333,19 @@ export function IconDumbbellMark(props) {
       <path d="M5 12h14" />
       <rect x="2" y="8" width="5" height="8" rx="1.5" />
       <rect x="17" y="8" width="5" height="8" rx="1.5" />
+    </svg>
+  );
+}
+
+export function IconAlarmMark(props) {
+  var c = props.color || DEF_PRI,
+    s = props.size || 40;
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="13" r="7.2" />
+      <path d="M12 13V9.2" />
+      <path d="M12 13l3.1 2" />
+      <path d="M5.2 4.2L3 6.4M18.8 4.2L21 6.4" />
     </svg>
   );
 }

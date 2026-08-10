@@ -17,10 +17,12 @@ import {
   IconKpiStar,
   IconSprout,
   IconDumbbellMark,
+  IconAlarmMark,
   CalDayDoneCheck,
   IconChevronCal,
   HabitIcon,
   ICON_GYM,
+  ICON_WAKE,
   HABIT_ICON_ORDER,
   IconUiScale,
   IconUiChartTrend,
@@ -191,6 +193,25 @@ var CYCLES = [];
 var COMP = {};
 var LOGS = {};
 var DEFAULT_GYM_HABIT = { id: 3, name: "Gym", icon: ICON_GYM, scheduledDays: [1, 2, 3, 4, 5] };
+var DEFAULT_WAKE_HABIT = { id: 4, name: "Wake 5\u20135:30", icon: ICON_WAKE, scheduledDays: [0, 1, 2, 3, 4, 5, 6] };
+
+function ensureWakeHabit(habits) {
+  if (
+    habits.some(function (h) {
+      return h.icon === ICON_WAKE;
+    })
+  ) {
+    return { habits: habits, seeded: null };
+  }
+  var used = {};
+  habits.forEach(function (h) {
+    used[h.id] = true;
+  });
+  var id = DEFAULT_WAKE_HABIT.id;
+  while (used[id]) id++;
+  var wake = Object.assign({}, DEFAULT_WAKE_HABIT, { id: id });
+  return { habits: habits.concat([wake]), seeded: wake };
+}
 
 
 function BarChart(props) {
@@ -4348,14 +4369,19 @@ function gymStreakScheduled(gym, comp, todayKey) {
   }
   return str;
 }
+function habitStreakScheduled(habit, comp, todayKey) {
+  return gymStreakScheduled(habit, comp, todayKey);
+}
 function cellColorForLayer(layer, k, ctx) {
-  if (layer === "sleep") {
-    var s = ctx.sleep[k];
-    if (!s || s.score == null) return null;
-    if (s.score >= 85) return "rgba(210,214,222,0.50)";
-    if (s.score >= 75) return "rgba(190,196,208,0.40)";
-    if (s.score >= 65) return "rgba(229,181,60,0.40)";
-    return "rgba(224,80,80,0.36)";
+  if (layer === "wake") {
+    var wake = ctx.wakeHabit;
+    if (!wake) return null;
+    var dow = new Date(k + "T00:00:00").getDay();
+    if (!wake.scheduledDays.includes(dow)) return null;
+    if (ctx.comp[wake.id] && ctx.comp[wake.id][k]) {
+      return "linear-gradient(165deg,#2A3040 0%,#1A1F2E 55%,#121620 100%)";
+    }
+    return "rgba(224,80,80,0.22)";
   }
   if (layer === "workouts") {
     var sets = setsTotalOn(ctx.wl, k);
@@ -4381,7 +4407,7 @@ function cycleTintFor(cycles, k) {
 }
 
 var LAYER_LEGENDS = {
-  sleep: ["rgba(224,80,80,0.36)", "rgba(229,181,60,0.40)", "rgba(190,196,208,0.40)", "rgba(210,214,222,0.50)"],
+  wake: ["rgba(224,80,80,0.22)", "rgba(42,48,64,0.38)", "rgba(42,48,64,0.7)", "#1A1F2E"],
   workouts: ["rgba(42,48,64,0.38)", "rgba(42,48,64,0.6)", "rgba(42,48,64,0.82)", "#1A1F2E"],
 };
 
@@ -4399,7 +4425,7 @@ function UnifiedCalendar(props) {
     setLayer = layS[1];
   useEffect(
     function () {
-      if (layer === "habits") setLayer("workouts");
+      if (layer === "habits" || layer === "sleep") setLayer("workouts");
     },
     [layer]
   );
@@ -4421,7 +4447,13 @@ function UnifiedCalendar(props) {
     return prefix + "-" + String(d).padStart(2, "0");
   }
   var monthEnd = prefix + "-" + String(days).padStart(2, "0");
-  var ctx = { habits: habits, comp: comp, wl: wl, sleep: sleep };
+  var gymHabit = habits.find(function (h) {
+    return h.icon === ICON_GYM;
+  });
+  var wakeHabit = habits.find(function (h) {
+    return h.icon === ICON_WAKE;
+  });
+  var ctx = { habits: habits, comp: comp, wl: wl, sleep: sleep, wakeHabit: wakeHabit };
 
   var visibleCycs = cycles.filter(function (c) {
     return c.start <= monthEnd && c.end >= prefix + "-01";
@@ -4431,27 +4463,21 @@ function UnifiedCalendar(props) {
   Object.keys(wl).forEach(function (kk) {
     if (kk.indexOf(prefix) === 0) monthWorkouts++;
   });
-  var sleepScores = [];
-  Object.keys(sleep).forEach(function (kk) {
-    if (kk.indexOf(prefix) === 0 && sleep[kk].score != null) sleepScores.push(sleep[kk].score);
-  });
-  var avgSleep = sleepScores.length
-    ? Math.round(
-        sleepScores.reduce(function (a, b) {
-          return a + b;
-        }, 0) / sleepScores.length
-      )
-    : null;
+  var monthWakes = 0;
+  if (wakeHabit) {
+    var wakeDone = comp[wakeHabit.id] || {};
+    Object.keys(wakeDone).forEach(function (kk) {
+      if (kk.indexOf(prefix) === 0 && wakeDone[kk]) monthWakes++;
+    });
+  }
   var perfectCount = 0;
   for (var di = 1; di <= days; di++) {
     var dKey = ck(di);
     if (dKey > tk) break;
     if (isPerfectDay(habits, comp, sleep, dKey, tk)) perfectCount++;
   }
-  var gymHabit = habits.find(function (h) {
-    return h.icon === ICON_GYM;
-  });
-  var gymStreak = gymStreakScheduled(gymHabit, comp, tk);
+  var gymStreak = habitStreakScheduled(gymHabit, comp, tk);
+  var wakeStreak = habitStreakScheduled(wakeHabit, comp, tk);
 
   function changeMonth(dir) {
     var m = cm + dir,
@@ -4467,19 +4493,22 @@ function UnifiedCalendar(props) {
     props.setCY(y);
   }
 
-  var layerPills = [
-    { id: "sleep", label: "Sleep", Icon: IconKpiSleep },
-    { id: "workouts", label: "Workouts", Icon: IconKpiWorkout },
-  ];
+  var viewingWake = layer === "wake";
+  var kpis = viewingWake
+    ? [
+        { val: monthWakes, label: "Early wakes", Icon: IconAlarmMark },
+        { val: wakeStreak != null ? wakeStreak : "\u2013", label: "Wake streak", Icon: IconAlarmMark },
+        { val: monthWorkouts, label: "Workouts", Icon: IconKpiWorkout },
+        { val: perfectCount, label: "Perfect", Icon: IconKpiStar },
+      ]
+    : [
+        { val: monthWorkouts, label: "Workouts", Icon: IconKpiWorkout },
+        { val: gymStreak != null ? gymStreak : "\u2013", label: "Gym streak", Icon: IconDumbbellMark },
+        { val: monthWakes, label: "Early wakes", Icon: IconAlarmMark },
+        { val: perfectCount, label: "Perfect", Icon: IconKpiStar },
+      ];
 
-  var kpis = [
-    { val: monthWorkouts, label: "Workouts", Icon: IconKpiWorkout },
-    { val: avgSleep != null ? avgSleep : "\u2013", label: "Avg sleep", Icon: IconKpiSleep },
-    { val: gymStreak != null ? gymStreak : "\u2013", label: "Gym streak", Icon: IconDumbbellMark },
-    { val: perfectCount, label: "Perfect", Icon: IconKpiStar },
-  ];
-
-  var legend = LAYER_LEGENDS[layer] || LAYER_LEGENDS.sleep;
+  var legend = LAYER_LEGENDS[layer] || LAYER_LEGENDS.workouts;
 
   return (
     <div style={{ padding: "14px 0 16px", position: "relative" }}>
@@ -4497,9 +4526,36 @@ function UnifiedCalendar(props) {
           }}
         />
       )}
-      <div style={{ padding: "0 22px 12px" }}>
-        <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Calendar</div>
-        <div style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Daily Dashboard</div>
+      <div style={{ padding: "0 22px 12px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Calendar</div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.1 }}>
+            {viewingWake ? "Wake Window" : "Workouts"}
+          </div>
+        </div>
+        <button
+          type="button"
+          className="gt-focus-ring gt-min-tap"
+          onClick={function () {
+            setLayer(viewingWake ? "workouts" : "wake");
+          }}
+          aria-label={viewingWake ? "Switch to workouts calendar" : "Switch to wake calendar"}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: "50%",
+            background: C.gl,
+            border: "none",
+            color: C.accent,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          {viewingWake ? <IconAlarmMark size={22} color={C.accent} /> : <IconDumbbellMark size={22} color={C.accent} />}
+        </button>
       </div>
 
       <div style={{ padding: "0 14px 12px", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
@@ -4541,43 +4597,6 @@ function UnifiedCalendar(props) {
         </button>
       </div>
 
-      <div style={{ padding: "0 14px 10px", display: "flex", gap: 6 }}>
-        {layerPills.map(function (p) {
-          var active = p.id === layer;
-          var LayI = p.Icon;
-          return (
-            <button
-              type="button"
-              className="gt-focus-ring"
-              key={p.id}
-              onClick={function () { setLayer(p.id); }}
-              style={{
-                flex: 1,
-                padding: "8px 6px",
-                borderRadius: 99,
-                background: active ? C.selFill : C.panel,
-                border: "1.5px solid " + (active ? C.selBorder : C.border),
-                color: active ? C.selText : C.muted,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "'DM Sans',sans-serif",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 5,
-                transition: "all 0.18s ease",
-              }}
-            >
-              <span style={{ display: "flex", alignItems: "center" }}>
-                <LayI size={15} color={active ? C.selText : C.muted} />
-              </span>
-              <span>{p.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
       <div className="gt-card" style={{margin: "0 14px",borderRadius: 18, padding: 14}}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 8 }}>
           {DL.map(function (d) {
@@ -4597,11 +4616,12 @@ function UnifiedCalendar(props) {
             var heat = !isFut ? cellColorForLayer(layer, k, ctx) : null;
             var perfect = !isFut && isPerfectDay(habits, comp, sleep, k, tk);
             var hasWk = !!wl[k];
-            var hasSl = !!(sleep[k] && sleep[k].score != null);
+            var hasWake = !!(wakeHabit && comp[wakeHabit.id] && comp[wakeHabit.id][k]);
             var wkGlow = layer === "workouts" && heat;
+            var wakeGlow = layer === "wake" && heat && hasWake;
             var ringBorder = isT
               ? "2px solid " + C.accent
-              : wkGlow
+              : wkGlow || wakeGlow
               ? "1px solid rgba(200,204,212,0.42)"
               : heat
               ? "1px solid rgba(255,255,255,0.08)"
@@ -4623,7 +4643,7 @@ function UnifiedCalendar(props) {
                 }}
               >
                 <div
-                  className={wkGlow ? "gt-cal-glow" : undefined}
+                  className={wkGlow || wakeGlow ? "gt-cal-glow" : undefined}
                   style={{
                     position: "absolute",
                     inset: 3,
@@ -4639,10 +4659,10 @@ function UnifiedCalendar(props) {
                 >
                   <span style={{ fontSize: 12, fontWeight: isT ? 700 : 500, color: C.text, position: "relative", zIndex: 3 }}>{day}</span>
                 </div>
-                {!isFut && (hasWk || hasSl) && (
+                {!isFut && (hasWk || hasWake) && (
                   <div style={{ position: "absolute", bottom: 2, left: 0, right: 0, display: "flex", gap: 2, justifyContent: "center", pointerEvents: "none" }}>
                     {hasWk && <div style={{ width: 3, height: 3, borderRadius: "50%", background: C.accent }} />}
-                    {hasSl && <div style={{ width: 3, height: 3, borderRadius: "50%", background: C.accentDeep }} />}
+                    {hasWake && <div style={{ width: 3, height: 3, borderRadius: "50%", background: C.accentDeep }} />}
                   </div>
                 )}
                 {perfect && (
@@ -4656,11 +4676,11 @@ function UnifiedCalendar(props) {
         </div>
         <div style={{ marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 9, color: C.muted, gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span>Low</span>
+            <span>{viewingWake ? "Missed" : "Low"}</span>
             {legend.map(function (c2, i) {
               return <div key={i} style={{ width: 12, height: 12, borderRadius: 3, background: c2, border: "1px solid " + C.border }} />;
             })}
-            <span>High</span>
+            <span>{viewingWake ? "Hit" : "High"}</span>
           </div>
           <div style={{ display: "flex", gap: 7 }}>
             <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
@@ -4669,7 +4689,7 @@ function UnifiedCalendar(props) {
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
               <div style={{ width: 5, height: 5, borderRadius: "50%", background: C.accentDeep }} />
-              sleep
+              wake
             </span>
           </div>
         </div>
@@ -5802,23 +5822,28 @@ export default function App() {
 
   useEffect(function () {
     if (!supaReady()) {
-      setHabits([DEFAULT_GYM_HABIT]);
+      setHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
       setBooted(true);
       return;
     }
     D.loadAll()
       .then(function (data) {
         if (!data) {
-          setHabits([DEFAULT_GYM_HABIT]);
+          setHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
           setBooted(true);
           return;
         }
         var isFresh = data.habits.length === 0 && data.cycles.length === 0 && Object.keys(data.logs).length === 0;
         if (isFresh) {
-          setHabits([DEFAULT_GYM_HABIT]);
+          setHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
           D.fireAndForget(D.upsertHabit(DEFAULT_GYM_HABIT, 0), "seed-gym");
+          D.fireAndForget(D.upsertHabit(DEFAULT_WAKE_HABIT, 1), "seed-wake");
         } else {
-          setHabits(data.habits);
+          var ensured = ensureWakeHabit(data.habits);
+          setHabits(ensured.habits);
+          if (ensured.seeded) {
+            D.fireAndForget(D.upsertHabit(ensured.seeded, ensured.habits.length - 1), "seed-wake");
+          }
         }
         setComp(data.comp);
         setLogs(data.logs);
@@ -5828,7 +5853,7 @@ export default function App() {
       .catch(function (e) {
         console.error("[boot] loadAll failed:", e);
         setBootErr(String(e && e.message ? e.message : e));
-        setHabits([DEFAULT_GYM_HABIT]);
+        setHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
         setBooted(true);
       });
   }, []);
@@ -5862,6 +5887,9 @@ export default function App() {
   }
   var gym = habits.find(function (h) {
     return h.icon === ICON_GYM;
+  });
+  var wake = habits.find(function (h) {
+    return h.icon === ICON_WAKE;
   });
 
   function isComp(id) {
@@ -6264,6 +6292,7 @@ export default function App() {
   function addHabit() {
     if (!newName.trim() || !newDays.length) return;
     if (newIconId === ICON_GYM && gym) return;
+    if (newIconId === ICON_WAKE && wake) return;
     var id = Date.now();
     var newH = { id: id, name: newName.trim(), icon: newIconId, scheduledDays: newDays };
     var sortIdx = habits.length;
@@ -6475,7 +6504,7 @@ export default function App() {
                     gymOrphan = gym && habit.id === gym.id && done && !workoutLogHasDetails(logs[selDay]);
                   return (
                     <div key={habit.id} className={"hab" + (pop ? " glow" : "") + (done ? " gt-card-done" : " gt-card")} style={{ borderRadius: 18, padding: "14px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: done ? "0 2px 18px rgba(0,0,0,0.35), 0 0 0 1px rgba(200,204,212,0.2)" : "0 3px 12px rgba(0,0,0,0.22)", transition: "box-shadow 0.4s ease" }}>
-                      <button type="button" aria-pressed={done} aria-label={(done ? "Unmark " : "Mark ") + habit.name + " for " + selDay} className={"chk gt-focus-ring" + (pop ? " chk-celebrate" : "") + (habit.icon === ICON_GYM ? " gt-shimmer gt-shimmer-ring" : "")} onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "2px solid rgba(212,216,224,0.55)" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "inset 0 1px 0 rgba(255,255,255,0.12), 0 4px 14px rgba(0,0,0,0.38)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
+                      <button type="button" aria-pressed={done} aria-label={(done ? "Unmark " : "Mark ") + habit.name + " for " + selDay} className={"chk gt-focus-ring" + (pop ? " chk-celebrate" : "") + (habit.icon === ICON_GYM || habit.icon === ICON_WAKE ? " gt-shimmer gt-shimmer-ring" : "")} onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "2px solid rgba(212,216,224,0.55)" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "inset 0 1px 0 rgba(255,255,255,0.12), 0 4px 14px rgba(0,0,0,0.38)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
                         {done && (
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ animation: pop ? "checkPop 0.8s cubic-bezier(0.34,1.56,0.64,1) both" : "none" }}>
                             <path d="M4 10.5L8.5 15L16 6" stroke={C.onAccent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -6810,12 +6839,14 @@ export default function App() {
               <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 18px" }} />
               <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 18 }}>New Habit</div>
               {gym && newIconId === ICON_GYM && <div style={{ background: C.red, borderRadius: 9, padding: "7px 11px", marginBottom: 10, fontSize: 12, color: C.redT, fontWeight: 600 }}>You already have a gym habit.</div>}
+              {wake && newIconId === ICON_WAKE && <div style={{ background: C.red, borderRadius: 9, padding: "7px 11px", marginBottom: 10, fontSize: 12, color: C.redT, fontWeight: 600 }}>You already have a wake habit.</div>}
               <div style={{ marginBottom: 16 }}>
                 <div id="habit-icon-label" style={{ fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Icon
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }} aria-labelledby="habit-icon-label">
                   {HABIT_ICON_ORDER.map(function (hid) {
+                    var locked = (hid === ICON_GYM && gym) || (hid === ICON_WAKE && wake);
                     return (
                       <button
                         key={hid}
@@ -6831,7 +6862,7 @@ export default function App() {
                           background: newIconId === hid ? C.gl : C.panel,
                           border: "2px solid " + (newIconId === hid ? C.accent : C.border),
                           cursor: "pointer",
-                          opacity: hid === ICON_GYM && gym ? 0.4 : 1,
+                          opacity: locked ? 0.4 : 1,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -6878,7 +6909,7 @@ export default function App() {
                   {newDays.length === 7 ? "Every day" : newDays.length === 0 ? "Pick at least one day" : newDays.map(function (d) { return DL[d]; }).join(", ")}
                 </div>
               </div>
-              <button type="button" className="gt-focus-ring" onClick={addHabit} style={{ width: "100%", padding: "14px", borderRadius: 16, background: newName.trim() && newDays.length && !(newIconId === ICON_GYM && gym) ? C.gradCTA : C.border, border: "none", color: newName.trim() && newDays.length && !(newIconId === ICON_GYM && gym) ? C.onAccent : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
+              <button type="button" className="gt-focus-ring" onClick={addHabit} style={{ width: "100%", padding: "14px", borderRadius: 16, background: newName.trim() && newDays.length && !(newIconId === ICON_GYM && gym) && !(newIconId === ICON_WAKE && wake) ? C.gradCTA : C.border, border: "none", color: newName.trim() && newDays.length && !(newIconId === ICON_GYM && gym) && !(newIconId === ICON_WAKE && wake) ? C.onAccent : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
                 Add Habit
               </button>
               <button type="button" className="gt-focus-ring" onClick={() => setShowAdd(false)} style={{ width: "100%", padding: "11px", borderRadius: 16, background: "none", border: "none", color: C.muted, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
