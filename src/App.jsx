@@ -1380,9 +1380,33 @@ function DataTab(props) {
         <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Your Data</div>
       </div>
       <div style={{ padding: "0 16px" }}>
-        <div className="gt-card" style={{ borderRadius: 14, padding: 0, overflow: "hidden" }}>
-          <div style={{ maxHeight: 420, overflow: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+        <div className="gt-card" data-no-tab-swipe style={{ borderRadius: 14, padding: 0, overflow: "hidden", width: "100%" }}>
+          <div
+            data-no-tab-swipe
+            style={{
+              maxHeight: "min(58vh, 520px)",
+              overflowX: "hidden",
+              overflowY: "auto",
+              touchAction: "pan-y",
+              WebkitOverflowScrolling: "touch",
+            }}
+          >
+            <table
+              style={{
+                width: "100%",
+                maxWidth: "100%",
+                tableLayout: "fixed",
+                borderCollapse: "collapse",
+                fontSize: 11,
+              }}
+            >
+              <colgroup>
+                <col style={{ width: "40%" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "15%" }} />
+              </colgroup>
               <thead>
                 <tr>
                   {["Date", "BW", "Cal", "Sets", "Cardio"].map(function (h) {
@@ -1399,7 +1423,7 @@ function DataTab(props) {
                           textTransform: "uppercase",
                           letterSpacing: 0.4,
                           textAlign: h === "Date" ? "left" : "right",
-                          padding: "8px 10px",
+                          padding: h === "Date" ? "8px 8px" : "8px 4px",
                           borderBottom: "1px solid " + C.border,
                           zIndex: 1,
                         }}
@@ -1414,22 +1438,34 @@ function DataTab(props) {
                 {rows.map(function (r) {
                   return (
                     <tr key={r.dateKey}>
-                      <td style={{ padding: "7px 10px", color: C.text, borderBottom: "1px solid " + C.border, whiteSpace: "nowrap" }}>{r.dateLabel}</td>
-                      <td style={{ padding: "7px 10px", color: C.text, borderBottom: "1px solid " + C.border, textAlign: "right" }}>{cellText(r.bodyweight)}</td>
-                      <td style={{ padding: "7px 10px", color: C.text, borderBottom: "1px solid " + C.border, textAlign: "right" }}>{cellText(r.calories)}</td>
-                      <td style={{ padding: "7px 10px", color: C.text, borderBottom: "1px solid " + C.border, textAlign: "right" }}>{cellText(r.sets)}</td>
-                      <td style={{ padding: "7px 10px", color: C.text, borderBottom: "1px solid " + C.border, textAlign: "right" }}>{cellText(r.cardio)}</td>
+                      <td
+                        style={{
+                          padding: "7px 8px",
+                          color: C.text,
+                          borderBottom: "1px solid " + C.border,
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                          lineHeight: 1.25,
+                          overflowWrap: "anywhere",
+                        }}
+                      >
+                        {r.dateLabel}
+                      </td>
+                      <td style={{ padding: "7px 4px", color: C.text, borderBottom: "1px solid " + C.border, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis" }}>{cellText(r.bodyweight)}</td>
+                      <td style={{ padding: "7px 4px", color: C.text, borderBottom: "1px solid " + C.border, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis" }}>{cellText(r.calories)}</td>
+                      <td style={{ padding: "7px 4px", color: C.text, borderBottom: "1px solid " + C.border, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis" }}>{cellText(r.sets)}</td>
+                      <td style={{ padding: "7px 4px", color: C.text, borderBottom: "1px solid " + C.border, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis" }}>{cellText(r.cardio)}</td>
                     </tr>
                   );
                 })}
               </tbody>
               <tfoot>
                 <tr>
-                  <td style={{ padding: "9px 10px", color: C.accent, fontWeight: 700 }}>Average</td>
-                  <td style={{ padding: "9px 10px", color: C.accent, fontWeight: 700, textAlign: "right" }}>{avgBw != null ? avgBw : "\u00A0"}</td>
-                  <td style={{ padding: "9px 10px", color: C.accent, fontWeight: 700, textAlign: "right" }}>{avgCal != null ? avgCal : "\u00A0"}</td>
-                  <td style={{ padding: "9px 10px", color: C.accent, fontWeight: 700, textAlign: "right" }}>{avgSets != null ? avgSets : "\u00A0"}</td>
-                  <td style={{ padding: "9px 10px", color: C.accent, fontWeight: 700, textAlign: "right" }}>{avgCardio != null ? avgCardio : "\u00A0"}</td>
+                  <td style={{ padding: "9px 8px", color: C.accent, fontWeight: 700 }}>Average</td>
+                  <td style={{ padding: "9px 4px", color: C.accent, fontWeight: 700, textAlign: "right" }}>{avgBw != null ? avgBw : "\u00A0"}</td>
+                  <td style={{ padding: "9px 4px", color: C.accent, fontWeight: 700, textAlign: "right" }}>{avgCal != null ? avgCal : "\u00A0"}</td>
+                  <td style={{ padding: "9px 4px", color: C.accent, fontWeight: 700, textAlign: "right" }}>{avgSets != null ? avgSets : "\u00A0"}</td>
+                  <td style={{ padding: "9px 4px", color: C.accent, fontWeight: 700, textAlign: "right" }}>{avgCardio != null ? avgCardio : "\u00A0"}</td>
                 </tr>
               </tfoot>
             </table>
