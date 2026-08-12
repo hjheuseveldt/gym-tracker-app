@@ -1269,6 +1269,9 @@ function DataTab(props) {
           if (!d) return;
           m[d] = (m[d] || 0) + (Number(r.calories) || 0);
         });
+        Object.keys(m).forEach(function (d) {
+          m[d] = Math.round(m[d]);
+        });
         setCalMap(m);
       });
     return function () {
