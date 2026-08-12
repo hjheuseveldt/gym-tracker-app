@@ -269,6 +269,17 @@ export function ICoach(props) {
   );
 }
 
+export function IPercent(props) {
+  var c = props.color || DEF;
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="7.5" cy="7.5" r="2.75" />
+      <circle cx="16.5" cy="16.5" r="2.75" />
+      <path d="M17.5 6.5L6.5 17.5" />
+    </svg>
+  );
+}
+
 export function IconKpiSleep(props) {
   var c = props.color || DEF,
     s = props.size || 18;

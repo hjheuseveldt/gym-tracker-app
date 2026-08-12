@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect, useLayoutEffect, useId } from "react";
 import { createPortal } from "react-dom";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import { supabase, supaReady } from "./supabase.js";
 import * as D from "./data.js";
 import {
   IToday,
   ICal,
   IGainz,
-  ICycles,
   ISettings,
   ISleep,
   IFlame,
-  ICoach,
+  IPercent,
   IconKpiSleep,
   IconKpiWorkout,
   IconKpiHabit,
@@ -36,9 +37,8 @@ import {
 var APP_NAV_TABS = [
   { id: "home", label: "Today", Icon: IToday },
   { id: "calendar", label: "Calendar", Icon: ICal },
-  { id: "coach", label: "Coach", Icon: ICoach },
   { id: "gainz", label: "Gainz", Icon: IGainz },
-  { id: "cycles", label: "Cycles", Icon: ICycles },
+  { id: "data", label: "Data", Icon: IPercent },
   { id: "sleep", label: "Sleep", Icon: ISleep },
   { id: "calories", label: "Calories", Icon: IFlame },
   { id: "settings", label: "Settings", Icon: ISettings },
@@ -113,19 +113,6 @@ var MN = [
   "December",
 ];
 var MG = ["Biceps", "Triceps", "Chest", "Shoulders", "Back", "Legs", "Core"];
-var CT = ["Bulk", "Cut", "Maintain", "Recomp", "Custom"];
-var PAL = [
-  "#C8CCD4",
-  "#E05050",
-  "#40B870",
-  "#9060E0",
-  "#D4A020",
-  "#E07840",
-  "#C060A0",
-  "#50B8C0",
-  "#8080C0",
-  "#A0A040",
-];
 
 /** Local calendar date YYYY-MM-DD (do not use UTC / toISOString — breaks timezones behind UTC). */
 function dk(d) {
@@ -170,26 +157,14 @@ function fmtDS(k) {
   var p = k.split("-");
   return MN[+p[1] - 1].slice(0, 3) + " " + parseInt(p[2]) + ", " + p[0];
 }
-function cycleAt(cycles, k) {
-  for (var i = 0; i < cycles.length; i++) {
-    if (k >= cycles[i].start && k <= cycles[i].end) return cycles[i];
-  }
-  return null;
-}
-function cc(hex) {
-  var r = parseInt(hex.slice(1, 3), 16),
-    g = parseInt(hex.slice(3, 5), 16),
-    b = parseInt(hex.slice(5, 7), 16);
-  return {
-    bar: hex,
-    bg: "rgba(" + r + "," + g + "," + b + ",0.09)",
-    border: "rgba(" + r + "," + g + "," + b + ",0.38)",
-    text: hex,
-  };
+var DL_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+function fmtDataDate(k) {
+  var p = k.split("-");
+  var d = new Date(k + "T12:00:00");
+  return DL_LONG[d.getDay()] + " " + MN[+p[1] - 1] + " " + parseInt(p[2], 10) + ", " + p[0];
 }
 
 var HABITS = [];
-var CYCLES = [];
 var COMP = {};
 var LOGS = {};
 var DEFAULT_GYM_HABIT = { id: 3, name: "Gym", icon: ICON_GYM, scheduledDays: [1, 2, 3, 4, 5] };
@@ -249,7 +224,6 @@ function BarChart(props) {
 }
 function BwChart(props) {
   var pts = props.points || [];
-  var cycle = props.cycle;
   var canvasRef = useRef(null);
   var wrapRef = useRef(null);
   var draggingRef = useRef(false);
@@ -402,7 +376,7 @@ function BwChart(props) {
   var delta = null;
   if (scrub && latest) delta = latest.val - scrub.val;
   else if (!scrub && first && latest && pts.length >= 2) delta = latest.val - first.val;
-  var deltaCol = bwDeltaColorForCycle(delta, cycle);
+  var deltaCol = bwDeltaColor(delta);
   var dateLabel = null;
   if (scrub) {
     if (scrub.label) dateLabel = scrub.label;
@@ -798,8 +772,7 @@ function CalView(props) {
     cy = props.calYear,
     cm = props.calMonth,
     tk = props.todayKey;
-  var wl = props.wl || {},
-    cycles = props.cycles || [];
+  var wl = props.wl || {};
   var isGym = h.icon === ICON_GYM;
   var dkS = useState(null);
   var detK = dkS[0],
@@ -824,11 +797,6 @@ function CalView(props) {
   var mDone = Object.keys(done).filter(function (k) {
     return k.startsWith(prefix) && done[k];
   }).length;
-  var activeCycs = isGym
-    ? cycles.filter(function (c) {
-        return c.start <= prefix + "-31" && c.end >= prefix + "-01";
-      })
-    : [];
   return (
     <div style={{ padding: "0 16px 16px", position: "relative" }}>
       {detK && wl[detK] && <WkDetail log={wl[detK]} dateKey={detK} onClose={() => setDetK(null)} />}
@@ -844,22 +812,6 @@ function CalView(props) {
           <div style={{ fontSize: 12, color: C.muted }}>Tap days to toggle</div>
         </div>
       </div>
-      {activeCycs.map(function (cyc) {
-        var col = cc(cyc.color || PAL[0]);
-        return (
-          <div key={cyc.id} style={{ background: col.bg, border: "1.5px solid " + col.border, borderRadius: 12, padding: "8px 12px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: col.bar, flexShrink: 0 }} />
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: col.text }}>
-                {cyc.name} ({cyc.type})
-              </div>
-              <div style={{ fontSize: 10, color: col.text, opacity: 0.7 }}>
-                {fmtDS(cyc.start)} to {fmtDS(cyc.end)} - {cyc.calories} kcal
-              </div>
-            </div>
-          </div>
-        );
-      })}
       <div className="gt-card" style={{display: "flex", alignItems: "center", justifyContent: "space-between",borderRadius: 14, padding: "10px 14px", marginBottom: 12}}>
         <button
           type="button"
@@ -906,8 +858,6 @@ function CalView(props) {
               isFut = k > tk,
               sched = isSched(day);
             var hasLog = isGym && isDone && !!wl[k];
-            var cyc = isGym ? cycleAt(cycles, k) : null;
-            var col = cyc ? cc(cyc.color || PAL[0]) : null;
             var cantUse = isFut || !sched;
             return (
               <button
@@ -934,8 +884,8 @@ function CalView(props) {
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  background: isDone ? C.green : isT ? C.gl : col ? col.bg : "transparent",
-                  border: isT && !isDone ? "2px solid " + C.accent : col && !isDone ? "2px solid " + col.border : "2px solid transparent",
+                  background: isDone ? C.green : isT ? C.gl : "transparent",
+                  border: isT && !isDone ? "2px solid " + C.accent : "2px solid transparent",
                   opacity: isFut ? 0.28 : !sched ? 0.22 : 1,
                   position: "relative",
                   cursor: !cantUse ? "pointer" : "default",
@@ -976,8 +926,7 @@ function CalView(props) {
 function GainzTab(props) {
   var wl = props.wl,
     gym = props.gym,
-    comp = props.comp,
-    cycles = props.cycles || [];
+    comp = props.comp;
   var todayKey = props.todayKey != null ? props.todayKey : today();
   var rS = useState("1M");
   var range = rS[0],
@@ -1086,8 +1035,7 @@ function GainzTab(props) {
       bwMoChg = latBw - wl[inWinBw[0]].bodyweight;
     }
   }
-  var activeCycGw = cycleAt(cycles, todayKey);
-  var bwSummaryCol = bwDeltaColorForCycle(bwMoChg, activeCycGw);
+  var bwSummaryCol = bwDeltaColor(bwMoChg);
   var mwd = MG.filter(function (m) {
     return twMS[m] > 0 || lwMS[m] > 0;
   });
@@ -1241,7 +1189,7 @@ function GainzTab(props) {
                 })}
               </div>
             </div>
-            {bwPts.length >= 2 ? <BwChart points={bwPts} cycle={activeCycGw} /> : <div style={{ textAlign: "center", padding: "16px 0", color: C.muted, fontSize: 13 }}>Log 2+ sessions to see trend.</div>}
+            {bwPts.length >= 2 ? <BwChart points={bwPts} /> : <div style={{ textAlign: "center", padding: "16px 0", color: C.muted, fontSize: 13 }}>Log 2+ sessions to see trend.</div>}
           </div>
           <div className="gt-card" style={{borderRadius: 14, padding: "14px"}}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Sets per Muscle - This Week</div>
@@ -1296,281 +1244,215 @@ function GainzTab(props) {
   );
 }
 
-function CyclesTab(props) {
-  var cycles = props.cycles,
-    setCycles = props.setCycles;
-  var sfS = useState(false);
-  var sf = sfS[0],
-    setSf = sfS[1];
-  var edS = useState(null);
-  var ed = edS[0],
-    setEd = edS[1];
-  var fnS = useState(""),
-    ftS = useState("Bulk"),
-    fsS = useState(""),
-    feS = useState(""),
-    fcaS = useState(""),
-    fsuS = useState(""),
-    fcoS = useState(PAL[0]);
-  var fn = fnS[0],
-    setFn = fnS[1],
-    ft = ftS[0],
-    setFt = ftS[1],
-    fs = fsS[0],
-    setFs = fsS[1],
-    fe = feS[0],
-    setFe = feS[1];
-  var fca = fcaS[0],
-    setFca = fcaS[1],
-    fsu = fsuS[0],
-    setFsu = fsuS[1],
-    fco = fcoS[0],
-    setFco = fcoS[1];
-  function openNew() {
-    setEd(null);
-    setFn("");
-    setFt("Bulk");
-    setFs("");
-    setFe("");
-    setFca("");
-    setFsu("");
-    setFco(PAL[0]);
-    setSf(true);
-  }
-  function openEdit(c) {
-    setEd(c.id);
-    setFn(c.name);
-    setFt(c.type);
-    setFs(c.start);
-    setFe(c.end);
-    setFca(String(c.calories));
-    setFsu(c.supplements || "");
-    setFco(c.color || PAL[0]);
-    setSf(true);
-  }
-  function save() {
-    if (!fn.trim() || !fs || !fe) return;
-    var e = { id: ed || Date.now(), name: fn.trim(), type: ft, color: fco, start: fs, end: fe, calories: parseInt(fca, 10) || 0, supplements: fsu.trim() };
-    setCycles(function (p) {
-      if (ed) return p.map(function (c) { return c.id === ed ? e : c; });
-      return p.concat([e]).sort(function (a, b) { return a.start < b.start ? -1 : 1; });
+function DataTab(props) {
+  var wl = props.wl || {};
+  var habits = props.habits || [];
+  var comp = props.comp || {};
+  var sleep = props.sleep || {};
+  var todayKey = props.todayKey || today();
+
+  var calS = useState({});
+  var calMap = calS[0],
+    setCalMap = calS[1];
+
+  useEffect(function () {
+    if (!supaReady()) return;
+    var aborted = false;
+    supabase
+      .from("food_log")
+      .select("log_date, calories")
+      .then(function (res) {
+        if (aborted || res.error) return;
+        var m = {};
+        (res.data || []).forEach(function (r) {
+          var d = r.log_date;
+          if (!d) return;
+          m[d] = (m[d] || 0) + (Number(r.calories) || 0);
+        });
+        setCalMap(m);
+      });
+    return function () {
+      aborted = true;
+    };
+  }, []);
+
+  var allKeys = [];
+  Object.keys(wl).forEach(function (k) {
+    allKeys.push(k);
+  });
+  Object.keys(comp).forEach(function (hid) {
+    Object.keys(comp[hid] || {}).forEach(function (k) {
+      allKeys.push(k);
     });
-    D.fireAndForget(D.upsertCycle(e), "saveCycle");
-    setSf(false);
+  });
+  Object.keys(sleep).forEach(function (k) {
+    allKeys.push(k);
+  });
+  Object.keys(calMap).forEach(function (k) {
+    allKeys.push(k);
+  });
+
+  var startKey = todayKey;
+  allKeys.forEach(function (k) {
+    if (k < startKey) startKey = k;
+  });
+
+  var rows = [];
+  var cur = startKey;
+  while (cur <= todayKey) {
+    var log = wl[cur];
+    var bw = log && log.bodyweight != null && log.bodyweight !== "" ? log.bodyweight : null;
+    var cal = Object.prototype.hasOwnProperty.call(calMap, cur) ? calMap[cur] : null;
+    var setsTotal = setsTotalOn(wl, cur);
+    var sets = setsTotal > 0 ? setsTotal : null;
+    var cardio =
+      log && log.cardio_minutes != null && log.cardio_minutes !== "" && Number.isFinite(Number(log.cardio_minutes))
+        ? Math.max(0, Math.round(Number(log.cardio_minutes)))
+        : null;
+    rows.push({ dateKey: cur, dateLabel: fmtDataDate(cur), bodyweight: bw, calories: cal, sets: sets, cardio: cardio });
+    cur = addDays(cur, 1);
   }
-  var tk = today(),
-    active = cycleAt(cycles, tk);
+
+  function avgOf(key, decimals) {
+    var vals = rows
+      .map(function (r) {
+        return r[key];
+      })
+      .filter(function (v) {
+        return v != null;
+      });
+    if (!vals.length) return null;
+    var sum = vals.reduce(function (a, b) {
+      return a + b;
+    }, 0);
+    var avg = sum / vals.length;
+    return decimals ? avg.toFixed(decimals) : Math.round(avg);
+  }
+
+  var avgBw = avgOf("bodyweight", 1);
+  var avgCal = avgOf("calories", 0);
+  var avgSets = avgOf("sets", 0);
+  var avgCardio = avgOf("cardio", 0);
+
+  function cellText(v) {
+    return v == null ? "\u00A0" : String(v);
+  }
+
+  function exportPdf() {
+    var doc = new jsPDF();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("Gainz Data", 14, 16);
+    var head = [["Date", "BW", "Cal", "Sets", "Cardio"]];
+    var body = rows.map(function (r) {
+      return [
+        r.dateLabel,
+        r.bodyweight != null ? r.bodyweight : "",
+        r.calories != null ? r.calories : "",
+        r.sets != null ? r.sets : "",
+        r.cardio != null ? r.cardio : "",
+      ];
+    });
+    body.push([
+      "Average",
+      avgBw != null ? avgBw : "",
+      avgCal != null ? avgCal : "",
+      avgSets != null ? avgSets : "",
+      avgCardio != null ? avgCardio : "",
+    ]);
+    autoTable(doc, {
+      startY: 22,
+      head: head,
+      body: body,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [42, 48, 64] },
+    });
+    doc.save("gainz-data-" + todayKey + ".pdf");
+  }
+
   return (
-    <div style={{ paddingBottom: 16, position: "relative" }}>
-      <div style={{ padding: "16px 24px 12px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Cycles</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>My Cycles</div>
+    <div style={{ paddingBottom: 24 }}>
+      <div style={{ padding: "16px 24px 14px" }}>
+        <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Data</div>
+        <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Your Data</div>
+      </div>
+      <div style={{ padding: "0 16px" }}>
+        <div className="gt-card" style={{ borderRadius: 14, padding: 0, overflow: "hidden" }}>
+          <div style={{ maxHeight: 420, overflow: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr>
+                  {["Date", "BW", "Cal", "Sets", "Cardio"].map(function (h) {
+                    return (
+                      <th
+                        key={h}
+                        style={{
+                          position: "sticky",
+                          top: 0,
+                          background: C.sheet,
+                          color: C.muted,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: 0.4,
+                          textAlign: h === "Date" ? "left" : "right",
+                          padding: "8px 10px",
+                          borderBottom: "1px solid " + C.border,
+                          zIndex: 1,
+                        }}
+                      >
+                        {h}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(function (r) {
+                  return (
+                    <tr key={r.dateKey}>
+                      <td style={{ padding: "7px 10px", color: C.text, borderBottom: "1px solid " + C.border, whiteSpace: "nowrap" }}>{r.dateLabel}</td>
+                      <td style={{ padding: "7px 10px", color: C.text, borderBottom: "1px solid " + C.border, textAlign: "right" }}>{cellText(r.bodyweight)}</td>
+                      <td style={{ padding: "7px 10px", color: C.text, borderBottom: "1px solid " + C.border, textAlign: "right" }}>{cellText(r.calories)}</td>
+                      <td style={{ padding: "7px 10px", color: C.text, borderBottom: "1px solid " + C.border, textAlign: "right" }}>{cellText(r.sets)}</td>
+                      <td style={{ padding: "7px 10px", color: C.text, borderBottom: "1px solid " + C.border, textAlign: "right" }}>{cellText(r.cardio)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td style={{ padding: "9px 10px", color: C.accent, fontWeight: 700 }}>Average</td>
+                  <td style={{ padding: "9px 10px", color: C.accent, fontWeight: 700, textAlign: "right" }}>{avgBw != null ? avgBw : "\u00A0"}</td>
+                  <td style={{ padding: "9px 10px", color: C.accent, fontWeight: 700, textAlign: "right" }}>{avgCal != null ? avgCal : "\u00A0"}</td>
+                  <td style={{ padding: "9px 10px", color: C.accent, fontWeight: 700, textAlign: "right" }}>{avgSets != null ? avgSets : "\u00A0"}</td>
+                  <td style={{ padding: "9px 10px", color: C.accent, fontWeight: 700, textAlign: "right" }}>{avgCardio != null ? avgCardio : "\u00A0"}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
-        <button onClick={openNew} style={{ width: 40, height: 40, borderRadius: "50%", background: C.gradCTA, border: "none", color: C.onAccent, fontSize: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: C.shadowCTASoft, lineHeight: 1, fontWeight: 300 }}>
-          +
+        <button
+          type="button"
+          onClick={exportPdf}
+          style={{
+            width: "100%",
+            marginTop: 14,
+            padding: "14px",
+            borderRadius: 16,
+            background: C.gradCTA,
+            border: "none",
+            color: C.onAccent,
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: "pointer",
+            fontFamily: "'DM Sans',sans-serif",
+            boxShadow: C.shadowCTA,
+          }}
+        >
+          Export as PDF
         </button>
       </div>
-      {active &&
-        (function () {
-          var col = cc(active.color || PAL[0]);
-          return (
-            <div style={{ margin: "0 16px 12px", background: col.bg, border: "1.5px solid " + col.border, borderRadius: 14, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: col.text, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 }}>Active Now</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: col.text, marginBottom: 2 }}>{active.name}</div>
-              <div style={{ fontSize: 12, color: col.text, opacity: 0.8 }}>
-                {active.type} - {active.calories} kcal/day
-              </div>
-              {active.supplements && <div style={{ fontSize: 11, color: col.text, opacity: 0.7, marginTop: 3 }}>{active.supplements}</div>}
-            </div>
-          );
-        })()}
-      <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-        {cycles.length === 0 && (
-          <div className="gt-card" style={{display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 20px",borderRadius: 20, border: "1.5px dashed " + C.border}}>
-            <div style={{ marginBottom: 10, display: "flex", justifyContent: "center", lineHeight: 0 }}>
-              <IconUiChartTrend size={40} color={C.accent} />
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 4 }}>No cycles yet</div>
-            <div style={{ fontSize: 13, color: C.muted, textAlign: "center", marginBottom: 18 }}>Track bulk, cut, or recomp phases.</div>
-            <button onClick={openNew} style={{ padding: "11px 24px", borderRadius: 99, background: C.gradCTA, border: "none", color: C.onAccent, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-              Add first cycle
-            </button>
-          </div>
-        )}
-        {cycles.map(function (cyc) {
-          var col = cc(cyc.color || PAL[0]);
-          var isA = tk >= cyc.start && tk <= cyc.end,
-            isP = tk > cyc.end;
-          return (
-            <div key={cyc.id} className="gt-card" style={{borderRadius: 18, border: "1.5px solid " + (isA ? col.border : C.border), overflow: "hidden"}}>
-              <div style={{ height: 4, background: col.bar, opacity: isP ? 0.4 : 1 }} />
-              <div style={{ padding: "12px 14px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{cyc.name}</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: col.bar, background: col.bg, border: "1px solid " + col.border, borderRadius: 99, padding: "1px 7px" }}>{cyc.type}</span>
-                      {isA && <span style={{ fontSize: 10, fontWeight: 700, color: C.accent, background: C.gl, border: "1px solid " + C.gm, borderRadius: 99, padding: "1px 7px" }}>Active</span>}
-                      {isP && <span style={{ fontSize: 10, color: C.muted, background: C.border, borderRadius: 99, padding: "1px 7px" }}>Past</span>}
-                    </div>
-                    <div style={{ fontSize: 11, color: C.muted }}>
-                      {fmtDS(cyc.start)} to {fmtDS(cyc.end)}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 5 }}>
-                    <button onClick={() => openEdit(cyc)} style={{ padding: "4px 10px", borderRadius: 8, background: C.gl, border: "none", color: C.gd, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                      Edit
-                    </button>
-                    <button
-                      onClick={function () {
-                        var delId = cyc.id;
-                        setCycles(function (p) {
-                          return p.filter(function (c) {
-                            return c.id !== delId;
-                          });
-                        });
-                        D.fireAndForget(D.deleteCycle(delId), "deleteCycle");
-                      }}
-                      style={{ padding: "4px 10px", borderRadius: 8, background: C.red, border: "none", color: C.redT, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
-                    >
-                      Del
-                    </button>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <div style={{ flex: 1, background: C.bg, borderRadius: 8, padding: "8px 10px" }}>
-                    <div style={{ fontSize: 10, color: C.muted, marginBottom: 1 }}>Calories</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{cyc.calories ? cyc.calories.toLocaleString() : "\u2013"}</div>
-                    <div style={{ fontSize: 9, color: C.muted }}>kcal/day</div>
-                  </div>
-                  {cyc.supplements && (
-                    <div style={{ flex: 2, background: C.bg, borderRadius: 8, padding: "8px 10px" }}>
-                      <div style={{ fontSize: 10, color: C.muted, marginBottom: 1 }}>Supplements</div>
-                      <div style={{ fontSize: 11, color: C.text, lineHeight: 1.4 }}>{cyc.supplements}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {sf && (
-        <div className="gt-scrim" style={{ position: "absolute", inset: 0, background: C.scrimMed, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
-          <div onClick={function (e) { e.stopPropagation(); }} className="gt-sheet" style={{ borderRadius: "28px 28px 0 0", padding: "22px 20px 48px", width: "100%", maxHeight: "92%", overflowY: "auto" }}>
-            <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 14px" }} />
-            <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 16 }}>{ed ? "Edit Cycle" : "New Cycle"}</div>
-            <div style={{ marginBottom: 14 }}>
-              <label htmlFor="cycle-name-input" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
-                Name
-              </label>
-              <input id="cycle-name-input" value={fn} onChange={(e) => setFn(e.target.value)} placeholder="e.g. Winter Bulk 2026" className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none" }} />
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <div id="cycle-type-label" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
-                Type
-              </div>
-              <div role="group" aria-labelledby="cycle-type-label" style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {CT.map(function (t) {
-                  var a = ft === t;
-                  return (
-                    <button key={t} type="button" className="gt-focus-ring" aria-pressed={a} onClick={() => setFt(t)} style={{ padding: "8px 14px", borderRadius: 20, background: a ? C.selFill : "transparent", border: "1.5px solid " + (a ? C.selBorder : C.border), color: a ? C.selText : C.text, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", minHeight: 44 }}>
-                      {t}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <div id="cycle-color-label" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
-                Color
-              </div>
-              <div role="group" aria-labelledby="cycle-color-label" style={{ display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center" }}>
-                {PAL.map(function (hex) {
-                  var a = fco === hex;
-                  return (
-                    <button
-                      key={hex}
-                      type="button"
-                      className="gt-focus-ring gt-min-tap"
-                      onClick={() => setFco(hex)}
-                      aria-label={"Cycle color " + hex}
-                      aria-pressed={a}
-                      style={{
-                        width: 44,
-                        height: 44,
-                        flexShrink: 0,
-                        borderRadius: 12,
-                        border: "none",
-                        background: "transparent",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: 0,
-                      }}
-                    >
-                      <span
-                        aria-hidden
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: "50%",
-                          background: hex,
-                          border: a ? "3px solid " + C.text : "3px solid transparent",
-                          boxSizing: "border-box",
-                          boxShadow: a ? "0 0 0 2px rgba(255,255,255,0.88),0 0 0 4px " + hex : "none",
-                        }}
-                      />
-                    </button>
-                  );
-                })}
-                <div style={{ position: "relative", width: 44, height: 44, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span aria-hidden style={{ width: 28, height: 28, borderRadius: "50%", background: "conic-gradient(red,yellow,lime,cyan,blue,magenta,red)", border: "2px solid " + C.border, pointerEvents: "none" }} />
-                  <input type="color" value={fco} onChange={(e) => setFco(e.target.value)} aria-label="Custom cycle color" className="gt-min-tap" style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%", borderRadius: 12 }} />
-                </div>
-              </div>
-              <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}>
-                <div style={{ width: 14, height: 14, borderRadius: 3, background: fco }} />
-                <span style={{ fontSize: 11, color: C.muted }}>{fco}</span>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              <div style={{ flex: 1 }}>
-                <label htmlFor="cycle-start" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
-                  Start
-                </label>
-                <input id="cycle-start" type="date" value={fs} onChange={(e) => setFs(e.target.value)} className="gt-input" style={{ width: "100%", padding: "10px 9px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none" }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label htmlFor="cycle-end" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
-                  End
-                </label>
-                <input id="cycle-end" type="date" value={fe} onChange={(e) => setFe(e.target.value)} className="gt-input" style={{ width: "100%", padding: "10px 9px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none" }} />
-              </div>
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <label htmlFor="cycle-calories" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
-                Daily Calories
-              </label>
-              <input id="cycle-calories" type="number" value={fca} onChange={(e) => setFca(e.target.value)} placeholder="e.g. 3200" className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none" }} />
-            </div>
-            <div style={{ marginBottom: 20 }}>
-              <label htmlFor="cycle-supplements" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
-                Supplements
-              </label>
-              <textarea id="cycle-supplements" value={fsu} onChange={(e) => setFsu(e.target.value)} placeholder="e.g. Creatine 5g, Whey 2x" rows={2} className="gt-input" style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none", resize: "none" }} />
-            </div>
-            <button onClick={save} style={{ width: "100%", padding: "14px", borderRadius: 16, background: fn.trim() && fs && fe ? C.gradCTA : C.border, border: "none", color: fn.trim() && fs && fe ? C.onAccent : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
-              {ed ? "Save Changes" : "Add Cycle"}
-            </button>
-            <button onClick={() => setSf(false)} style={{ width: "100%", padding: "11px", borderRadius: 16, background: "none", border: "none", color: C.muted, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -2609,18 +2491,10 @@ function scaleMacrosPerServing(p, servings) {
   };
 }
 
-/** Gainz summary: color signed delta (lb) from active cycle type. */
-function bwDeltaColorForCycle(deltaLb, activeCycle) {
+/** Gainz summary: color signed bodyweight delta (lb). */
+function bwDeltaColor(deltaLb) {
   if (deltaLb == null || Math.abs(deltaLb) < 0.05) return C.muted;
-  if (!activeCycle || !activeCycle.type) return C.muted;
-  var t = activeCycle.type;
-  if (t === "Bulk") return deltaLb > 0 ? C.accent : C.redT;
-  if (t === "Cut") return deltaLb < 0 ? C.accent : C.redT;
-  if (t === "Maintain" || t === "Recomp" || t === "Custom") {
-    if (Math.abs(deltaLb) <= 1) return C.muted;
-    return C.muted;
-  }
-  return C.muted;
+  return deltaLb > 0 ? C.accent : C.redT;
 }
 
 function AddFoodSheet(props) {
@@ -4541,19 +4415,6 @@ function cellColorForLayer(layer, k, ctx) {
   }
   return null;
 }
-function cycleTintFor(cycles, k) {
-  for (var i = 0; i < cycles.length; i++) {
-    if (k >= cycles[i].start && k <= cycles[i].end) {
-      var c = cycles[i].color || PAL[0];
-      var r = parseInt(c.slice(1, 3), 16),
-        g = parseInt(c.slice(3, 5), 16),
-        b = parseInt(c.slice(5, 7), 16);
-      return "rgba(" + r + "," + g + "," + b + ",0.10)";
-    }
-  }
-  return null;
-}
-
 var LAYER_LEGENDS = {
   wake: ["rgba(224,80,80,0.22)", "rgba(42,48,64,0.38)", "rgba(42,48,64,0.7)", "#1A1F2E"],
   workouts: ["rgba(42,48,64,0.38)", "rgba(42,48,64,0.6)", "rgba(42,48,64,0.82)", "#1A1F2E"],
@@ -4564,7 +4425,6 @@ function UnifiedCalendar(props) {
     comp = props.comp,
     wl = props.wl,
     sleep = props.sleep,
-    cycles = props.cycles,
     tk = props.todayKey;
   var cy = props.calY,
     cm = props.calM;
@@ -4594,7 +4454,6 @@ function UnifiedCalendar(props) {
   function ck(d) {
     return prefix + "-" + String(d).padStart(2, "0");
   }
-  var monthEnd = prefix + "-" + String(days).padStart(2, "0");
   var gymHabit = habits.find(function (h) {
     return h.icon === ICON_GYM;
   });
@@ -4602,10 +4461,6 @@ function UnifiedCalendar(props) {
     return h.icon === ICON_WAKE;
   });
   var ctx = { habits: habits, comp: comp, wl: wl, sleep: sleep, wakeHabit: wakeHabit };
-
-  var visibleCycs = cycles.filter(function (c) {
-    return c.start <= monthEnd && c.end >= prefix + "-01";
-  });
 
   var monthWorkouts = 0;
   Object.keys(wl).forEach(function (kk) {
@@ -4667,7 +4522,6 @@ function UnifiedCalendar(props) {
           comp={comp}
           wl={wl}
           sleep={sleep}
-          cycles={cycles}
           tk={tk}
           onClose={function () {
             setSelDay(null);
@@ -4852,7 +4706,6 @@ function DaySummarySheet(props) {
     comp = props.comp,
     wl = props.wl,
     sleep = props.sleep,
-    cycles = props.cycles,
     tk = props.tk;
   var calS = useState({ loading: false, data: null, error: null });
   var calState = calS[0],
@@ -4885,8 +4738,6 @@ function DaySummarySheet(props) {
 
   var s = sleep[k];
   var l = wl[k];
-  var cyc = cycleAt(cycles, k);
-  var col = cyc ? cc(cyc.color || PAL[0]) : null;
   var hd = habitsDoneOn(habits, comp, k);
   var perfect = isPerfectDay(habits, comp, sleep, k, tk);
   var sched = scheduledHabitsOn(habits, k);
@@ -4957,21 +4808,6 @@ function DaySummarySheet(props) {
             {"\u00D7"}
           </button>
         </div>
-
-        {cyc && col && (
-          <div style={{ background: col.bg, border: "1.5px solid " + col.border, borderRadius: 12, padding: "9px 12px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: col.bar, flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: col.text }}>
-                {cyc.name} <span style={{ fontSize: 10, opacity: 0.7, fontWeight: 500 }}>{"\u00B7 " + cyc.type}</span>
-              </div>
-              <div style={{ fontSize: 10, color: col.text, opacity: 0.75 }}>
-                {cyc.calories ? cyc.calories + " kcal target" : "No kcal target"}
-                {cyc.supplements ? " \u00B7 " + cyc.supplements : ""}
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="gt-card" style={{borderRadius: 14, padding: "12px 14px", marginBottom: 10}}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
@@ -5121,11 +4957,6 @@ function DaySummarySheet(props) {
               <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
                 <span style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1 }}>{Math.round(calTotal).toLocaleString()}</span>
                 <span style={{ fontSize: 12, color: C.muted }}>kcal</span>
-                {cyc && cyc.calories ? (
-                  <span style={{ fontSize: 10, color: calTotal <= cyc.calories ? C.accent : C.redT, fontWeight: 700, marginLeft: "auto" }}>
-                    {calTotal <= cyc.calories ? "\u2193" : "\u2191"} {Math.abs(Math.round(calTotal - cyc.calories))} vs target
-                  </span>
-                ) : null}
               </div>
               <div style={{ display: "flex", gap: 14, fontSize: 11, color: C.text, alignItems: "center" }}>
                 <div>
@@ -5143,701 +4974,6 @@ function DaySummarySheet(props) {
               </div>
             </div>
           )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function buildCoachContext(habits, comp, logs, sleep, cycles, calByDay) {
-  var tk = today();
-  var days30 = [];
-  for (var i = 29; i >= 0; i--) {
-    var d = new Date();
-    d.setDate(d.getDate() - i);
-    days30.push(dk(d));
-  }
-  var days7 = days30.slice(-7);
-
-  var sets30 = {};
-  MG.forEach(function (m) {
-    sets30[m] = 0;
-  });
-  var bw30 = [];
-  var workouts = [];
-  days30.forEach(function (k) {
-    var l = logs[k];
-    if (!l) return;
-    workouts.push(k);
-    if (l.bodyweight) bw30.push({ d: k, bw: l.bodyweight });
-    if (l.sets)
-      Object.keys(l.sets).forEach(function (m) {
-        sets30[m] = (sets30[m] || 0) + (l.sets[m] || 0);
-      });
-  });
-
-  var sleep7 = days7.map(function (k) {
-    var s = sleep[k];
-    if (!s) return { d: k };
-    return {
-      d: k,
-      score: s.score == null ? null : s.score,
-      total_sleep_min: s.total_sleep_duration ? Math.round(s.total_sleep_duration / 60) : null,
-      rem_min: s.rem_sleep_duration ? Math.round(s.rem_sleep_duration / 60) : null,
-      deep_min: s.deep_sleep_duration ? Math.round(s.deep_sleep_duration / 60) : null,
-      hr: s.average_heart_rate == null ? null : s.average_heart_rate,
-      hrv: s.average_hrv == null ? null : s.average_hrv,
-    };
-  });
-  var sleep30Scores = days30
-    .map(function (k) {
-      return sleep[k] && sleep[k].score;
-    })
-    .filter(function (s) {
-      return s != null;
-    });
-
-  var habitsSummary = habits.map(function (h) {
-    var done7 = 0,
-      sched7 = 0;
-    days7.forEach(function (k) {
-      var dow = new Date(k + "T00:00:00").getDay();
-      if (h.scheduledDays.includes(dow)) {
-        sched7++;
-        if (comp[h.id] && comp[h.id][k]) done7++;
-      }
-    });
-    return { name: h.name, icon: h.icon, scheduled_days: h.scheduledDays, done_7d: done7, scheduled_7d: sched7 };
-  });
-
-  var activeCyc = cycleAt(cycles, tk);
-  var cal14 = days30.slice(-14).map(function (k) {
-    var c = (calByDay || {})[k];
-    return c ? { d: k, kcal: c.kcal, protein: c.protein, carbs: c.carbs, fat: c.fat } : { d: k, kcal: null };
-  });
-
-  return {
-    today: tk,
-    timezone: typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : null,
-    workouts_30d: {
-      sessions: workouts.length,
-      sets_per_muscle: sets30,
-      bodyweight_log: bw30,
-      most_recent: workouts.slice(-3).map(function (k) {
-        var log = logs[k];
-        var mr = { d: k, muscles: log.muscles, sets: log.sets, bw: log.bodyweight };
-        var cardioM = cardioMinutesOnLog(log);
-        if (cardioM > 0) mr.cardio_minutes = cardioM;
-        return mr;
-      }),
-    },
-    sleep_7d: sleep7,
-    sleep_30d_avg_score: sleep30Scores.length
-      ? Math.round(
-          sleep30Scores.reduce(function (a, b) {
-            return a + b;
-          }, 0) / sleep30Scores.length
-        )
-      : null,
-    habits_7d: habitsSummary,
-    active_cycle: activeCyc
-      ? {
-          name: activeCyc.name,
-          type: activeCyc.type,
-          start: activeCyc.start,
-          end: activeCyc.end,
-          kcal_target: activeCyc.calories,
-          supplements: activeCyc.supplements || null,
-        }
-      : null,
-    calories_14d: cal14,
-  };
-}
-
-function analyzeCoachSignals(ctx) {
-  var sigs = [];
-  var s7 = (ctx.sleep_7d || []).filter(function (x) {
-    return x.score != null;
-  });
-  if (s7.length >= 3) {
-    var avg7 = Math.round(
-      s7.reduce(function (a, b) {
-        return a + b.score;
-      }, 0) / s7.length
-    );
-    sigs.push({ type: "sleep_7d_avg", value: avg7, label: avg7 < 70 ? "low" : avg7 < 80 ? "moderate" : "good" });
-    if (ctx.sleep_30d_avg_score && avg7 < ctx.sleep_30d_avg_score - 5) {
-      sigs.push({ type: "sleep_declining", recent_avg: avg7, monthly_avg: ctx.sleep_30d_avg_score });
-    }
-    var lastN = s7.slice(-3);
-    if (lastN.length === 3 && lastN.every(function (n) { return n.score < 70; })) {
-      sigs.push({ type: "sleep_3_bad_nights", scores: lastN.map(function (n) { return n.score; }) });
-    }
-  } else if (s7.length === 0) {
-    sigs.push({ type: "sleep_missing" });
-  }
-
-  var w = ctx.workouts_30d;
-  if (w) {
-    var sessionsPerWeek = Math.round((w.sessions / 30) * 7 * 10) / 10;
-    sigs.push({ type: "workout_frequency", sessions_per_week: sessionsPerWeek, sessions_30d: w.sessions });
-    var spm = w.sets_per_muscle || {};
-    var entries = Object.keys(spm)
-      .map(function (m) {
-        return { m: m, v: spm[m] };
-      })
-      .filter(function (e) {
-        return e.v > 0;
-      });
-    if (entries.length >= 2) {
-      entries.sort(function (a, b) {
-        return b.v - a.v;
-      });
-      var top = entries[0],
-        bot = entries[entries.length - 1];
-      if (top.v >= bot.v * 2 && bot.v > 0) {
-        sigs.push({ type: "muscle_imbalance", over: top.m, over_sets: top.v, under: bot.m, under_sets: bot.v });
-      }
-    }
-    var missing = MG.filter(function (m) {
-      return !spm[m] || spm[m] === 0;
-    });
-    if (missing.length && w.sessions > 0) sigs.push({ type: "missing_muscles_30d", missing: missing });
-    var bw = w.bodyweight_log || [];
-    if (bw.length >= 2) {
-      var first = bw[0].bw,
-        last = bw[bw.length - 1].bw;
-      sigs.push({ type: "bodyweight_change_30d", from: first, to: last, delta: Math.round((last - first) * 10) / 10 });
-    }
-  }
-
-  (ctx.habits_7d || []).forEach(function (h) {
-    if (h.scheduled_7d === 0) return;
-    var pct = Math.round((h.done_7d / h.scheduled_7d) * 100);
-    if (pct === 100) sigs.push({ type: "habit_perfect", name: h.name, scheduled: h.scheduled_7d });
-    else if (pct < 50) sigs.push({ type: "habit_lagging", name: h.name, done: h.done_7d, scheduled: h.scheduled_7d, pct: pct });
-  });
-
-  if (ctx.active_cycle) sigs.push({ type: "active_cycle", cycle: ctx.active_cycle });
-  var c14 = (ctx.calories_14d || []).filter(function (c) {
-    return c.kcal != null;
-  });
-  if (c14.length >= 3 && ctx.active_cycle && ctx.active_cycle.kcal_target) {
-    var target = ctx.active_cycle.kcal_target;
-    var over = c14.filter(function (c) {
-      return c.kcal > target + 100;
-    }).length;
-    var under = c14.filter(function (c) {
-      return c.kcal < target - 200;
-    }).length;
-    sigs.push({ type: "calorie_compliance_14d", days_logged: c14.length, days_over_target: over, days_under_target: under, target: target });
-  } else if (c14.length === 0) {
-    sigs.push({ type: "calories_missing" });
-  }
-
-  return sigs;
-}
-
-function hashJson(obj) {
-  var s = JSON.stringify(obj);
-  var h = 5381;
-  for (var i = 0; i < s.length; i++) {
-    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-  }
-  return (h >>> 0).toString(36);
-}
-
-function fmtAgo(ts) {
-  if (!ts) return "never";
-  var s = Math.round((Date.now() - ts) / 1000);
-  if (s < 60) return s + "s ago";
-  if (s < 3600) return Math.round(s / 60) + "m ago";
-  if (s < 86400) return Math.round(s / 3600) + "h ago";
-  return Math.round(s / 86400) + "d ago";
-}
-
-function streamCoachChat(payload, onDelta, onDone, onError) {
-  fetch("/api/coach/chat", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(payload),
-  })
-    .then(function (r) {
-      if (!r.ok || !r.body) {
-        return r
-          .text()
-          .catch(function () {
-            return "";
-          })
-          .then(function (t) {
-            var msg = t;
-            try {
-              var j = JSON.parse(t);
-              if (j && j.error) msg = j.error;
-            } catch (_e) {}
-            onError(msg || "HTTP " + r.status);
-          });
-      }
-      var reader = r.body.getReader();
-      var decoder = new TextDecoder();
-      var buf = "";
-      function pump() {
-        return reader.read().then(function (chunk) {
-          if (chunk.done) {
-            onDone();
-            return;
-          }
-          buf += decoder.decode(chunk.value, { stream: true });
-          var idx;
-          while ((idx = buf.indexOf("\n\n")) !== -1) {
-            var evt = buf.slice(0, idx);
-            buf = buf.slice(idx + 2);
-            var lines = evt.split("\n");
-            var dataLine = null;
-            for (var i2 = 0; i2 < lines.length; i2++) {
-              if (lines[i2].indexOf("data:") === 0) {
-                dataLine = lines[i2];
-                break;
-              }
-            }
-            if (!dataLine) continue;
-            var json = dataLine.slice(5).trim();
-            if (!json || json === "[DONE]") continue;
-            try {
-              var parsed = JSON.parse(json);
-              if (parsed.error) {
-                onError(
-                  (typeof parsed.error === "string" ? parsed.error : parsed.error.message) || "stream error"
-                );
-                continue;
-              }
-              var choice = parsed.choices && parsed.choices[0];
-              var delta = choice && choice.delta;
-              if (delta && typeof delta.content === "string" && delta.content) {
-                onDelta(delta.content);
-              }
-            } catch (_e) {}
-          }
-          return pump();
-        });
-      }
-      return pump();
-    })
-    .catch(function (e) {
-      onError(String((e && e.message) || e));
-    });
-}
-
-function CoachTab(props) {
-  var habits = props.habits,
-    comp = props.comp,
-    logs = props.logs,
-    sleep = props.sleep,
-    cycles = props.cycles;
-
-  var calS = useState({});
-  var calByDay = calS[0],
-    setCalByDay = calS[1];
-  var calLoadedS = useState(false);
-  var calLoaded = calLoadedS[0],
-    setCalLoaded = calLoadedS[1];
-
-  useEffect(function () {
-    if (!supaReady()) {
-      setCalLoaded(true);
-      return;
-    }
-    var start = new Date();
-    start.setDate(start.getDate() - 29);
-    supabase
-      .from("food_log")
-      .select("log_date, calories, protein, carbs, fat")
-      .gte("log_date", dk(start))
-      .then(function (res) {
-        if (res.error) {
-          setCalLoaded(true);
-          return;
-        }
-        var map = {};
-        (res.data || []).forEach(function (r) {
-          if (!map[r.log_date]) map[r.log_date] = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
-          map[r.log_date].kcal += Number(r.calories) || 0;
-          map[r.log_date].protein += Number(r.protein) || 0;
-          map[r.log_date].carbs += Number(r.carbs) || 0;
-          map[r.log_date].fat += Number(r.fat) || 0;
-        });
-        setCalByDay(map);
-        setCalLoaded(true);
-      });
-  }, []);
-
-  var ctx = buildCoachContext(habits, comp, logs, sleep, cycles, calByDay);
-  var signals = analyzeCoachSignals(ctx);
-  var ctxHash = hashJson({ s: signals, w: ctx.workouts_30d.sessions, c: ctx.active_cycle && ctx.active_cycle.name });
-
-  var hlS = useState(function () {
-    try {
-      var raw = localStorage.getItem("coachHighlights");
-      if (!raw) return { loading: false, items: [], hash: null, ts: null, error: null };
-      var p = JSON.parse(raw);
-      return { loading: false, items: p.items || [], hash: p.hash || null, ts: p.ts || null, error: null };
-    } catch (_e) {
-      return { loading: false, items: [], hash: null, ts: null, error: null };
-    }
-  });
-  var hl = hlS[0],
-    setHl = hlS[1];
-
-  function fetchHighlights(force) {
-    if (!calLoaded) return;
-    if (hl.loading) return;
-    if (!force && hl.hash === ctxHash && hl.items.length) return;
-    setHl(function (p) {
-      return Object.assign({}, p, { loading: true, error: null });
-    });
-    fetch("/api/coach/highlights", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ signals: signals, context: ctx }),
-    })
-      .then(function (r) {
-        return r.text().then(function (txt) {
-          var d = null;
-          try {
-            d = JSON.parse(txt);
-          } catch (_e) {}
-          if (!r.ok) throw new Error((d && d.error) || txt || "HTTP " + r.status);
-          return d || {};
-        });
-      })
-      .then(function (d) {
-        var items = d.highlights || [];
-        var rec = { loading: false, items: items, hash: ctxHash, ts: Date.now(), error: null };
-        setHl(rec);
-        try {
-          localStorage.setItem("coachHighlights", JSON.stringify({ items: items, hash: ctxHash, ts: rec.ts }));
-        } catch (_e) {}
-      })
-      .catch(function (e) {
-        setHl(function (p) {
-          return Object.assign({}, p, { loading: false, error: String((e && e.message) || e) });
-        });
-      });
-  }
-
-  var msgsS = useState(function () {
-    try {
-      var raw = localStorage.getItem("coachChat");
-      if (raw) {
-        var arr = JSON.parse(raw);
-        if (Array.isArray(arr)) return arr;
-      }
-    } catch (_e) {}
-    return [];
-  });
-  var msgs = msgsS[0],
-    setMsgs = msgsS[1];
-  var inS = useState("");
-  var inp = inS[0],
-    setInp = inS[1];
-  var streamS = useState(false);
-  var streaming = streamS[0],
-    setStreaming = streamS[1];
-  var errS = useState(null);
-  var err = errS[0],
-    setErr = errS[1];
-  var chatScrollRef = useRef(null);
-
-  useEffect(
-    function () {
-      try {
-        localStorage.setItem("coachChat", JSON.stringify(msgs));
-      } catch (_e) {}
-    },
-    [msgs]
-  );
-
-  useEffect(
-    function () {
-      if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-    },
-    [msgs, streaming]
-  );
-
-  function sendMessage(text) {
-    var t = (text || "").trim();
-    if (!t || streaming) return;
-    setErr(null);
-    var historyForApi = msgs.map(function (m) {
-      return { role: m.role, content: m.content };
-    });
-    historyForApi.push({ role: "user", content: t });
-    var nextLocal = msgs.concat([{ role: "user", content: t }, { role: "assistant", content: "", streaming: true }]);
-    setMsgs(nextLocal);
-    setInp("");
-    setStreaming(true);
-
-    streamCoachChat(
-      { messages: historyForApi, context: ctx },
-      function (delta) {
-        setMsgs(function (p) {
-          if (!p.length) return p;
-          var n = p.slice();
-          var last = n[n.length - 1];
-          n[n.length - 1] = Object.assign({}, last, { content: (last.content || "") + delta });
-          return n;
-        });
-      },
-      function () {
-        setMsgs(function (p) {
-          if (!p.length) return p;
-          var n = p.slice();
-          var last = n[n.length - 1];
-          n[n.length - 1] = Object.assign({}, last, { streaming: false });
-          return n;
-        });
-        setStreaming(false);
-      },
-      function (e) {
-        setErr(e);
-        setMsgs(function (p) {
-          if (!p.length) return p;
-          var n = p.slice();
-          if (n[n.length - 1] && n[n.length - 1].streaming && !n[n.length - 1].content) n.pop();
-          else if (n[n.length - 1]) n[n.length - 1] = Object.assign({}, n[n.length - 1], { streaming: false });
-          return n;
-        });
-        setStreaming(false);
-      }
-    );
-  }
-
-  function clearChat() {
-    setMsgs([]);
-    try {
-      localStorage.removeItem("coachChat");
-    } catch (_e) {}
-  }
-
-  var quickPrompts = ["Plan tomorrow's lift", "Why was my sleep low?", "Am I eating enough?", "What's lagging this week?"];
-  var keyMsgPattern = /NO_KEY|DISABLED|XAI_ENABLED|XAI_API_KEY|not set/;
-  function renderErr(e) {
-    if (!e) return null;
-    if (/DISABLED|XAI_ENABLED/i.test(e)) {
-      return "AI is paused to stop spend. Rotate your xAI key, then set XAI_ENABLED=1 in Vercel and redeploy.";
-    }
-    if (keyMsgPattern.test(e)) return "Add XAI_API_KEY (and XAI_ENABLED=1) in Vercel / .env.local to enable Coach.";
-    return e;
-  }
-
-  return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
-      <div style={{ padding: "12px 22px 6px", flexShrink: 0 }}>
-        <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Coach</div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Insight & Chat</div>
-      </div>
-
-      <div style={{ padding: "0 14px 4px", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: 0.5 }}>
-          HIGHLIGHTS {"\u00B7"} {fmtAgo(hl.ts)}
-        </div>
-        <button
-          onClick={function () { fetchHighlights(true); }}
-          disabled={hl.loading || !calLoaded}
-          style={{
-            background: "none",
-            border: "1.5px solid " + C.border,
-            borderRadius: 99,
-            padding: "3px 11px",
-            fontSize: 11,
-            fontWeight: 600,
-            color: hl.loading ? C.muted : C.accent,
-            cursor: hl.loading ? "default" : "pointer",
-            fontFamily: "'DM Sans',sans-serif",
-          }}
-        >
-          {hl.loading ? "\u2026" : "\u21BB Refresh"}
-        </button>
-      </div>
-
-      <div style={{ flex: "0 0 38%", minHeight: 0, overflowY: "auto", padding: "0 14px 6px" }}>
-        {hl.error && (
-          <div style={{ background: C.red, color: C.redT, padding: "8px 12px", borderRadius: 10, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>
-            {renderErr(hl.error)}
-          </div>
-        )}
-        {!hl.items.length && !hl.loading && !hl.error && (
-          <div className="gt-card" style={{border: "1.5px dashed " + C.border, borderRadius: 14, padding: "14px 14px", textAlign: "center"}}>
-            <div style={{ fontSize: 12, color: C.text, fontWeight: 600, marginBottom: 4 }}>No highlights yet</div>
-            <div style={{ fontSize: 11, color: C.muted }}>Log a few workouts and sleep nights, then tap Refresh.</div>
-          </div>
-        )}
-        {hl.loading && !hl.items.length && (
-          <div style={{ fontSize: 12, color: C.muted, padding: "12px 0", textAlign: "center" }}>Analyzing your data{"\u2026"}</div>
-        )}
-        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-          {hl.items.map(function (c2, i) {
-            var kindCol =
-              c2.kind === "win"
-                ? { bg: "rgba(200,204,212,0.12)", bd: "rgba(212,216,224,0.48)", fg: "#E8EAEF" }
-                : c2.kind === "fix"
-                ? { bg: "rgba(255,95,105,0.12)", bd: "rgba(255,132,140,0.45)", fg: "#FFADB2" }
-                : { bg: "rgba(229,181,60,0.12)", bd: "rgba(245,207,94,0.42)", fg: "#F2D884" };
-            var KindIco = c2.kind === "win" ? IconUiSparkles : c2.kind === "fix" ? IconUiAlert : IconUiEye;
-            return (
-              <div key={i} style={{ background: kindCol.bg, borderLeft: "3px solid " + kindCol.bd, borderRadius: 10, padding: "8px 12px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                  <KindIco size={14} color={kindCol.fg} />
-                  <span style={{ fontSize: 10, fontWeight: 700, color: kindCol.fg, textTransform: "uppercase", letterSpacing: 0.5 }}>{c2.kind}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{"\u00B7 " + c2.title}</span>
-                </div>
-                <div style={{ fontSize: 11, color: C.text, lineHeight: 1.45 }}>{c2.body}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{ height: 1, background: C.border, flexShrink: 0, margin: "4px 0 0" }} />
-
-      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-        <div style={{ flexShrink: 0, padding: "8px 14px 4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: 0.5 }}>CHAT</div>
-          {msgs.length > 0 && (
-            <button type="button" className="gt-focus-ring gt-min-tap" onClick={clearChat} style={{ background: "none", border: "none", fontSize: 12, color: C.muted, cursor: "pointer", padding: "10px 12px", margin: "-6px -10px -6px 0", fontFamily: "'DM Sans',sans-serif", fontWeight: 600 }}>
-              Clear
-            </button>
-          )}
-        </div>
-
-        <div ref={chatScrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "2px 14px 6px" }}>
-          <div aria-live="polite" aria-atomic="false">
-            {msgs.length === 0 && (
-              <div style={{ padding: "14px 12px", color: C.muted, fontSize: 12, textAlign: "center", lineHeight: 1.5 }}>
-                Ask anything about your training, sleep, or nutrition.
-                <br />
-                The coach reads your data live.
-              </div>
-            )}
-            {msgs.map(function (m, i) {
-              var isUser = m.role === "user";
-              return (
-                <div key={i} style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", marginBottom: 7 }}>
-                  <div
-                    className={isUser ? "" : "gt-card"}
-                    style={{
-                      maxWidth: "84%",
-                      padding: "8px 12px",
-                      borderRadius: 14,
-                      background: isUser ? C.gradCTA : undefined,
-                      color: isUser ? C.onAccent : C.text,
-                      fontSize: 13,
-                      lineHeight: 1.5,
-                      whiteSpace: "pre-wrap",
-                      wordWrap: "break-word",
-                    }}
-                  >
-                    {m.content || (m.streaming ? "\u2026" : "")}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div style={{ flexShrink: 0, padding: "0 14px 96px" }}>
-          {!streaming && msgs.length < 6 && (
-            <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 6 }} className="tabstrip">
-              {quickPrompts.map(function (qp, i) {
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    className="gt-focus-ring gt-card"
-                    onClick={function () { sendMessage(qp); }}
-                    style={{
-                      flexShrink: 0,
-                      borderRadius: 99,
-                      padding: "10px 14px",
-                      minHeight: 44,
-                      fontSize: 12,
-                      color: C.muted,
-                      cursor: "pointer",
-                      fontFamily: "'DM Sans',sans-serif",
-                      whiteSpace: "nowrap",
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    {qp}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {err && (
-            <div style={{ background: C.red, color: C.redT, padding: "6px 10px", borderRadius: 10, fontSize: 11, fontWeight: 600, marginBottom: 6 }}>
-              {renderErr(err)}
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
-            <label htmlFor="coach-chat-input" className="gt-sr-only">
-              Message coach
-            </label>
-            <textarea
-              id="coach-chat-input"
-              value={inp}
-              onChange={function (e) { setInp(e.target.value); }}
-              onKeyDown={function (e) {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage(inp);
-                }
-              }}
-              placeholder={streaming ? "Thinking\u2026" : "Ask the coach\u2026"}
-              rows={1}
-              disabled={streaming}
-              className="gt-input"
-              style={{
-                flex: 1,
-                resize: "none",
-                padding: "10px 12px",
-                border: "1.5px solid " + C.border,
-                borderRadius: 18,
-                fontSize: 13,
-                fontFamily: "'DM Sans',sans-serif",
-                color: C.text,
-                outline: "none",
-                maxHeight: 80,
-                lineHeight: 1.4,
-              }}
-            />
-            <button
-              type="button"
-              className="gt-focus-ring gt-min-tap"
-              onClick={function () { sendMessage(inp); }}
-              disabled={!inp.trim() || streaming}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: "50%",
-                background: inp.trim() && !streaming ? C.gradCTA : C.border,
-                border: "none",
-                color: inp.trim() && !streaming ? C.onAccent : C.muted,
-                fontSize: 17,
-                cursor: inp.trim() && !streaming ? "pointer" : "default",
-                flexShrink: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: inp.trim() && !streaming ? C.shadowCTASoft : "none",
-                fontWeight: 700,
-              }}
-              aria-label="Send"
-            >
-              {streaming ? "\u2026" : "\u2191"}
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -5929,9 +5065,6 @@ export default function App() {
   var h17 = useState(null);
   var pendGym = h17[0],
     setPendGym = h17[1];
-  var h18 = useState(CYCLES);
-  var cycles = h18[0],
-    setCycles = h18[1];
   var h19 = useState({});
   var sleep = h19[0],
     setSleep = h19[1];
@@ -5981,7 +5114,7 @@ export default function App() {
           setBooted(true);
           return;
         }
-        var isFresh = data.habits.length === 0 && data.cycles.length === 0 && Object.keys(data.logs).length === 0;
+        var isFresh = data.habits.length === 0 && Object.keys(data.logs).length === 0;
         if (isFresh) {
           setHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
           D.fireAndForget(D.upsertHabit(DEFAULT_GYM_HABIT, 0), "seed-gym");
@@ -5995,7 +5128,6 @@ export default function App() {
         }
         setComp(data.comp);
         setLogs(data.logs);
-        setCycles(data.cycles);
         setBooted(true);
       })
       .catch(function (e) {
@@ -6770,7 +5902,6 @@ export default function App() {
               comp={comp}
               wl={logs}
               sleep={sleep}
-              cycles={cycles}
               todayKey={tk}
               calY={calY}
               calM={calM}
@@ -6778,9 +5909,8 @@ export default function App() {
               setCY={setCalY}
             />
           )}
-          {paneTab === "coach" && <CoachTab habits={habits} comp={comp} logs={logs} sleep={sleep} cycles={cycles} />}
-          {paneTab === "gainz" && <GainzTab wl={logs} gym={gym} comp={comp} cycles={cycles} todayKey={tk} />}
-          {paneTab === "cycles" && <CyclesTab cycles={cycles} setCycles={setCycles} />}
+          {paneTab === "data" && <DataTab wl={logs} habits={habits} comp={comp} sleep={sleep} todayKey={tk} />}
+          {paneTab === "gainz" && <GainzTab wl={logs} gym={gym} comp={comp} todayKey={tk} />}
           {paneTab === "sleep" && <SleepTab sleep={sleep} setSleep={setSleep} />}
           {paneTab === "calories" && <CalorieTab portalRoot={phoneRef} />}
           {paneTab === "settings" && (
