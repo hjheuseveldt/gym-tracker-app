@@ -414,7 +414,7 @@ function BwChart(props) {
   }
 
   return (
-    <div ref={wrapRef} style={{ width: "100%" }}>
+    <div ref={wrapRef} data-no-tab-swipe style={{ width: "100%", touchAction: "none" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 8, gap: 10, minHeight: 36 }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.1 }}>
@@ -437,6 +437,7 @@ function BwChart(props) {
         ref={canvasRef}
         width={canvasW}
         height={CH}
+        data-no-tab-swipe
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
