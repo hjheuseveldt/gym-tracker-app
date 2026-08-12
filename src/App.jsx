@@ -1377,8 +1377,8 @@ function DataTab(props) {
         <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>Your Data</div>
       </div>
       <div style={{ padding: "0 16px" }}>
-        <div className="gt-card" style={{ borderRadius: 14, padding: 0, overflow: "hidden" }}>
-          <div style={{ maxHeight: 420, overflow: "auto" }}>
+        <div className="gt-card" data-no-tab-swipe style={{ borderRadius: 14, padding: 0, overflow: "hidden" }}>
+          <div data-no-tab-swipe style={{ maxHeight: 420, overflow: "auto", touchAction: "pan-x pan-y" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
                 <tr>
