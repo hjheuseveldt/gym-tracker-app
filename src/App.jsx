@@ -248,11 +248,60 @@ function BarChart(props) {
   );
 }
 function BwChart(props) {
-  var ref = useRef(null),
-    pts = props.points;
+  var pts = props.points || [];
+  var cycle = props.cycle;
+  var canvasRef = useRef(null);
+  var wrapRef = useRef(null);
+  var draggingRef = useRef(false);
+  var activeS = useState(null);
+  var activeIdx = activeS[0],
+    setActiveIdx = activeS[1];
+  var widthS = useState(342);
+  var canvasW = widthS[0],
+    setCanvasW = widthS[1];
+  var CH = 110;
+  var PD = 20;
+
+  var ptsKey = pts
+    .map(function (p) {
+      return (p.date || p.label || "") + ":" + p.val;
+    })
+    .join("|");
+
   useEffect(
     function () {
-      var cv = ref.current;
+      setActiveIdx(null);
+    },
+    [ptsKey]
+  );
+
+  useEffect(
+    function () {
+      var el = wrapRef.current;
+      if (!el) return;
+      function measure() {
+        var w = Math.floor(el.clientWidth);
+        if (w > 0) setCanvasW(w);
+      }
+      measure();
+      if (typeof ResizeObserver === "undefined") {
+        window.addEventListener("resize", measure);
+        return function () {
+          window.removeEventListener("resize", measure);
+        };
+      }
+      var ro = new ResizeObserver(measure);
+      ro.observe(el);
+      return function () {
+        ro.disconnect();
+      };
+    },
+    []
+  );
+
+  useEffect(
+    function () {
+      var cv = canvasRef.current;
       if (!cv || pts.length < 2) return;
       var ctx = cv.getContext("2d"),
         W = cv.width,
@@ -263,13 +312,12 @@ function BwChart(props) {
         }),
         mn = Math.min.apply(null, vals),
         mx = Math.max.apply(null, vals);
-      var pd = 20,
-        rng = mx - mn || 1;
+      var rng = mx - mn || 1;
       function px(i) {
-        return pd + (i / (pts.length - 1)) * (W - pd * 2);
+        return PD + (i / (pts.length - 1)) * (W - PD * 2);
       }
       function py(v) {
-        return H - pd - ((v - mn) / rng) * (H - pd * 2);
+        return H - PD - ((v - mn) / rng) * (H - PD * 2);
       }
       var gr = ctx.createLinearGradient(0, 0, 0, H);
       gr.addColorStop(0, "rgba(200,204,212,0.28)");
@@ -288,25 +336,115 @@ function BwChart(props) {
       ctx.strokeStyle = C.accent;
       ctx.lineWidth = 2.5;
       ctx.lineJoin = "round";
+      ctx.lineCap = "round";
       ctx.stroke();
-      pts.forEach(function (p, i) {
-        ctx.beginPath();
-        ctx.arc(px(i), py(p.val), 3, 0, Math.PI * 2);
-        ctx.fillStyle = C.white;
-        ctx.fill();
-        ctx.strokeStyle = C.accent;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      });
       ctx.fillStyle = C.muted;
       ctx.font = "11px sans-serif";
       ctx.textAlign = "left";
-      ctx.fillText(mx.toFixed(1), 2, pd + 4);
-      ctx.fillText(mn.toFixed(1), 2, H - pd + 4);
+      ctx.fillText(mx.toFixed(1), 2, PD + 4);
+      ctx.fillText(mn.toFixed(1), 2, H - PD + 4);
+      if (activeIdx != null && activeIdx >= 0 && activeIdx < pts.length) {
+        var ax = px(activeIdx),
+          ay = py(pts[activeIdx].val);
+        ctx.beginPath();
+        ctx.moveTo(ax, PD * 0.4);
+        ctx.lineTo(ax, H - PD * 0.4);
+        ctx.strokeStyle = "rgba(200,204,212,0.45)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(ax, ay, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = C.accent;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(ax, ay, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = C.white;
+        ctx.fill();
+      }
     },
-    [pts]
+    [pts, activeIdx, canvasW]
   );
-  return <canvas ref={ref} width={342} height={110} style={{ display: "block" }} />;
+
+  function indexFromClientX(clientX) {
+    var cv = canvasRef.current;
+    if (!cv || pts.length < 2) return 0;
+    var rect = cv.getBoundingClientRect();
+    var x = ((clientX - rect.left) / (rect.width || 1)) * cv.width;
+    var plotW = cv.width - PD * 2;
+    var t = (x - PD) / (plotW || 1);
+    if (t < 0) t = 0;
+    if (t > 1) t = 1;
+    return Math.round(t * (pts.length - 1));
+  }
+
+  function onPointerDown(e) {
+    if (pts.length < 2) return;
+    draggingRef.current = true;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (err) {}
+    setActiveIdx(indexFromClientX(e.clientX));
+  }
+
+  function onPointerMove(e) {
+    if (!draggingRef.current || pts.length < 2) return;
+    setActiveIdx(indexFromClientX(e.clientX));
+  }
+
+  function onPointerUp() {
+    draggingRef.current = false;
+  }
+
+  var latest = pts.length ? pts[pts.length - 1] : null;
+  var first = pts.length ? pts[0] : null;
+  var scrub = activeIdx != null && pts[activeIdx] ? pts[activeIdx] : null;
+  var showVal = scrub ? scrub.val : latest ? latest.val : null;
+  var delta = null;
+  if (scrub && latest) delta = latest.val - scrub.val;
+  else if (!scrub && first && latest && pts.length >= 2) delta = latest.val - first.val;
+  var deltaCol = bwDeltaColorForCycle(delta, cycle);
+  var dateLabel = scrub
+    ? scrub.label || (scrub.date ? scrub.date.slice(5).replace("-", "/") : "")
+    : null;
+
+  function fmtDelta(d) {
+    if (d == null) return null;
+    var sign = d > 0 ? "+" : "";
+    return sign + d.toFixed(1) + " lb";
+  }
+
+  return (
+    <div ref={wrapRef} style={{ width: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 8, gap: 10, minHeight: 36 }}>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.1 }}>
+            {showVal != null ? showVal + " lb" : "\u2013"}
+          </div>
+          {dateLabel && <div style={{ fontSize: 11, color: C.muted, fontWeight: 500, marginTop: 2 }}>{dateLabel}</div>}
+        </div>
+        <div style={{ textAlign: "right" }}>
+          {delta != null && (
+            <div style={{ fontSize: 13, fontWeight: 700, color: deltaCol }}>
+              {fmtDelta(delta)}
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: C.muted, fontWeight: 500, marginTop: 2 }}>
+            {scrub ? "since then" : "over range"}
+          </div>
+        </div>
+      </div>
+      <canvas
+        ref={canvasRef}
+        width={canvasW}
+        height={CH}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        style={{ display: "block", width: "100%", height: CH, touchAction: "none", cursor: "ew-resize" }}
+      />
+    </div>
+  );
 }
 
 function GymQ(props) {
@@ -851,7 +989,7 @@ function GainzTab(props) {
     })
     .map(function (k) {
       var p = k.split("-");
-      return { val: wl[k].bodyweight, label: parseInt(p[2]) + "/" + parseInt(p[1]) };
+      return { val: wl[k].bodyweight, label: parseInt(p[2]) + "/" + parseInt(p[1]), date: k };
     });
   var wd = weekDates(),
     ws = dk(wd[0]),
@@ -1093,7 +1231,7 @@ function GainzTab(props) {
                 })}
               </div>
             </div>
-            {bwPts.length >= 2 ? <BwChart points={bwPts} /> : <div style={{ textAlign: "center", padding: "16px 0", color: C.muted, fontSize: 13 }}>Log 2+ sessions to see trend.</div>}
+            {bwPts.length >= 2 ? <BwChart points={bwPts} cycle={activeCycGw} /> : <div style={{ textAlign: "center", padding: "16px 0", color: C.muted, fontSize: 13 }}>Log 2+ sessions to see trend.</div>}
           </div>
           <div className="gt-card" style={{borderRadius: 14, padding: "14px"}}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Sets per Muscle - This Week</div>
