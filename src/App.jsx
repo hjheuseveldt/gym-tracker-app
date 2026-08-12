@@ -403,9 +403,14 @@ function BwChart(props) {
   if (scrub && latest) delta = latest.val - scrub.val;
   else if (!scrub && first && latest && pts.length >= 2) delta = latest.val - first.val;
   var deltaCol = bwDeltaColorForCycle(delta, cycle);
-  var dateLabel = scrub
-    ? scrub.label || (scrub.date ? scrub.date.slice(5).replace("-", "/") : "")
-    : null;
+  var dateLabel = null;
+  if (scrub) {
+    if (scrub.label) dateLabel = scrub.label;
+    else if (scrub.date) {
+      var dp = scrub.date.split("-");
+      if (dp.length === 3) dateLabel = parseInt(dp[1], 10) + "/" + parseInt(dp[2], 10) + "/" + dp[0];
+    }
+  }
 
   function fmtDelta(d) {
     if (d == null) return null;
@@ -990,7 +995,11 @@ function GainzTab(props) {
     })
     .map(function (k) {
       var p = k.split("-");
-      return { val: wl[k].bodyweight, label: parseInt(p[2]) + "/" + parseInt(p[1]), date: k };
+      return {
+        val: wl[k].bodyweight,
+        label: parseInt(p[1], 10) + "/" + parseInt(p[2], 10) + "/" + p[0],
+        date: k,
+      };
     });
   var wd = weekDates(),
     ws = dk(wd[0]),
