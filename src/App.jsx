@@ -2422,8 +2422,6 @@ function perServingMacrosFromLogRow(row) {
 function foodDescriptionFromPerServing(p) {
   var cal = Math.round(p.calories * 10) / 10;
   var parts = ["Per " + p.serving + " - Calories: " + cal + " kcal"];
-  if (p.fat != null) parts.push("Fat: " + (Math.round(p.fat * 10) / 10) + " g");
-  if (p.carbs != null) parts.push("Carbs: " + (Math.round(p.carbs * 10) / 10) + " g");
   if (p.protein != null) parts.push("Protein: " + (Math.round(p.protein * 10) / 10) + " g");
   return parts.join(" | ");
 }
@@ -2511,8 +2509,6 @@ function foodFromCustomRow(row) {
       serving: "serving",
       calories: Number(row.calories),
       protein: Number(row.protein),
-      carbs: Number(row.carbs),
-      fat: Number(row.fat),
     }),
     __isCustom: true,
     __fromLog: false,
@@ -2621,8 +2617,6 @@ function AddFoodSheet(props) {
         <div className="gt-card" style={{marginTop: 10, padding: "9px 12px",borderRadius: 12,fontSize: 11, color: C.muted}}>
           Per <span style={{ color: C.text, fontWeight: 600 }}>{p.serving}</span> {"\u00B7"} <span style={{ color: C.text, fontWeight: 600 }}>{Math.round(p.calories)} cal</span>
           {p.protein != null && <span> {"\u00B7"} P {p.protein}g</span>}
-          {p.carbs != null && <span> {"\u00B7"} C {p.carbs}g</span>}
-          {p.fat != null && <span> {"\u00B7"} F {p.fat}g</span>}
         </div>
         <label htmlFor="add-food-servings-qty" style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.55, marginTop: 14, marginBottom: 6, display: "block" }}>
           Servings
@@ -2711,19 +2705,13 @@ function CustomFoodSheet(props) {
   );
   var nmS = useState(""),
     calS = useState(""),
-    pS = useState(""),
-    carbS = useState(""),
-    fatS = useState("");
+    pS = useState("");
   var nm = nmS[0],
     setNm = nmS[1];
   var calStr = calS[0],
     setCalStr = calS[1];
   var pStr = pS[0],
     setPStr = pS[1];
-  var carbStr = carbS[0],
-    setCarbStr = carbS[1];
-  var fatStr = fatS[0],
-    setFatStr = fatS[1];
 
   function parseNut(x) {
     var n = parseFloat(String(x).trim());
@@ -2733,13 +2721,9 @@ function CustomFoodSheet(props) {
     if (!nm.trim()) return null;
     var cal = parseNut(calStr);
     var prot = parseNut(pStr);
-    var crb = parseNut(carbStr);
-    var ft = parseNut(fatStr);
     if (!(cal > 0)) return null;
     if (!Number.isFinite(prot) || prot < 0) return null;
-    if (!Number.isFinite(crb) || crb < 0) return null;
-    if (!Number.isFinite(ft) || ft < 0) return null;
-    return { nm: nm.trim(), cal: cal, prot: prot, crb: crb, ft: ft };
+    return { nm: nm.trim(), cal: cal, prot: prot };
   }
   function save() {
     var v = validForm();
@@ -2750,8 +2734,8 @@ function CustomFoodSheet(props) {
       food_name: v.nm,
       calories: v.cal,
       protein: v.prot,
-      carbs: v.crb,
-      fat: v.ft,
+      carbs: 0,
+      fat: 0,
     };
     D.upsertCustomFood(rowPayload)
       .then(function () {
@@ -2867,20 +2851,10 @@ function CustomFoodSheet(props) {
           />
         </div>
         <div style={{ marginTop: 12 }}>
-          <div style={{ ...labelStyle, marginBottom: 8 }}>Macronutrients (per serving)</div>
-          <div style={{ fontSize: 10, color: C.muted, marginBottom: 8 }}>Protein, carbs, and fat in grams (&ge; 0 each).</div>
-          <label htmlFor="cf-p" style={{ ...labelStyle, marginTop: 8 }}>
+          <label htmlFor="cf-p" style={labelStyle}>
             Protein (g)
           </label>
           <input id="cf-p" type="number" inputMode="decimal" min={0} step="any" value={pStr} onChange={function (e) { setPStr(e.target.value); }} className="gt-input" placeholder="0" style={inputStyle} />
-          <label htmlFor="cf-c" style={{ ...labelStyle, marginTop: 10 }}>
-            Carbs (g)
-          </label>
-          <input id="cf-c" type="number" inputMode="decimal" min={0} step="any" value={carbStr} onChange={function (e) { setCarbStr(e.target.value); }} className="gt-input" placeholder="0" style={inputStyle} />
-          <label htmlFor="cf-f" style={{ ...labelStyle, marginTop: 10 }}>
-            Fat (g)
-          </label>
-          <input id="cf-f" type="number" inputMode="decimal" min={0} step="any" value={fatStr} onChange={function (e) { setFatStr(e.target.value); }} className="gt-input" placeholder="0" style={inputStyle} />
         </div>
         <div style={{ display: "flex", gap: 9, marginTop: 17 }}>
           <button onClick={props.onClose} className="gt-card" style={{flex: 1, padding: "11px", borderRadius: 12,fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif"}}>
@@ -2936,8 +2910,6 @@ function MealScanSheet(props) {
   var srvS = useState(estimate.serving_description || "1 serving");
   var calS = useState(estimate.calories != null ? String(estimate.calories) : "");
   var pS = useState(estimate.protein != null ? String(estimate.protein) : "");
-  var carbS = useState(estimate.carbs != null ? String(estimate.carbs) : "");
-  var fatS = useState(estimate.fat != null ? String(estimate.fat) : "");
   var savingS = useState(false);
   var nm = nmS[0],
     setNm = nmS[1];
@@ -2947,10 +2919,6 @@ function MealScanSheet(props) {
     setCalStr = calS[1];
   var pStr = pS[0],
     setPStr = pS[1];
-  var carbStr = carbS[0],
-    setCarbStr = carbS[1];
-  var fatStr = fatS[0],
-    setFatStr = fatS[1];
   var saving = savingS[0],
     setSaving = savingS[1];
 
@@ -2962,19 +2930,15 @@ function MealScanSheet(props) {
     if (!nm.trim()) return null;
     var cal = parseNut(calStr);
     var prot = parseNut(pStr);
-    var crb = parseNut(carbStr);
-    var ft = parseNut(fatStr);
     if (!(cal >= 0) || !Number.isFinite(cal)) return null;
     if (!Number.isFinite(prot) || prot < 0) return null;
-    if (!Number.isFinite(crb) || crb < 0) return null;
-    if (!Number.isFinite(ft) || ft < 0) return null;
     return {
       food_name: nm.trim(),
       serving_description: (srv.trim() || "1 serving").slice(0, 120),
       calories: Math.round(cal * 10) / 10,
       protein: Math.round(prot * 10) / 10,
-      carbs: Math.round(crb * 10) / 10,
-      fat: Math.round(ft * 10) / 10,
+      carbs: 0,
+      fat: 0,
     };
   }
 
@@ -3123,19 +3087,10 @@ function MealScanSheet(props) {
           />
         </div>
         <div style={{ marginTop: 12 }}>
-          <div style={{ ...labelStyle, marginBottom: 8 }}>Macros (g)</div>
           <label htmlFor="ms-p" style={labelStyle}>
-            Protein
+            Protein (g)
           </label>
           <input id="ms-p" type="number" inputMode="decimal" min={0} step="any" value={pStr} onChange={function (e) { setPStr(e.target.value); }} className="gt-input" style={inputStyle} />
-          <label htmlFor="ms-c" style={{ ...labelStyle, marginTop: 10 }}>
-            Carbs
-          </label>
-          <input id="ms-c" type="number" inputMode="decimal" min={0} step="any" value={carbStr} onChange={function (e) { setCarbStr(e.target.value); }} className="gt-input" style={inputStyle} />
-          <label htmlFor="ms-f" style={{ ...labelStyle, marginTop: 10 }}>
-            Fat
-          </label>
-          <input id="ms-f" type="number" inputMode="decimal" min={0} step="any" value={fatStr} onChange={function (e) { setFatStr(e.target.value); }} className="gt-input" style={inputStyle} />
         </div>
         <div style={{ display: "flex", gap: 9, marginTop: 17 }}>
           <button
@@ -3584,8 +3539,8 @@ function CalorieTab(props) {
       servings: servings,
       calories: sm.calories,
       protein: sm.protein,
-      carbs: sm.carbs,
-      fat: sm.fat,
+      carbs: ic ? 0 : sm.carbs,
+      fat: ic ? 0 : sm.fat,
     };
     supabase
       .from("food_log")
@@ -3618,8 +3573,8 @@ function CalorieTab(props) {
       servings: 1,
       calories: edited.calories,
       protein: edited.protein,
-      carbs: edited.carbs,
-      fat: edited.fat,
+      carbs: 0,
+      fat: 0,
     };
     return supabase
       .from("food_log")
@@ -3706,8 +3661,8 @@ function CalorieTab(props) {
         servings: s,
         calories: sm.calories,
         protein: sm.protein,
-        carbs: sm.carbs,
-        fat: sm.fat,
+        carbs: ic ? 0 : sm.carbs,
+        fat: ic ? 0 : sm.fat,
         serving_description: ps.serving,
       })
       .eq("id", entry.id)
@@ -3742,8 +3697,6 @@ function CalorieTab(props) {
 
   var totalCal = entries.reduce(function (s, e) { return s + (Number(e.calories) || 0); }, 0);
   var totalP = entries.reduce(function (s, e) { return s + (Number(e.protein) || 0); }, 0);
-  var totalC = entries.reduce(function (s, e) { return s + (Number(e.carbs) || 0); }, 0);
-  var totalF = entries.reduce(function (s, e) { return s + (Number(e.fat) || 0); }, 0);
 
   var diffSel = dayDiff(todayLocal(), selDate);
   var totalLbl = diffSel === 0 ? "Total today" : diffSel === 1 ? "Total yesterday" : diffSel === -1 ? "Total tomorrow" : "Total " + MN[+selDate.split("-")[1] - 1].slice(0, 3) + " " + parseInt(selDate.split("-")[2]);
@@ -3801,8 +3754,6 @@ function CalorieTab(props) {
         </div>
         <div style={{ display: "flex", gap: 14, marginTop: 12, fontSize: 12, opacity: 0.95 }}>
           <div><span style={{ fontWeight: 700 }}>{Math.round(totalP)}g</span> protein</div>
-          <div><span style={{ fontWeight: 700 }}>{Math.round(totalC)}g</span> carbs</div>
-          <div><span style={{ fontWeight: 700 }}>{Math.round(totalF)}g</span> fat</div>
         </div>
         <div style={{ fontSize: 11, opacity: 0.85, marginTop: 8 }}>{entries.length} {entries.length === 1 ? "item" : "items"} logged</div>
       </div>
@@ -3972,12 +3923,8 @@ function CalorieTab(props) {
         {entries.map(function (e) {
           var ic = isCustomFoodId(e.food_id);
           var pVal = e.protein != null ? Math.round(Number(e.protein) || 0) : null;
-          var cVal = e.carbs != null ? Math.round(Number(e.carbs) || 0) : null;
-          var fVal = e.fat != null ? Math.round(Number(e.fat) || 0) : null;
           var macroParts = [];
           if (pVal != null) macroParts.push(pVal + "g P");
-          if (cVal != null) macroParts.push(cVal + "g C");
-          if (fVal != null) macroParts.push(fVal + "g F");
           var macroStr = macroParts.join(" \u00B7 ");
           return (
             <div
@@ -4795,16 +4742,6 @@ function DaySummarySheet(props) {
         return a + sumNum(e, "protein");
       }, 0)
     : 0;
-  var cTot = calData
-    ? calData.reduce(function (a, e) {
-        return a + sumNum(e, "carbs");
-      }, 0)
-    : 0;
-  var fTot = calData
-    ? calData.reduce(function (a, e) {
-        return a + sumNum(e, "fat");
-      }, 0)
-    : 0;
 
   var totalSets = l && l.sets
     ? Object.values(l.sets).reduce(function (a, b) {
@@ -4999,13 +4936,7 @@ function DaySummarySheet(props) {
               </div>
               <div style={{ display: "flex", gap: 14, fontSize: 11, color: C.text, alignItems: "center" }}>
                 <div>
-                  <strong>{Math.round(pTot)}g</strong> <span style={{ color: C.muted }}>P</span>
-                </div>
-                <div>
-                  <strong>{Math.round(cTot)}g</strong> <span style={{ color: C.muted }}>C</span>
-                </div>
-                <div>
-                  <strong>{Math.round(fTot)}g</strong> <span style={{ color: C.muted }}>F</span>
+                  <strong>{Math.round(pTot)}g</strong> <span style={{ color: C.muted }}>protein</span>
                 </div>
                 <div style={{ marginLeft: "auto", color: C.muted, fontSize: 10 }}>
                   {calData.length} {calData.length === 1 ? "item" : "items"}
