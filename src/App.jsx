@@ -45,40 +45,40 @@ var APP_NAV_TABS = [
 ];
 
 var C = {
-  bg: "#0B0E14",
-  sheet: "#141824",
-  /** Completed / habit-positive semantic (was green): navy bases + chrome text. */
-  green: "#222836",
-  gd: "#D4D8E0",
-  gl: "rgba(200,204,212,0.12)",
-  gm: "rgba(200,204,212,0.48)",
-  accent: "#C8CCD4",
-  accentDeep: "#9EA4AF",
-  /** Selected chips / pressed toggles — lighter navy fill + silver rim (not violet CTA wash). */
-  selFill: "#222836",
-  selBorder: "rgba(212,216,224,0.52)",
-  selText: "#E8EAEF",
-  gradCTA: "linear-gradient(165deg,#2A3040 0%,#1A1F2E 55%,#121620 100%)",
-  gradSuccess: "linear-gradient(165deg,#323A4C 0%,#222836 50%,#161B28 100%)",
-  shadowCTA: "0 8px 28px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.14), 0 0 0 1px rgba(200,204,212,0.38)",
-  shadowCTASoft: "0 4px 16px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 0 1px rgba(200,204,212,0.32)",
-  shadowGlow: "0 4px 20px rgba(0,0,0,0.35), 0 0 0 1px rgba(212,216,224,0.22)",
-  text: "#F5F5F7",
-  muted: "#8E8E93",
-  border: "rgba(200,204,212,0.4)",
-  panel: "rgba(255,255,255,0.055)",
-  panelHi: "rgba(255,255,255,0.09)",
-  white: "#F5F5F7",
-  red: "rgba(255,95,105,0.16)",
-  redT: "#FF848C",
-  scrim: "rgba(8,10,16,0.65)",
-  scrimMed: "rgba(8,10,16,0.54)",
-  scrimSoft: "rgba(8,10,16,0.44)",
-  scrimTint: "rgba(8,10,16,0.3)",
-  onAccent: "#E8EAEF",
+  bg: "#F7FFFC",
+  sheet: "#FFFFFF",
+  /** Completed / habit-positive semantic: deeper teal (not neon green). */
+  green: "#14756C",
+  gd: "#14756C",
+  gl: "rgba(46,196,182,0.12)",
+  gm: "rgba(46,196,182,0.42)",
+  accent: "#2EC4B6",
+  accentDeep: "#14756C",
+  /** Selected chips / pressed toggles — turquoise fill + white label. */
+  selFill: "#2EC4B6",
+  selBorder: "rgba(20,117,108,0.4)",
+  selText: "#FFFFFF",
+  gradCTA: "linear-gradient(165deg,#3AD4C6 0%,#2EC4B6 45%,#1FA89C 100%)",
+  gradSuccess: "linear-gradient(165deg,#1FA89C 0%,#14756C 55%,#0F5C55 100%)",
+  shadowCTA: "0 8px 24px rgba(46,196,182,0.32), inset 0 1px 0 rgba(255,255,255,0.35), 0 0 0 1px rgba(20,117,108,0.22)",
+  shadowCTASoft: "0 4px 14px rgba(46,196,182,0.22), inset 0 1px 0 rgba(255,255,255,0.3), 0 0 0 1px rgba(20,117,108,0.18)",
+  shadowGlow: "0 4px 16px rgba(26,35,50,0.08), 0 0 0 1px rgba(46,196,182,0.2)",
+  text: "#1A2332",
+  muted: "#5C6570",
+  border: "rgba(26,35,50,0.1)",
+  panel: "#FFFFFF",
+  panelHi: "#E8F8F5",
+  white: "#FFFFFF",
+  red: "rgba(194,59,68,0.12)",
+  redT: "#C23B44",
+  scrim: "rgba(15,23,42,0.4)",
+  scrimMed: "rgba(15,23,42,0.32)",
+  scrimSoft: "rgba(15,23,42,0.24)",
+  scrimTint: "rgba(15,23,42,0.18)",
+  onAccent: "#FFFFFF",
 };
 
-/** Apple-style frosted glass surfaces (see theme.css .gt-card*). */
+/** Soft Health opaque card surfaces (see theme.css .gt-card*). */
 function glassCard(opts) {
   opts = opts || {};
   var cn = opts.sheet ? "gt-sheet" : opts.done ? "gt-card-done" : opts.elevated ? "gt-card-elevated" : "gt-card";
@@ -210,7 +210,7 @@ function BarChart(props) {
               style={{
                 width: "100%",
                 borderRadius: "4px 4px 0 0",
-                background: d.val > 0 ? "linear-gradient(180deg,#D8DCE4 0%,#9EA4AF 100%)" : C.border,
+                background: d.val > 0 ? "linear-gradient(180deg,#5ED4C8 0%,#2EC4B6 100%)" : C.border,
                 height: Math.max(pct * (h - cap), d.val > 0 ? 4 : 2),
                 transition: "height 0.5s",
               }}
@@ -294,8 +294,8 @@ function BwChart(props) {
         return H - PD - ((v - mn) / rng) * (H - PD * 2);
       }
       var gr = ctx.createLinearGradient(0, 0, 0, H);
-      gr.addColorStop(0, "rgba(200,204,212,0.28)");
-      gr.addColorStop(1, "rgba(200,204,212,0)");
+      gr.addColorStop(0, "rgba(46,196,182,0.28)");
+      gr.addColorStop(1, "rgba(46,196,182,0)");
       ctx.beginPath();
       ctx.moveTo(px(0), py(pts[0].val));
       for (var i = 1; i < pts.length; i++) ctx.lineTo(px(i), py(pts[i].val));
@@ -323,7 +323,7 @@ function BwChart(props) {
         ctx.beginPath();
         ctx.moveTo(ax, PD * 0.4);
         ctx.lineTo(ax, H - PD * 0.4);
-        ctx.strokeStyle = "rgba(200,204,212,0.45)";
+        ctx.strokeStyle = "rgba(46,196,182,0.45)";
         ctx.lineWidth = 1;
         ctx.stroke();
         ctx.beginPath();
@@ -1711,29 +1711,26 @@ function SettingsTab(props) {
 
 function scoreColor(s) {
   if (s == null) return C.muted;
-  if (s >= 85) return "#E8EAEF";
-  if (s >= 70) return "#B8C0CC";
+  if (s >= 85) return "#2EC4B6";
+  if (s >= 70) return "#1A9E94";
   return "#E05050";
 }
-/** Dark fills for charts/bars — pair with scoreTextOnFill for contrast (not light silver on silver). */
+/** Solid fills for charts/bars — pair with scoreTextOnFill for contrast on light canvas. */
 function scoreFill(s) {
   if (s == null) return null;
-  if (s >= 85) return "#222836";
-  if (s >= 70) return "#1E2633";
-  return "rgba(224,80,80,0.38)";
+  if (s >= 85) return "#2EC4B6";
+  if (s >= 70) return "#1A9E94";
+  return "#E05050";
 }
 function scoreTextOnFill(s) {
   if (s == null) return C.muted;
-  if (s >= 85) return "#E8EAEF";
-  if (s >= 70) return "#D4D8E0";
   return "#FFFFFF";
 }
 /** Muted label on scoreFill pill (e.g. "score" caption). */
 function scoreCaptionOnFill(s) {
   if (s == null) return C.muted;
-  if (s >= 85) return "#B8C0CC";
-  if (s >= 70) return "#C8CCD4";
-  return "#FF848C";
+  if (s >= 70) return "rgba(255,255,255,0.88)";
+  return "#FFE8E8";
 }
 function computeSleepDebt(sleep, anchorKey) {
   if (!anchorKey) return null;
@@ -1757,7 +1754,7 @@ function computeSleepDebt(sleep, anchorKey) {
 }
 function debtColor(hrs) {
   if (hrs == null) return C.border;
-  if (hrs <= 2) return "#2A3548";
+  if (hrs <= 2) return "#2EC4B6";
   if (hrs <= 5) return "#E5B53C";
   return "#E05050";
 }
@@ -1812,7 +1809,7 @@ function scoreLabel(s) {
 }
 function scoreTextOn(s) {
   if (s == null) return C.text;
-  if (s >= 70 && s < 85) return "#D4D8E0";
+  if (s >= 70 && s < 85) return "#FFFFFF";
   return C.white;
 }
 function fmtDur(secs) {
@@ -2063,9 +2060,9 @@ function SleepCalendar(props) {
           var isSel = k === selected;
           var isT = k === todayKey;
           var isFut = k > todayKey;
-          var chromeBorder = hasScore && !isSel ? "1px solid rgba(212,216,224,0.35)" : "1.5px solid transparent";
+          var chromeBorder = hasScore && !isSel ? "1px solid rgba(20,117,108,0.28)" : "1.5px solid transparent";
           var border =
-            isSel ? "2px solid rgba(232,236,243,0.65)" : hasScore ? chromeBorder : "1.5px solid " + C.border;
+            isSel ? "2px solid " + C.accent : hasScore ? chromeBorder : "1.5px solid " + C.border;
           var shadow = isT && !isSel ? "inset 0 0 0 2px " + C.accent : "none";
           return (
             <button
@@ -2104,9 +2101,9 @@ function SleepCalendar(props) {
 }
 
 var STAGE_DEFS = [
-  { k: "deep_sleep_duration", label: "Deep", color: "#1E2633" },
-  { k: "rem_sleep_duration", label: "REM", color: "#4A5564" },
-  { k: "light_sleep_duration", label: "Light", color: "#8E96A4" },
+  { k: "deep_sleep_duration", label: "Deep", color: "#14756C" },
+  { k: "rem_sleep_duration", label: "REM", color: "#2EC4B6" },
+  { k: "light_sleep_duration", label: "Light", color: "#A8D4CF" },
   { k: "awake_time", label: "Awake", color: "#C17A3A" },
 ];
 
@@ -2153,7 +2150,7 @@ function SleepDayDetail(props) {
               flexShrink: 0,
               minWidth: 72,
               background: scoreFill(data.score),
-              border: "1px solid rgba(212,216,224,0.35)",
+              border: "1px solid rgba(20,117,108,0.28)",
               borderRadius: 12,
               padding: "8px 12px",
             }}
@@ -3234,7 +3231,7 @@ function CalCalendar(props) {
         borderRadius: 18,
         padding: 14,
         paddingTop: 18,
-        boxShadow: "0 9px 26px rgba(0,0,0,0.45)",
+        boxShadow: "0 9px 26px rgba(26,35,50,0.1)",
         animation: "slideUp 0.18s ease both",
         position: "relative",
         zIndex: 1,
@@ -4255,7 +4252,7 @@ function TabPicker(props) {
         var opacity = isCenter ? 1 : Math.max(0.32, 1 - t * 0.65);
         var TabIcon = item.tab.Icon;
         var centerTabShadowFull =
-          "0 0 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(200,204,212,0.25)";
+          "0 0 20px rgba(46,196,182,0.28), inset 0 1px 0 rgba(255,255,255,0.4), 0 0 0 1px rgba(20,117,108,0.22)";
         var tabShimmerSplit = isCenter ? splitFirstOutShadowLayer(centerTabShadowFull) : null;
         return (
           <div
@@ -4276,9 +4273,9 @@ function TabPicker(props) {
                 height: 68,
                 padding: "10px 6px",
                 background: isCenter
-                  ? "linear-gradient(160deg,rgba(255,255,255,0.16) 0%,rgba(34,40,54,0.92) 40%,rgba(26,31,46,0.96) 100%)"
+                  ? "linear-gradient(160deg,#3AD4C6 0%,#2EC4B6 40%,#1FA89C 100%)"
                   : "transparent",
-                border: isCenter ? "1px solid rgba(212,216,224,0.45)" : "1px solid transparent",
+                border: isCenter ? "1px solid rgba(20,117,108,0.28)" : "1px solid transparent",
                 cursor: "pointer",
                 display: "flex",
                 flexDirection: "column",
@@ -4293,7 +4290,7 @@ function TabPicker(props) {
               }}
             >
               <div style={{ transform: "scale(1.35)", lineHeight: 0 }}>
-                <TabIcon color={isCenter ? C.accent : C.muted} />
+                <TabIcon color={isCenter ? C.onAccent : C.muted} />
               </div>
               <span style={{ fontSize: 11, fontWeight: isCenter ? 700 : 600, color: isCenter ? C.selText : C.muted, whiteSpace: "nowrap" }}>{item.tab.label}</span>
             </button>
@@ -4387,23 +4384,23 @@ function cellColorForLayer(layer, k, ctx) {
     var dow = new Date(k + "T00:00:00").getDay();
     if (!wake.scheduledDays.includes(dow)) return null;
     if (ctx.comp[wake.id] && ctx.comp[wake.id][k]) {
-      return "linear-gradient(165deg,#2A3040 0%,#1A1F2E 55%,#121620 100%)";
+      return "linear-gradient(165deg,#3AD4C6 0%,#2EC4B6 45%,#1FA89C 100%)";
     }
     return "rgba(224,80,80,0.22)";
   }
   if (layer === "workouts") {
     var sets = setsTotalOn(ctx.wl, k);
     if (sets === 0) return null;
-    if (sets >= 20) return "linear-gradient(165deg,#2A3040 0%,#1A1F2E 55%,#121620 100%)";
-    if (sets >= 12) return "linear-gradient(165deg,rgba(42,48,64,0.82) 0%,rgba(26,31,46,0.78) 100%)";
-    if (sets >= 6) return "linear-gradient(165deg,rgba(42,48,64,0.6) 0%,rgba(26,31,46,0.55) 100%)";
-    return "linear-gradient(165deg,rgba(42,48,64,0.38) 0%,rgba(26,31,46,0.32) 100%)";
+    if (sets >= 20) return "linear-gradient(165deg,#3AD4C6 0%,#2EC4B6 45%,#1FA89C 100%)";
+    if (sets >= 12) return "linear-gradient(165deg,rgba(46,196,182,0.72) 0%,rgba(26,158,148,0.78) 100%)";
+    if (sets >= 6) return "linear-gradient(165deg,rgba(46,196,182,0.48) 0%,rgba(26,158,148,0.52) 100%)";
+    return "linear-gradient(165deg,rgba(46,196,182,0.28) 0%,rgba(26,158,148,0.32) 100%)";
   }
   return null;
 }
 var LAYER_LEGENDS = {
-  wake: ["rgba(224,80,80,0.22)", "rgba(42,48,64,0.38)", "rgba(42,48,64,0.7)", "#1A1F2E"],
-  workouts: ["rgba(42,48,64,0.38)", "rgba(42,48,64,0.6)", "rgba(42,48,64,0.82)", "#1A1F2E"],
+  wake: ["rgba(224,80,80,0.22)", "rgba(46,196,182,0.32)", "rgba(46,196,182,0.62)", "#1FA89C"],
+  workouts: ["rgba(46,196,182,0.28)", "rgba(46,196,182,0.48)", "rgba(46,196,182,0.72)", "#1FA89C"],
 };
 
 function UnifiedCalendar(props) {
@@ -4610,9 +4607,9 @@ function UnifiedCalendar(props) {
             var ringBorder = isT
               ? "2px solid " + C.accent
               : wkGlow || wakeGlow
-              ? "1px solid rgba(200,204,212,0.42)"
+              ? "1px solid rgba(20,117,108,0.35)"
               : heat
-              ? "1px solid rgba(255,255,255,0.08)"
+              ? "1px solid rgba(20,117,108,0.18)"
               : "1.5px solid " + C.border;
             return (
               <div
@@ -4774,7 +4771,7 @@ function DaySummarySheet(props) {
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{dayLabel}</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{fmtDS(k)}</div>
             {perfect && (
-              <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: "rgba(245,207,94,0.14)", color: "#F2D884", fontSize: 10, fontWeight: 700, letterSpacing: 0.3, border: "1px solid rgba(245,207,94,0.35)" }}>
+              <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: "rgba(245,207,94,0.18)", color: "#8A6A10", fontSize: 10, fontWeight: 700, letterSpacing: 0.3, border: "1px solid rgba(180,140,30,0.35)" }}>
                 <IconKpiStar size={12} color="#E5C848" />
                 <span>Perfect day</span>
               </div>
@@ -4895,7 +4892,7 @@ function DaySummarySheet(props) {
                 var done = !!(comp[h.id] && comp[h.id][k]);
                 return (
                   <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                    <div style={{ width: 24, height: 24, borderRadius: "50%", background: done ? C.green : "transparent", border: done ? "2px solid rgba(212,216,224,0.5)" : "2px solid " + C.border, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", background: done ? C.green : "transparent", border: done ? "2px solid rgba(20,117,108,0.45)" : "2px solid " + C.border, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {done && (
                         <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
                           <path d="M4 10.5L8.5 15L16 6" stroke={C.onAccent} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -5593,7 +5590,7 @@ export default function App() {
   if (!booted) {
     return (
       <div>
-        <style>{"body{background:#0b0e14;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:transparent;display:block;min-height:100vh;}}"}</style>
+        <style>{"body{background:#f7fffc;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:transparent;display:block;min-height:100vh;}}"}</style>
         <div className={"gt-splash gt-page-bg"} style={{ fontFamily: "'DM Sans',sans-serif" }}>
           <div className="gt-splash-logo">
             <div className="gt-splash-ring" aria-hidden="true">
@@ -5655,7 +5652,7 @@ export default function App() {
                           minWidth: 44,
                           padding: "6px 0 5px",
                           borderRadius: 12,
-                          border: isSel ? "1.5px solid rgba(212,216,224,0.55)" : isT ? "1.5px solid " + C.gm : "1.5px solid " + C.border,
+                          border: isSel ? "1.5px solid rgba(20,117,108,0.4)" : isT ? "1.5px solid " + C.gm : "1.5px solid " + C.border,
                           background: isSel ? C.gradCTA : C.panel,
                           color: isSel ? C.onAccent : C.text,
                           cursor: "pointer",
@@ -5753,8 +5750,8 @@ export default function App() {
                     pop = justChk[habit.id],
                     gymOrphan = gym && habit.id === gym.id && done && !workoutLogHasDetails(logs[selDay]);
                   return (
-                    <div key={habit.id} className={"hab" + (pop ? " glow" : "") + (done ? " gt-card-done" : " gt-card")} style={{ borderRadius: 18, padding: "14px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: done ? "0 2px 18px rgba(0,0,0,0.35), 0 0 0 1px rgba(200,204,212,0.2)" : "0 3px 12px rgba(0,0,0,0.22)", transition: "box-shadow 0.4s ease" }}>
-                      <button type="button" aria-pressed={done} aria-label={(done ? "Unmark " : "Mark ") + habit.name + " for " + selDay} className={"chk gt-focus-ring" + (pop ? " chk-celebrate" : "") + (habit.icon === ICON_GYM || habit.icon === ICON_WAKE ? " gt-shimmer gt-shimmer-ring" : "")} onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "2px solid rgba(212,216,224,0.55)" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "inset 0 1px 0 rgba(255,255,255,0.12), 0 4px 14px rgba(0,0,0,0.38)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
+                    <div key={habit.id} className={"hab" + (pop ? " glow" : "") + (done ? " gt-card-done" : " gt-card")} style={{ borderRadius: 18, padding: "14px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: done ? "0 2px 14px rgba(20,117,108,0.14), 0 0 0 1px rgba(20,117,108,0.16)" : "0 3px 12px rgba(26,35,50,0.06)", transition: "box-shadow 0.4s ease" }}>
+                      <button type="button" aria-pressed={done} aria-label={(done ? "Unmark " : "Mark ") + habit.name + " for " + selDay} className={"chk gt-focus-ring" + (pop ? " chk-celebrate" : "") + (habit.icon === ICON_GYM || habit.icon === ICON_WAKE ? " gt-shimmer gt-shimmer-ring" : "")} onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "2px solid rgba(20,117,108,0.45)" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 12px rgba(20,117,108,0.22)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
                         {done && (
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ animation: pop ? "checkPop 0.8s cubic-bezier(0.34,1.56,0.64,1) both" : "none" }}>
                             <path d="M4 10.5L8.5 15L16 6" stroke={C.onAccent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -5775,7 +5772,7 @@ export default function App() {
                           justifyContent: "center",
                           fontSize: 20,
                           lineHeight: 1,
-                          boxShadow: done ? "0 1px 4px rgba(0,0,0,0.25)" : "none",
+                          boxShadow: done ? "0 1px 4px rgba(20,117,108,0.16)" : "none",
                         }}
                       >
                         <HabitIcon id={habit.icon} size={22} color={done ? C.gd : C.accent} />
@@ -5854,14 +5851,14 @@ export default function App() {
                 })}
               </div>
               {selDoneC === selH.length && selH.length > 0 && (
-                <div style={{ margin: "16px 14px 0", background: C.gradSuccess, borderRadius: 18, padding: "16px 18px", textAlign: "center", border: "1px solid rgba(212,216,224,0.35)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)" }}>
+                <div style={{ margin: "16px 14px 0", background: C.gradSuccess, borderRadius: 18, padding: "16px 18px", textAlign: "center", border: "1px solid rgba(20,117,108,0.28)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.22)" }}>
                   <div style={{ marginBottom: 6, display: "flex", justifyContent: "center", lineHeight: 0 }} aria-hidden="true">
-                    <IconSprout size={34} color={C.accent} />
+                    <IconSprout size={34} color={C.onAccent} />
                   </div>
                   <div style={{ fontSize: 14, color: C.onAccent, fontFamily: "'DM Serif Display',serif", lineHeight: 1.4 }}>
                     All done for {selIsToday ? "today" : selDate.toLocaleDateString("en-US", { weekday: "long" })}.
                   </div>
-                  <div style={{ fontSize: 11, color: "rgba(232,234,239,0.78)", marginTop: 3 }}>Every action is a vote for the person you want to become.</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.82)", marginTop: 3 }}>Every action is a vote for the person you want to become.</div>
                 </div>
               )}
             </div>
@@ -5896,7 +5893,7 @@ export default function App() {
     <div>
       <style>
         {
-          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#0b0e14;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:transparent;display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 3px 14px rgba(0,0,0,0.22)}40%{box-shadow:0 0 0 4px rgba(200,204,212,0.32)}100%{box-shadow:0 5px 22px rgba(0,0,0,0.35),0 0 0 1px rgba(212,216,224,0.22)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}@keyframes chkCelebrate{0%{box-shadow:0 0 0 0 rgba(200,204,212,0.55)}35%{transform:scale(1.22);box-shadow:0 0 0 7px rgba(200,204,212,0.45)}65%{transform:scale(0.95);box-shadow:0 0 0 3px rgba(200,204,212,0.2)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(200,204,212,0)}}.chk-celebrate{animation:chkCelebrate 0.4s cubic-bezier(0.34,1.56,0.64,1) both;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
+          "@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}body{background:#f7fffc;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:transparent;display:block;min-height:100vh;}}@keyframes checkPop{0%{transform:scale(0.3);opacity:0}45%{transform:scale(1.35)}65%{transform:scale(0.88)}82%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes cardGlow{0%{box-shadow:0 3px 12px rgba(26,35,50,0.06)}40%{box-shadow:0 0 0 4px rgba(46,196,182,0.28)}100%{box-shadow:0 5px 18px rgba(20,117,108,0.12),0 0 0 1px rgba(46,196,182,0.22)}}.hab{animation:slideUp 0.32s ease both;}.hab:nth-child(1){animation-delay:0.04s}.hab:nth-child(2){animation-delay:0.08s}.hab:nth-child(3){animation-delay:0.12s}.hab:nth-child(4){animation-delay:0.16s}.hab:nth-child(5){animation-delay:0.20s}.chk{transition:transform 0.15s ease;}.chk:active{transform:scale(0.82)!important;}@keyframes chkCelebrate{0%{box-shadow:0 0 0 0 rgba(46,196,182,0.45)}35%{transform:scale(1.22);box-shadow:0 0 0 7px rgba(46,196,182,0.35)}65%{transform:scale(0.95);box-shadow:0 0 0 3px rgba(46,196,182,0.18)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(46,196,182,0)}}.chk-celebrate{animation:chkCelebrate 0.4s cubic-bezier(0.34,1.56,0.64,1) both;}.tb{transition:all 0.2s ease;}.glow{animation:cardGlow 1.0s ease forwards;}.tabstrip::-webkit-scrollbar{display:none;}.tabstrip{scrollbar-width:none;-ms-overflow-style:none;}"
         }
       </style>
       <div
@@ -6032,7 +6029,7 @@ export default function App() {
                     alignItems: "center",
                     gap: 9,
                     background: C.gradCTA,
-                    border: "1px solid rgba(212,216,224,0.42)",
+                    border: "1px solid rgba(20,117,108,0.28)",
                     borderRadius: 99,
                     padding: "12px 22px 12px 18px",
                     boxShadow: launcherShadowFull,
@@ -6058,7 +6055,7 @@ export default function App() {
                 width: "min(290px, calc(100vw - 24px))",
                 borderRadius: 32,
                 padding: "8px 0",
-                boxShadow: "0 14px 44px rgba(0,0,0,0.55)",
+                boxShadow: "0 14px 44px rgba(26,35,50,0.14)",
                 animation: "slideUp 0.22s cubic-bezier(0.34,1.56,0.64,1) both",
                 overflow: "hidden",
               }}

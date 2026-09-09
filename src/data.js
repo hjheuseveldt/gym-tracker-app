@@ -41,7 +41,7 @@ function cycleToRow(c) {
     id: c.id,
     name: c.name,
     type: c.type,
-    color: c.color || "#C8CCD4",
+    color: c.color || "#2EC4B6",
     start_date: c.start,
     end_date: c.end,
     kcal_target: c.calories ? Number(c.calories) : null,

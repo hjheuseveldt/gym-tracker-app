@@ -1,39 +1,44 @@
 # GymTrack — Design system master
 
-Apple-style **dark glass** UI on navy–silver chrome (`#0B0E14` / `#F5F5F7`). Source: ui-ux-pro-max (Glassmorphism + Spatial UI on OLED dark base).
+Apple Health / Fitness **Soft Health** UI in light mode: mint-wash canvas, opaque white grouped cards, turquoise accent. Source: ui-ux-pro-max (Health & Wellness + Spatial UI) applied as a visual-only restyle.
 
 ## Material tiers
 
-| Class | Use | Blur / vibrancy |
-|-------|-----|-----------------|
-| `.gt-card` | Habit rows, stat tiles, list rows, settings | `blur(20px) saturate(165%)` |
-| `.gt-card-elevated` | Hero KPIs, calendar dropdown, centered modals | `blur(32px) saturate(165%)` |
-| `.gt-card-done` | Completed habit row glass | Strong blur + success rim |
-| `.gt-sheet` | Bottom sheets (workout log, cycles, habits) | `blur(32px)` + sheet fill |
-| `.gt-scrim` | Modal overlays | `blur(8px)` + scrim color |
-| `.gt-glass` / `.gt-glass-strong` | Tab picker, floating chrome | Nav / launcher |
+| Class | Use | Treatment |
+|-------|-----|-----------|
+| `.gt-card` | Habit rows, stat tiles, list rows, settings | Opaque white + soft gray hairline |
+| `.gt-card-elevated` | Hero KPIs, calendar dropdown, centered modals | Opaque white + slightly deeper shadow |
+| `.gt-card-done` | Completed habit row | Mint wash + deeper-teal rim |
+| `.gt-sheet` | Bottom sheets (workout log, cycles, habits) | Opaque white + top-corner sheet |
+| `.gt-scrim` | Modal overlays | Soft slate scrim (may still blur) |
+| `.gt-glass` / `.gt-glass-strong` | Tab picker, floating chrome | Opaque white chrome (class names kept) |
 
-Implementation: [`src/theme.css`](../src/theme.css). JS helper: `glassCard()` in [`src/App.jsx`](../src/App.jsx).
+Implementation: [`src/theme.css`](../src/theme.css). JS helper: `glassCard()` in [`src/App.jsx`](../src/App.jsx) (class wiring only; fills come from CSS).
+
+Do **not** put dark glass fills on the light canvas.
 
 ## Color tokens (semantic)
 
 | Token | Value | Usage |
 |-------|-------|--------|
-| Page base | `#0B0E14` | Canvas, `gt-page-bg` gradient |
-| Text | `#F5F5F7` | Primary copy |
-| Muted | `#8E8E93` | Labels, secondary |
-| Accent | `#C8CCD4` | Icons, links, chrome |
-| Border / glass rim | `rgba(255,255,255,0.14–0.2)` | Card edges (CSS), not heavy 1.5px everywhere |
-| Success (habit done) | Navy `#222836` + silver rim | No green hue |
+| Page base | `#F7FFFC` | Mint-wash canvas, `gt-page-bg` |
+| Surface | `#FFFFFF` | Cards, sheets, inputs |
+| Text | `#1A2332` | Primary copy on cards (~15:1) |
+| Muted | `#5C6570` | Labels, secondary (~5.9:1 on white) |
+| Accent | `#2EC4B6` | CTAs, selected tabs, progress, links, icons |
+| Accent deep | `#14756C` | Accent text that needs stronger contrast; success ink |
+| Border / separator | `rgba(26,35,50,0.10–0.16)` | Grouped-list hairlines |
+| Success (habit done) | `#14756C` fill / `#E8F8F5` wash | Deeper teal — not neon green |
 
-Legacy `C.panel` in JS is fallback only; surfaces should use `gt-card*` classes.
+Legacy `C.panel` in JS is an opaque white fallback; surfaces should use `gt-card*` classes.
 
-## Glass recipe
+## Surface recipe
 
-- **Fill:** translucent white 10–14% on gradient navy wash
-- **Border:** 1px light rim + `inset 0 1px 0 rgba(255,255,255,0.14)`
-- **Depth:** soft shadow `0 8px 32px rgba(0,0,0,0.42)` (elevated: 40px spread)
-- **Backdrop:** `-webkit-backdrop-filter` required for iOS Safari
+- **Fill:** solid white (or mint `#E8F8F5` for done), not translucent navy
+- **Border:** 1px soft gray separator
+- **Depth:** light shadow `0 6px 20px rgba(26,35,50,0.05)` (elevated: 28px)
+- **Backdrop:** `-webkit-backdrop-filter` still declared for iOS / reduced-motion parity; opaque fills mean no dark glass shows through
+- **`@supports not (backdrop-filter)`:** same opaque `--gt-surface`
 
 ## Typography
 
@@ -45,26 +50,26 @@ Legacy `C.panel` in JS is fallback only; surfaces should use `gt-card*` classes.
 - **Cards:** `14–18px` (habits `18px`)
 - **Sheets:** top corners `28px`
 - **Pills / nav:** `9999px`
-- **Charts / checkboxes:** solid fills — no glass (readability)
+- **Charts / checkboxes:** solid fills — no glass (readability). Teal / deeper-teal tints on the light canvas.
 
 ## Accessibility
 
-- Text on glass: `C.text` / `C.muted` — target **4.5:1** on card surfaces
+- Body text: `C.text` / `C.muted` — target **4.5:1** on card surfaces
+- Bright accent `#2EC4B6` is for fills, progress, and large/bold metrics; prefer `#14756C` when accent is small running text
 - `prefers-reduced-motion`: reduce blur to `6px`, disable shimmer rotation
-- `@supports not (backdrop-filter)`: opaque `--gt-surface` fallback
 - Focus: `.gt-focus-ring`, 44px min tap targets
 - No emoji as UI icons — SVG only
 
 ## Anti-patterns
 
+- Dark glass fills (`bg-white/10`, navy gradients) on the mint canvas
+- Neon green habit-done washes
 - Glass on chart bars or tiny controls
-- Replacing habit “done” semantics with green washes
-- Light-mode `bg-white/10` cards on dark (too faint)
 - Duplicate borders on elements that already use `.gt-glass-strong`
 
 ## Components (quick ref)
 
-- **Habits:** `.gt-card` / `.gt-card-done` + `.hab` motion
-- **Bottom nav:** `.gt-glass-strong` picker; launcher uses gradient CTA (not glass)
-- **Forms:** `.gt-input` (frosted field)
+- **Habits:** `.gt-card` / `.gt-card-done` + `.hab` motion; done checkbox = deeper teal + white check
+- **Bottom nav:** `.gt-glass-strong` picker; launcher uses turquoise CTA (not glass)
+- **Forms:** `.gt-input` (white field, teal caret / focus)
 - **Coach:** user bubbles = `gradCTA`; assistant = `.gt-card`
