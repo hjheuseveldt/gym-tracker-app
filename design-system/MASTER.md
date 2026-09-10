@@ -27,7 +27,7 @@ Do **not** put dark glass fills on the light canvas.
 | Muted | `#5C6570` | Labels, secondary (~5.9:1 on white) |
 | Accent | `#2EC4B6` | CTAs, selected tabs, progress, links, icons |
 | Accent deep | `#14756C` | Accent text that needs stronger contrast; success ink |
-| Border / separator | `rgba(26,35,50,0.10–0.16)` | Grouped-list hairlines |
+| Border / separator | `rgba(26,35,50,0.16–0.22)` | Grouped-list hairlines |
 | Success (habit done) | `#14756C` fill / `#E8F8F5` wash | Deeper teal — not neon green |
 
 Legacy `C.panel` in JS is an opaque white fallback; surfaces should use `gt-card*` classes.
