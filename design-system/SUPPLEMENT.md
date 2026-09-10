@@ -9,7 +9,7 @@ _Static excerpts synthesized from [.cursor/skills/ui-ux-pro-max/data/ux-guidelin
 | Reduced motion | `prefers-reduced-motion`: skip canvas confetti/ripple loops; shorten or disable entrance chains (`.hab`, `.glow`). |
 | Focus | Visible `focus-visible` rings on tabs, pills, checklist, calendar days. Do not rely on `:focus { outline: none }` alone. |
 | Touch | Minimum interactive targets ~44×44 where feasible; spacing between strips. |
-| Contrast | Body/muted pairs meet ~4.5:1 where possible on warm off-white backgrounds. |
+| Contrast | Body/muted pairs meet ~4.5:1 where possible on Soft Health white / mint-wash surfaces (`#FFFFFF` / `#F7FFFC`). |
 | Color-only meaning | Completed days + workout heat use shape/icon in addition to color. |
 
 ## React implementation notes

@@ -1,4 +1,4 @@
-var DEF_PRI = "#C8CCD4";
+var DEF_PRI = "#2EC4B6";
 var DEF = DEF_PRI;
 
 export var ICON_GYM = "gym";
@@ -362,7 +362,7 @@ export function IconAlarmMark(props) {
 }
 
 export function CalDayDoneCheck(props) {
-  var c = props.color || "#F5F5F7",
+  var c = props.color || "#FFFFFF",
     s = props.size || 11;
   return (
     <svg width={s} height={s} viewBox="0 0 20 20" fill="none" aria-hidden="true">

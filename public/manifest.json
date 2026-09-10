@@ -1,13 +1,13 @@
 {
   "name": "GymTrack",
   "short_name": "GymTrack",
-  "description": "Navy chrome training companion — workouts, sleep, calories, habits, and coach.",
+  "description": "Soft Health training companion — workouts, sleep, calories, habits, and coach.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0B0E14",
-  "theme_color": "#0B0E14",
+  "background_color": "#F7FFFC",
+  "theme_color": "#F7FFFC",
   "icons": [
     {
       "src": "/icon-192.png",
