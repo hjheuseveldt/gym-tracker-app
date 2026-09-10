@@ -65,7 +65,7 @@ var C = {
   shadowGlow: "0 4px 16px rgba(26,35,50,0.08), 0 0 0 1px rgba(46,196,182,0.2)",
   text: "#1A2332",
   muted: "#5C6570",
-  border: "rgba(26,35,50,0.1)",
+  border: "rgba(26,35,50,0.16)",
   panel: "#FFFFFF",
   panelHi: "#E8F8F5",
   white: "#FFFFFF",

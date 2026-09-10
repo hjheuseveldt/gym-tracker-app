@@ -53,8 +53,8 @@ body {
   --gt-text: #1a2332;
   --gt-muted: #5c6570;
   --gt-muted-bright: #4a5560;
-  --gt-border: rgba(26, 35, 50, 0.1);
-  --gt-border-bright: rgba(26, 35, 50, 0.16);
+  --gt-border: rgba(26, 35, 50, 0.16);
+  --gt-border-bright: rgba(26, 35, 50, 0.22);
 
   --gt-accent: #2ec4b6;
   --gt-accent-mid: #22a99d;
