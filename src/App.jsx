@@ -2884,8 +2884,37 @@ function CustomFoodSheet(props) {
   );
 }
 
+function formatMealScanCostLine(cost, usage) {
+  var usd = cost && typeof cost.usd === "number" && Number.isFinite(cost.usd) ? cost.usd : null;
+  var tokens = usage && Number.isFinite(Number(usage.total_tokens)) ? Number(usage.total_tokens) : null;
+  if (usd == null && tokens == null) return null;
+  var parts = [];
+  if (usd != null) parts.push("Est. cost: $" + usd.toFixed(4));
+  if (tokens != null) parts.push(Math.round(tokens).toLocaleString() + " tokens");
+  return parts.join(" \u00B7 ");
+}
+
+function mealScanErrorMessage(status, data, fallback) {
+  var code = data && data.code;
+  var raw = (data && data.error) || fallback || "Scan failed";
+  if (status === 429 || code === "DAILY_CAP" || code === "RATE_LIMIT") {
+    if (code === "DAILY_CAP" || /daily meal scan limit/i.test(String(raw))) {
+      return "Daily meal scan limit reached. Try again tomorrow.";
+    }
+    return "Too many scans \u2014 wait a minute and try again.";
+  }
+  if (/NO_KEY|DISABLED|XAI_ENABLED|XAI_API_KEY|not set/i.test(String(raw))) {
+    if (/DISABLED|XAI_ENABLED/i.test(String(raw))) {
+      return "AI is paused to stop spend. Rotate your xAI key, then set XAI_ENABLED=1 in Vercel and redeploy.";
+    }
+    return "Add XAI_API_KEY (and XAI_ENABLED=1) to enable meal scan.";
+  }
+  return String(raw);
+}
+
 function MealScanSheet(props) {
   var estimate = props.estimate || {};
+  var costLine = formatMealScanCostLine(props.cost, props.usage);
   var portalRootRef = props.portalRoot;
   var hostS = useState(function () {
     return portalRootRef && portalRootRef.current;
@@ -3022,6 +3051,9 @@ function MealScanSheet(props) {
         <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{confLabel}</div>
         {estimate.notes ? (
           <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.4 }}>{estimate.notes}</div>
+        ) : null}
+        {costLine ? (
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 6, fontWeight: 500 }}>{costLine}</div>
         ) : null}
         {props.previewUrl ? (
           <img
@@ -3368,6 +3400,12 @@ function CalorieTab(props) {
   var scanEstS = useState(null);
   var scanEstimate = scanEstS[0],
     setScanEstimate = scanEstS[1];
+  var scanCostS = useState(null);
+  var scanCost = scanCostS[0],
+    setScanCost = scanCostS[1];
+  var scanUsageS = useState(null);
+  var scanUsage = scanUsageS[0],
+    setScanUsage = scanUsageS[1];
   var scanPrevS = useState(null);
   var scanPreview = scanPrevS[0],
     setScanPreview = scanPrevS[1];
@@ -3587,6 +3625,8 @@ function CalorieTab(props) {
           return [res.data].concat(prev);
         });
         setScanEstimate(null);
+        setScanCost(null);
+        setScanUsage(null);
         setScanPreview(null);
         setQ("");
         setResults([]);
@@ -3613,30 +3653,30 @@ function CalorieTab(props) {
             mimeType: packed.mimeType,
           }),
         }).then(function (r) {
-          return r.json().then(function (data) {
-            if (!r.ok) {
-              var msg = (data && data.error) || "Scan failed (" + r.status + ")";
-              if (/NO_KEY|DISABLED|XAI_ENABLED|XAI_API_KEY|not set/i.test(msg)) {
-                if (/DISABLED|XAI_ENABLED/i.test(msg)) {
-                  msg =
-                    "AI is paused to stop spend. Rotate your xAI key, then set XAI_ENABLED=1 in Vercel and redeploy.";
-                } else {
-                  msg = "Add XAI_API_KEY (and XAI_ENABLED=1) to enable meal scan.";
-                }
+          return r.json().then(
+            function (data) {
+              if (!r.ok) {
+                throw new Error(mealScanErrorMessage(r.status, data, "Scan failed (" + r.status + ")"));
               }
-              throw new Error(msg);
+              if (!data || !data.estimate) throw new Error("No estimate returned");
+              setScanSession(function (n) {
+                return n + 1;
+              });
+              setScanEstimate(data.estimate);
+              setScanCost(data.cost || null);
+              setScanUsage(data.usage || null);
+            },
+            function () {
+              throw new Error(mealScanErrorMessage(r.status, null, "Scan failed (" + r.status + ")"));
             }
-            if (!data || !data.estimate) throw new Error("No estimate returned");
-            setScanSession(function (n) {
-              return n + 1;
-            });
-            setScanEstimate(data.estimate);
-          });
+          );
         });
       })
       .catch(function (e) {
         setError(String((e && e.message) || e));
         setScanEstimate(null);
+        setScanCost(null);
+        setScanUsage(null);
       })
       .finally(function () {
         setScanBusy(false);
@@ -4039,9 +4079,13 @@ function CalorieTab(props) {
           key={"scan-" + scanSession}
           portalRoot={props.portalRoot}
           estimate={scanEstimate}
+          cost={scanCost}
+          usage={scanUsage}
           previewUrl={scanPreview}
           onCancel={function () {
             setScanEstimate(null);
+            setScanCost(null);
+            setScanUsage(null);
             setScanPreview(null);
           }}
           onConfirm={function (edited) {

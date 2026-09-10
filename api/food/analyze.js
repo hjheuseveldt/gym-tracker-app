@@ -1,8 +1,11 @@
 import {
   xaiComplete,
   rateLimitOrThrow,
+  dailyCapOrThrow,
+  foodScanDailyCap,
   clientKeyFromReq,
   xaiErrorStatus,
+  estimateXaiCost,
 } from "../_lib/xai.js";
 
 export const config = { maxDuration: 45 };
@@ -90,7 +93,8 @@ export default async function handler(req, res) {
     return;
   }
   try {
-    rateLimitOrThrow("food:" + clientKeyFromReq(req), 6, 60_000);
+    const ipKey = clientKeyFromReq(req);
+    rateLimitOrThrow("food:" + ipKey, 6, 60_000);
 
     const body = await readJsonBody(req);
     let mimeType = typeof body.mimeType === "string" ? body.mimeType.toLowerCase().trim() : "image/jpeg";
@@ -130,7 +134,9 @@ export default async function handler(req, res) {
       ],
     };
 
-    const { text } = await xaiComplete({
+    dailyCapOrThrow("food-day:" + ipKey, foodScanDailyCap());
+
+    const { text, usage } = await xaiComplete({
       system: SYSTEM_PROMPT,
       messages: [userMsg],
       model: "grok-4.3",
@@ -157,12 +163,27 @@ export default async function handler(req, res) {
       return;
     }
 
+    const cost = estimateXaiCost(usage, { model: "grok-4.3" });
+    try {
+      console.log(
+        JSON.stringify({
+          evt: "food_scan",
+          ts: new Date().toISOString(),
+          model: "grok-4.3",
+          usage: usage || null,
+          cost,
+        })
+      );
+    } catch (_e) {}
+
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ estimate }));
+    res.end(JSON.stringify({ estimate, usage: usage || null, cost }));
   } catch (err) {
     res.statusCode = xaiErrorStatus(err);
     res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ error: String((err && err.message) || err) }));
+    const payload = { error: String((err && err.message) || err) };
+    if (err && err.code) payload.code = err.code;
+    res.end(JSON.stringify(payload));
   }
 }
