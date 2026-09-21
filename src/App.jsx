@@ -24,6 +24,7 @@ import {
   HabitIcon,
   ICON_GYM,
   ICON_WAKE,
+  ICON_SPARK,
   HABIT_ICON_ORDER,
   IconUiScale,
   IconUiChartTrend,
@@ -33,6 +34,16 @@ import {
   IconUiEye,
   IconUiCamera,
 } from "./icons.jsx";
+import {
+  ICON_ONE_PERCENT,
+  ONE_PERCENT_HISTORY_ORIGIN,
+  ensureOnePercentHabit,
+  isOnePercentHabit,
+  parseFocusFromName,
+  displayHabitNameOnDate,
+  applyFocusChange,
+  resolveFocusForDate,
+} from "./onePercent.js";
 
 var APP_NAV_TABS = [
   { id: "home", label: "Today", Icon: IToday },
@@ -186,6 +197,40 @@ function ensureWakeHabit(habits) {
   while (used[id]) id++;
   var wake = Object.assign({}, DEFAULT_WAKE_HABIT, { id: id });
   return { habits: habits.concat([wake]), seeded: wake };
+}
+
+function ensureBuiltinHabits(habits) {
+  var w = ensureWakeHabit(habits);
+  var o = ensureOnePercentHabit(w.habits);
+  return {
+    habits: o.habits,
+    seededWake: w.seeded,
+    seededOnePercent: o.seeded,
+    repairedOnePercent: o.repaired,
+    historySeed: o.historySeed,
+  };
+}
+
+function persistBuiltinHabits(ensured) {
+  if (ensured.seededWake) {
+    var wi = ensured.habits.findIndex(function (h) {
+      return h.id === ensured.seededWake.id;
+    });
+    D.fireAndForget(D.upsertHabit(ensured.seededWake, wi < 0 ? 0 : wi), "seed-wake");
+  }
+  if (ensured.seededOnePercent) {
+    var oi = ensured.habits.findIndex(function (h) {
+      return h.id === ensured.seededOnePercent.id;
+    });
+    D.fireAndForget(D.upsertHabit(ensured.seededOnePercent, oi < 0 ? 0 : oi), "seed-one-percent");
+  } else if (ensured.repairedOnePercent) {
+    var one = ensured.habits.find(isOnePercentHabit);
+    var ri = ensured.habits.findIndex(isOnePercentHabit);
+    if (one) D.fireAndForget(D.upsertHabit(one, ri < 0 ? 0 : ri), "repair-one-percent");
+  }
+  if (ensured.historySeed) {
+    D.fireAndForget(D.upsertFocusPeriods([ensured.historySeed]), "seed-one-percent-history");
+  }
 }
 
 
@@ -1496,28 +1541,114 @@ function DataTab(props) {
   );
 }
 
+function OnePercentFocusCard(props) {
+  var habit = props.habit;
+  var initial = parseFocusFromName(habit && habit.name);
+  var draftS = useState(initial);
+  var draft = draftS[0],
+    setDraft = draftS[1];
+  useEffect(
+    function () {
+      setDraft(parseFocusFromName(habit && habit.name));
+    },
+    [habit && habit.id, habit && habit.name]
+  );
+  if (!habit) return null;
+  var preview = draft.trim() ? draft.trim() : "\u2026";
+  return (
+    <form
+      className="gt-card"
+      onSubmit={function (e) {
+        e.preventDefault();
+        var next = draft.trim();
+        if (!next) return;
+        props.onSave(next);
+      }}
+      style={{ borderRadius: 18, padding: "14px 16px", margin: "0 16px 12px" }}
+    >
+      <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4 }}>1% habit</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 10 }}>Current focus</div>
+      <label htmlFor="one-percent-focus" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
+        Focus
+      </label>
+      <input
+        id="one-percent-focus"
+        name="one_percent_focus"
+        className="gt-input"
+        value={draft}
+        required
+        autoComplete="off"
+        enterKeyHint="done"
+        aria-describedby="one-percent-focus-help"
+        onChange={function (e) {
+          setDraft(e.target.value);
+        }}
+        style={{ width: "100%", padding: "12px 13px", minHeight: 44, border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 16, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none", boxSizing: "border-box" }}
+      />
+      <p id="one-percent-focus-help" style={{ fontSize: 12, color: C.muted, marginTop: 8, lineHeight: 1.45 }}>
+        Shown as <span style={{ fontWeight: 700, color: C.text }}>1%: {preview}</span> on Today. Changing focus keeps your streak.
+      </p>
+      <button
+        type="submit"
+        className="gt-focus-ring"
+        style={{
+          width: "100%",
+          marginTop: 12,
+          padding: "12px",
+          minHeight: 44,
+          borderRadius: 14,
+          background: C.gradCTA,
+          border: "none",
+          color: C.onAccent,
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: "pointer",
+          fontFamily: "'DM Sans',sans-serif",
+        }}
+      >
+        Save focus
+      </button>
+    </form>
+  );
+}
+
 function SettingsTab(props) {
   var habits = props.habits,
     setHabits = props.setHabits;
+  var onePercent = habits.find(isOnePercentHabit);
   var edS = useState(null);
   var ed = edS[0],
     setEd = edS[1];
   var fnS = useState(""),
     iconS = useState("star"),
-    fdS = useState([0, 1, 2, 3, 4, 5, 6]);
+    fdS = useState([0, 1, 2, 3, 4, 5, 6]),
+    ffS = useState("");
   var fn = fnS[0],
     setFn = fnS[1],
     iconEdit = iconS[0],
     setIconEdit = iconS[1],
     fd2 = fdS[0],
-    setFd = fdS[1];
+    setFd = fdS[1],
+    ff = ffS[0],
+    setFf = ffS[1];
+  var editing = habits.find(function (h) {
+    return h.id === ed;
+  });
+  var editingOnePercent = !!(editing && isOnePercentHabit(editing));
   function openEdit(h) {
     setEd(h.id);
     setFn(h.name);
     setIconEdit(h.icon);
     setFd(h.scheduledDays.slice());
+    setFf(parseFocusFromName(h.name));
   }
   function save() {
+    if (editingOnePercent) {
+      if (!ff.trim()) return;
+      if (props.onSaveOnePercentFocus) props.onSaveOnePercentFocus(ff.trim());
+      setEd(null);
+      return;
+    }
     if (!fn.trim() || !fd2.length) return;
     var idx = habits.findIndex(function (h) { return h.id === ed; });
     var updated = Object.assign({}, habits[idx] || {}, { id: ed, name: fn.trim(), icon: iconEdit, scheduledDays: fd2 });
@@ -1562,6 +1693,7 @@ function SettingsTab(props) {
         <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Settings</div>
         <div style={{ fontSize: 28, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>My Habits</div>
       </div>
+      <OnePercentFocusCard habit={onePercent} onSave={props.onSaveOnePercentFocus} />
       <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}>
         {habits.length === 0 && <div style={{ textAlign: "center", padding: "36px 20px", color: C.muted, fontSize: 13 }}>No habits yet.</div>}
         {habits.map(function (h, i) {
@@ -1573,9 +1705,11 @@ function SettingsTab(props) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</div>
                 <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>
-                  {DL.filter(function (_, idx) {
-                    return h.scheduledDays.includes(idx);
-                  }).join(" ")}
+                  {isOnePercentHabit(h)
+                    ? "Built-in · every day"
+                    : DL.filter(function (_, idx) {
+                        return h.scheduledDays.includes(idx);
+                      }).join(" ")}
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -1637,7 +1771,8 @@ function SettingsTab(props) {
         <div className="gt-scrim" style={{ position: "absolute", inset: 0, background: C.scrimMed, display: "flex", alignItems: "flex-end", zIndex: 200 }}>
           <div onClick={(e) => e.stopPropagation()} className="gt-sheet" style={{ borderRadius: "28px 28px 0 0", padding: "22px 20px 48px", width: "100%", maxHeight: "88%", overflowY: "auto" }}>
             <div style={{ width: 36, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 14px" }} />
-            <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 16 }}>Edit Habit</div>
+            <div style={{ fontSize: 19, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", marginBottom: 16 }}>{editingOnePercent ? "Edit 1% focus" : "Edit Habit"}</div>
+            {!editingOnePercent && (
             <div style={{ marginBottom: 16 }}>
               <div id="habit-edit-icon-label" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
                 Icon
@@ -1660,12 +1795,26 @@ function SettingsTab(props) {
                 })}
               </div>
             </div>
+            )}
+            {editingOnePercent ? (
+            <div style={{ marginBottom: 16 }}>
+              <label htmlFor="habit-edit-one-percent-focus" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
+                Focus
+              </label>
+              <input id="habit-edit-one-percent-focus" name="one_percent_focus" value={ff} required onChange={(e) => setFf(e.target.value)} className="gt-input" autoComplete="off" aria-describedby="habit-edit-one-percent-help" style={{ width: "100%", padding: "12px 13px", minHeight: 44, border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 16, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none" }} />
+              <p id="habit-edit-one-percent-help" style={{ fontSize: 12, color: C.muted, marginTop: 8, lineHeight: 1.45 }}>
+                Displayed as 1%: {ff.trim() || "\u2026"}. The habit id and streak stay the same.
+              </p>
+            </div>
+            ) : (
             <div style={{ marginBottom: 16 }}>
               <label htmlFor="habit-edit-name" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
                 Name
               </label>
               <input id="habit-edit-name" value={fn} onChange={(e) => setFn(e.target.value)} className="gt-input" style={{ width: "100%", padding: "12px 13px", border: "1.5px solid " + C.border, borderRadius: 11, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: C.text, outline: "none" }} />
             </div>
+            )}
+            {!editingOnePercent && (
             <div style={{ marginBottom: 22 }}>
               <div id="habit-edit-schedule-label" style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
                 Schedule
@@ -1681,12 +1830,21 @@ function SettingsTab(props) {
                 })}
               </div>
             </div>
-            <button onClick={save} style={{ width: "100%", padding: "14px", borderRadius: 16, background: fn.trim() && fd2.length ? C.gradCTA : C.border, border: "none", color: fn.trim() && fd2.length ? C.onAccent : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
-              Save Changes
+            )}
+            {editingOnePercent && (
+              <div style={{ marginBottom: 22, fontSize: 12, color: C.muted }}>Scheduled every day. This built-in habit cannot be deleted.</div>
+            )}
+            <button onClick={save} style={{ width: "100%", padding: "14px", borderRadius: 16, background: (editingOnePercent ? ff.trim() : fn.trim() && fd2.length) ? C.gradCTA : C.border, border: "none", color: (editingOnePercent ? ff.trim() : fn.trim() && fd2.length) ? C.onAccent : C.muted, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>
+              {editingOnePercent ? "Save focus" : "Save Changes"}
             </button>
+            {!editingOnePercent && (
             <button
               onClick={function () {
                 var delId = ed;
+                var victim = habits.find(function (h) {
+                  return h.id === delId;
+                });
+                if (isOnePercentHabit(victim)) return;
                 setHabits(function (p) {
                   return p.filter(function (h) {
                     return h.id !== delId;
@@ -1699,6 +1857,7 @@ function SettingsTab(props) {
             >
               Delete Habit
             </button>
+            )}
             <button onClick={() => setEd(null)} style={{ width: "100%", padding: "11px", borderRadius: 16, background: "none", border: "none", color: C.muted, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
               Cancel
             </button>
@@ -4550,6 +4709,7 @@ function UnifiedCalendar(props) {
           wl={wl}
           sleep={sleep}
           tk={tk}
+          focusHistory={props.focusHistory}
           onClose={function () {
             setSelDay(null);
           }}
@@ -4734,6 +4894,7 @@ function DaySummarySheet(props) {
     wl = props.wl,
     sleep = props.sleep,
     tk = props.tk;
+  var focusHistory = props.focusHistory || [];
   var calS = useState({ loading: false, data: null, error: null });
   var calState = calS[0],
     setCalState = calS[1];
@@ -4946,7 +5107,7 @@ function DaySummarySheet(props) {
                     <span style={{ display: "flex", alignItems: "center" }}>
                       <HabitIcon id={h.icon} size={18} color={C.text} />
                     </span>
-                    <span style={{ fontSize: 13, color: done ? C.gd : C.text, fontWeight: done ? 700 : 500, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</span>
+                    <span style={{ fontSize: 13, color: done ? C.gd : C.text, fontWeight: done ? 700 : 500, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayHabitNameOnDate(h, focusHistory, k)}</span>
                   </div>
                 );
               })}
@@ -5040,6 +5201,9 @@ export default function App() {
   var h3 = useState(LOGS);
   var logs = h3[0],
     setLogs = h3[1];
+  var hFocusHist = useState([]);
+  var focusHistory = hFocusHist[0],
+    setFocusHistory = hFocusHist[1];
   var h4 = useState("home");
   var tab = h4[0],
     setTab = h4[1];
@@ -5114,28 +5278,48 @@ export default function App() {
 
   useEffect(function () {
     if (!supaReady()) {
-      setHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
+      var local = ensureBuiltinHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
+      setHabits(local.habits);
+      setFocusHistory(local.historySeed ? [local.historySeed] : []);
       setBooted(true);
       return;
     }
     D.loadAll()
       .then(function (data) {
         if (!data) {
-          setHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
+          var fallback = ensureBuiltinHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
+          setHabits(fallback.habits);
+          setFocusHistory(fallback.historySeed ? [fallback.historySeed] : []);
           setBooted(true);
           return;
         }
         var isFresh = data.habits.length === 0 && Object.keys(data.logs).length === 0;
         if (isFresh) {
-          setHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
-          D.fireAndForget(D.upsertHabit(DEFAULT_GYM_HABIT, 0), "seed-gym");
-          D.fireAndForget(D.upsertHabit(DEFAULT_WAKE_HABIT, 1), "seed-wake");
-        } else {
-          var ensured = ensureWakeHabit(data.habits);
-          setHabits(ensured.habits);
-          if (ensured.seeded) {
-            D.fireAndForget(D.upsertHabit(ensured.seeded, ensured.habits.length - 1), "seed-wake");
+          var fresh = ensureBuiltinHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
+          setHabits(fresh.habits);
+          fresh.habits.forEach(function (h, i) {
+            D.fireAndForget(D.upsertHabit(h, i), "seed-habit");
+          });
+          if (fresh.historySeed) {
+            D.fireAndForget(D.upsertFocusPeriods([fresh.historySeed]), "seed-one-percent-history");
           }
+          setFocusHistory(fresh.historySeed ? [fresh.historySeed] : []);
+        } else {
+          var ensured = ensureBuiltinHabits(data.habits);
+          setHabits(ensured.habits);
+          persistBuiltinHabits(ensured);
+          var hist = data.focusHistory || [];
+          var one = ensured.habits.find(isOnePercentHabit);
+          if (one && !hist.some(function (r) { return Number(r.habitId) === Number(one.id); })) {
+            var origin = {
+              habitId: one.id,
+              focus: parseFocusFromName(one.name),
+              startedOn: ONE_PERCENT_HISTORY_ORIGIN,
+            };
+            hist = hist.concat([origin]);
+            D.fireAndForget(D.upsertFocusPeriods([origin]), "seed-one-percent-history");
+          }
+          setFocusHistory(hist);
         }
         setComp(data.comp);
         setLogs(data.logs);
@@ -5144,7 +5328,9 @@ export default function App() {
       .catch(function (e) {
         console.error("[boot] loadAll failed:", e);
         setBootErr(String(e && e.message ? e.message : e));
-        setHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
+        var errLocal = ensureBuiltinHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
+        setHabits(errLocal.habits);
+        setFocusHistory(errLocal.historySeed ? [errLocal.historySeed] : []);
         setBooted(true);
       });
   }, []);
@@ -5182,6 +5368,32 @@ export default function App() {
   var wake = habits.find(function (h) {
     return h.icon === ICON_WAKE;
   });
+
+  function saveOnePercentFocus(rawFocus) {
+    var habit = habits.find(isOnePercentHabit);
+    if (!habit) return;
+    var out = applyFocusChange(habit, focusHistory, rawFocus, tk);
+    if (!out.changed) return;
+    setHabits(function (p) {
+      return p.map(function (h) {
+        return h.id === habit.id ? out.habit : h;
+      });
+    });
+    setFocusHistory(out.history);
+    var idx = habits.findIndex(function (h) {
+      return h.id === habit.id;
+    });
+    D.fireAndForget(D.upsertHabit(out.habit, idx < 0 ? 0 : idx), "onePercentFocus");
+    var hid = habit.id;
+    D.fireAndForget(
+      D.upsertFocusPeriods(
+        out.history.filter(function (r) {
+          return Number(r.habitId) === Number(hid);
+        })
+      ),
+      "onePercentHistory"
+    );
+  }
 
   function isComp(id) {
     return !!(comp[id] && comp[id][tk]);
@@ -5475,13 +5687,20 @@ export default function App() {
   function toggleHabit(id, btn) {
     var k = selDay;
     var was = comp[id] && comp[id][k];
+    var togHab = habits.find(function (h) {
+      return h.id === id;
+    });
+    var stampFocus = null;
+    if (!was && isOnePercentHabit(togHab)) {
+      stampFocus = resolveFocusForDate(focusHistory, id, k) || parseFocusFromName(togHab.name);
+    }
     setComp(function (p) {
       var n = Object.assign({}, p);
       n[id] = Object.assign({}, p[id] || {});
       n[id][k] = !was;
       return n;
     });
-    D.fireAndForget(D.setCompletion(id, k, !was), "toggleHabit");
+    D.fireAndForget(D.setCompletion(id, k, !was, stampFocus), "toggleHabit");
     if (!was) {
       setJustChk(function (p) {
         var n = Object.assign({}, p);
@@ -5522,6 +5741,13 @@ export default function App() {
   }
   function toggleDate(hid, k) {
     var was = !!(comp[hid] && comp[hid][k]);
+    var togHab = habits.find(function (h) {
+      return h.id === hid;
+    });
+    var stampFocus = null;
+    if (!was && isOnePercentHabit(togHab)) {
+      stampFocus = resolveFocusForDate(focusHistory, hid, k) || parseFocusFromName(togHab.name);
+    }
     setComp(function (p) {
       var n = Object.assign({}, p);
       n[hid] = Object.assign({}, p[hid] || {});
@@ -5529,7 +5755,7 @@ export default function App() {
       else n[hid][k] = true;
       return n;
     });
-    D.fireAndForget(D.setCompletion(hid, k, !was), "toggleDate");
+    D.fireAndForget(D.setCompletion(hid, k, !was, stampFocus), "toggleDate");
   }
 
   function getStreak(id) {
@@ -5584,6 +5810,7 @@ export default function App() {
     if (!newName.trim() || !newDays.length) return;
     if (newIconId === ICON_GYM && gym) return;
     if (newIconId === ICON_WAKE && wake) return;
+    if (newIconId === ICON_SPARK || newIconId === ICON_ONE_PERCENT) return;
     var id = Date.now();
     var newH = { id: id, name: newName.trim(), icon: newIconId, scheduledDays: newDays };
     var sortIdx = habits.length;
@@ -5792,10 +6019,12 @@ export default function App() {
                     streak = getStreak(habit.id),
                     wp = getWP(habit.id),
                     pop = justChk[habit.id],
-                    gymOrphan = gym && habit.id === gym.id && done && !workoutLogHasDetails(logs[selDay]);
+                    gymOrphan = gym && habit.id === gym.id && done && !workoutLogHasDetails(logs[selDay]),
+                    shownName = displayHabitNameOnDate(habit, focusHistory, selDay),
+                    builtinRing = habit.icon === ICON_GYM || habit.icon === ICON_WAKE || habit.icon === ICON_SPARK;
                   return (
                     <div key={habit.id} className={"hab" + (pop ? " glow" : "") + (done ? " gt-card-done" : " gt-card")} style={{ borderRadius: 18, padding: "14px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: done ? "0 2px 14px rgba(20,117,108,0.14), 0 0 0 1px rgba(20,117,108,0.16)" : "0 3px 12px rgba(26,35,50,0.06)", transition: "box-shadow 0.4s ease" }}>
-                      <button type="button" aria-pressed={done} aria-label={(done ? "Unmark " : "Mark ") + habit.name + " for " + selDay} className={"chk gt-focus-ring" + (pop ? " chk-celebrate" : "") + (habit.icon === ICON_GYM || habit.icon === ICON_WAKE ? " gt-shimmer gt-shimmer-ring" : "")} onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "2px solid rgba(20,117,108,0.45)" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 12px rgba(20,117,108,0.22)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
+                      <button type="button" aria-pressed={done} aria-label={(done ? "Unmark " : "Mark ") + shownName + " for " + selDay} className={"chk gt-focus-ring" + (pop ? " chk-celebrate" : "") + (builtinRing ? " gt-shimmer gt-shimmer-ring" : "")} onClick={function (e) { toggleHabit(habit.id, e.currentTarget); }} style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: done ? "2px solid rgba(20,117,108,0.45)" : "2px solid " + C.border, background: done ? C.green : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: done ? "inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 12px rgba(20,117,108,0.22)" : "none", transition: "all 0.32s cubic-bezier(0.34,1.56,0.64,1)" }}>
                         {done && (
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ animation: pop ? "checkPop 0.8s cubic-bezier(0.34,1.56,0.64,1) both" : "none" }}>
                             <path d="M4 10.5L8.5 15L16 6" stroke={C.onAccent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -5822,7 +6051,7 @@ export default function App() {
                         <HabitIcon id={habit.icon} size={22} color={done ? C.gd : C.accent} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: done ? C.gd : C.text, letterSpacing: 0.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{habit.name}</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: done ? C.gd : C.text, letterSpacing: 0.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{shownName}</div>
                         {gymOrphan && (
                           <button
                             type="button"
@@ -5918,6 +6147,7 @@ export default function App() {
               calM={calM}
               setCM={setCalM}
               setCY={setCalY}
+              focusHistory={focusHistory}
             />
           )}
           {paneTab === "data" && <DataTab wl={logs} habits={habits} comp={comp} sleep={sleep} todayKey={tk} />}
@@ -5928,6 +6158,7 @@ export default function App() {
             <SettingsTab
               habits={habits}
               setHabits={setHabits}
+              onSaveOnePercentFocus={saveOnePercentFocus}
             />
           )}
       </div>

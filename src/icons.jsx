@@ -1,10 +1,14 @@
+import { ICON_ONE_PERCENT } from "./onePercent.js";
+
 var DEF_PRI = "#2EC4B6";
 var DEF = DEF_PRI;
 
 export var ICON_GYM = "gym";
 export var ICON_WAKE = "wake";
+export var ICON_SPARK = ICON_ONE_PERCENT;
 
 export var HABIT_ICON_ORDER = ["star", "run", "book", "water", "calm", "gym", "wake", "target", "plant", "write", "music", "mind", "dawn", "food", "rest", "bike"];
+var HABIT_ICON_RESERVED = [ICON_SPARK];
 
 var LEGACY_EMOJI = {
   "\u2B50": "star",
@@ -29,10 +33,12 @@ export function normalizeHabitIcon(raw) {
   if (!raw || typeof raw !== "string") return "star";
   if (LEGACY_EMOJI[raw]) return LEGACY_EMOJI[raw];
   if (HABIT_ICON_ORDER.indexOf(raw) >= 0) return raw;
+  if (HABIT_ICON_RESERVED.indexOf(raw) >= 0) return raw;
   return "star";
 }
 
 export function toDbHabitIcon(iconId) {
+  if (iconId && HABIT_ICON_RESERVED.indexOf(iconId) >= 0) return iconId;
   var id = iconId && HABIT_ICON_ORDER.indexOf(iconId) >= 0 ? iconId : "star";
   return id;
 }
@@ -98,6 +104,15 @@ export function HabitIcon(props) {
           <path d="M12 13V9.5" />
           <path d="M12 13l2.8 1.8" />
           <path d="M5.5 4.5L3.5 6.5M18.5 4.5l2 2" />
+        </svg>
+      );
+    case "spark":
+      return (
+        <svg {...p}>
+          <circle cx="12" cy="12" r="6.2" />
+          <circle cx="12" cy="12" r="3.1" />
+          <circle cx="12" cy="12" r="1.15" fill={c} stroke="none" />
+          <path d="M12 2.2v2.6M12 19.2v2.6M2.2 12h2.6M19.2 12h2.6M5.1 5.1l1.8 1.8M17.1 17.1l1.8 1.8M17.1 6.9l1.8-1.8M5.1 18.9l1.8-1.8" />
         </svg>
       );
     case "target":
