@@ -49,6 +49,11 @@ function cycleToRow(c) {
   };
 }
 
+function isMissingSchema(err) {
+  var m = String((err && (err.message || err.code)) || err || "");
+  return /PGRST204|PGRST205|schema cache|does not exist|Could not find the table|Could not find the/i.test(m);
+}
+
 function shapeCompletions(rows) {
   var out = {};
   rows.forEach(function (r) {
@@ -57,6 +62,16 @@ function shapeCompletions(rows) {
     out[hid][r.completion_date] = true;
   });
   return out;
+}
+
+function shapeFocusHistory(rows) {
+  return (rows || []).map(function (r) {
+    return {
+      habitId: Number(r.habit_id),
+      focus: r.focus,
+      startedOn: r.started_on,
+    };
+  });
 }
 
 function shapeOneWorkoutLogRow(r) {
@@ -84,21 +99,37 @@ export async function loadAll() {
   if (!supaReady()) return null;
   var results = await Promise.all([
     supabase.from("habits").select("*").order("sort_order", { ascending: true }),
-    supabase.from("habit_completions").select("habit_id,completion_date"),
+    supabase.from("habit_completions").select("habit_id,completion_date,focus_label"),
     supabase.from("workout_logs").select("*"),
     supabase.from("cycles").select("*").order("start_date", { ascending: true }),
+    supabase.from("habit_focus_history").select("habit_id,focus,started_on").order("started_on", { ascending: true }),
   ]);
   var habitsRes = results[0],
     compRes = results[1],
     logsRes = results[2],
-    cyclesRes = results[3];
-  var err = habitsRes.error || compRes.error || logsRes.error || cyclesRes.error;
+    cyclesRes = results[3],
+    histRes = results[4];
+  var err = habitsRes.error || logsRes.error || cyclesRes.error;
   if (err) throw new Error(err.message || "Supabase load failed");
+  var compRows = compRes.data || [];
+  if (compRes.error) {
+    if (!isMissingSchema(compRes.error)) throw new Error(compRes.error.message || "Supabase load failed");
+    var retryComp = await supabase.from("habit_completions").select("habit_id,completion_date");
+    if (retryComp.error) throw new Error(retryComp.error.message || "Supabase load failed");
+    compRows = retryComp.data || [];
+  }
+  var focusHistory = [];
+  if (histRes.error) {
+    if (!isMissingSchema(histRes.error)) throw new Error(histRes.error.message || "Supabase load failed");
+  } else {
+    focusHistory = shapeFocusHistory(histRes.data);
+  }
   return {
     habits: (habitsRes.data || []).map(rowToHabit),
-    comp: shapeCompletions(compRes.data || []),
+    comp: shapeCompletions(compRows),
     logs: shapeLogs(logsRes.data || []),
     cycles: (cyclesRes.data || []).map(rowToCycle),
+    focusHistory: focusHistory,
   };
 }
 
@@ -129,14 +160,36 @@ export async function reorderHabits(habits) {
 
 // Completion CRUD
 
-export async function setCompletion(habitId, date, done) {
+export async function setCompletion(habitId, date, done, focusLabel) {
   if (!supaReady()) return;
   if (done) {
-    var ins = await supabase.from("habit_completions").upsert({ habit_id: habitId, completion_date: date }, { onConflict: "habit_id,completion_date" });
+    var row = { habit_id: habitId, completion_date: date };
+    if (focusLabel) row.focus_label = String(focusLabel);
+    var ins = await supabase.from("habit_completions").upsert(row, { onConflict: "habit_id,completion_date" });
+    if (ins.error && row.focus_label && isMissingSchema(ins.error)) {
+      delete row.focus_label;
+      ins = await supabase.from("habit_completions").upsert(row, { onConflict: "habit_id,completion_date" });
+    }
     if (ins.error) throw new Error(ins.error.message);
   } else {
     var del = await supabase.from("habit_completions").delete().eq("habit_id", habitId).eq("completion_date", date);
     if (del.error) throw new Error(del.error.message);
+  }
+}
+
+export async function upsertFocusPeriods(entries) {
+  if (!supaReady() || !entries || !entries.length) return;
+  var rows = entries.map(function (e) {
+    return {
+      habit_id: e.habitId,
+      focus: e.focus,
+      started_on: e.startedOn,
+    };
+  });
+  var res = await supabase.from("habit_focus_history").upsert(rows, { onConflict: "habit_id,started_on" });
+  if (res.error) {
+    if (isMissingSchema(res.error)) return;
+    throw new Error(res.error.message);
   }
 }
 

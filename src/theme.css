@@ -368,6 +368,11 @@ textarea.gt-input:focus {
   box-shadow: 0 0 0 1px rgba(46, 196, 182, 0.22), inset 0 0 0 1px rgba(46, 196, 182, 0.06);
 }
 
+input.gt-input:user-invalid,
+textarea.gt-input:user-invalid {
+  border-color: rgba(194, 59, 68, 0.72) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gt-card,
   .gt-card-elevated,

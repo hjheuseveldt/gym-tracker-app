@@ -8,6 +8,7 @@ Apply SQL migrations for optional features:
 |-------|-----------|
 | Workout cardio minutes | [`supabase/migrations/20260520120000_workout_logs_add_cardio_minutes.sql`](supabase/migrations/20260520120000_workout_logs_add_cardio_minutes.sql) |
 | Calories **custom foods** | [`supabase/migrations/20260520130100_custom_foods.sql`](supabase/migrations/20260520130100_custom_foods.sql) — details in [`docs/DATABASE_CUSTOM_FOODS.md`](docs/DATABASE_CUSTOM_FOODS.md) |
+| Built-in **1%** habit focus history | [`supabase/migrations/20260921120000_habit_focus_history.sql`](supabase/migrations/20260921120000_habit_focus_history.sql) — details in [`docs/DATABASE_ONE_PERCENT.md`](docs/DATABASE_ONE_PERCENT.md) |
 
 In **Supabase → SQL Editor**, paste and run each file’s contents once per project.
 
