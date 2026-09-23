@@ -3071,6 +3071,181 @@ function mealScanErrorMessage(status, data, fallback) {
   return String(raw);
 }
 
+function MealScanNoteSheet(props) {
+  var portalRootRef = props.portalRoot;
+  var hostS = useState(function () {
+    return portalRootRef && portalRootRef.current;
+  });
+  var portalHost = hostS[0],
+    setPortalHost = hostS[1];
+  useLayoutEffect(
+    function () {
+      var el = portalRootRef && portalRootRef.current;
+      setPortalHost(function (prev) {
+        var next = el || null;
+        return Object.is(prev, next) ? prev : next;
+      });
+    },
+    [portalRootRef]
+  );
+  var noteS = useState("");
+  var note = noteS[0],
+    setNote = noteS[1];
+
+  if (!portalHost) return null;
+
+  var busy = !!props.busy;
+  var inputStyle = {
+    width: "100%",
+    padding: "11px 12px",
+    borderRadius: 12,
+    border: "1.5px solid " + C.border,
+    fontSize: 15,
+    fontFamily: "'DM Sans',sans-serif",
+    color: C.text,
+    outline: "none",
+    boxSizing: "border-box",
+    resize: "vertical",
+    minHeight: 76,
+    lineHeight: 1.4,
+  };
+  var labelStyle = {
+    fontSize: 11,
+    color: C.muted,
+    fontWeight: 600,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    display: "block",
+  };
+
+  return createPortal(
+    <div
+      onClick={props.onCancel}
+      role="presentation"
+      className="gt-scrim"
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: C.scrimSoft,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingTop: "max(12px, env(safe-area-inset-top))",
+        paddingRight: "max(12px, env(safe-area-inset-right))",
+        paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+        paddingLeft: "max(12px, env(safe-area-inset-left))",
+        boxSizing: "border-box",
+        zIndex: 250,
+        animation: "fadeIn 0.18s ease both",
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="meal-scan-note-title"
+        onClick={function (e) {
+          e.stopPropagation();
+        }}
+        className="gt-card-elevated"
+        style={{
+          width: "100%",
+          maxWidth: "min(336px, 100%)",
+          borderRadius: 20,
+          padding: "16px 16px 18px",
+          animation: "slideUp 0.24s cubic-bezier(0.34,1.56,0.64,1) both",
+          fontFamily: "'DM Sans',sans-serif",
+          maxHeight: "calc(100% - 24px)",
+          overflowY: "auto",
+          flexShrink: 0,
+        }}
+      >
+        <div id="meal-scan-note-title" style={{ fontSize: 17, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.25 }}>
+          Scan meal
+        </div>
+        <div style={{ fontSize: 12, color: C.muted, marginTop: 4, lineHeight: 1.4 }}>
+          Optional note. Leave it blank to estimate the photo as-is.
+        </div>
+        {props.previewUrl ? (
+          <img
+            src={props.previewUrl}
+            alt="Selected meal"
+            style={{
+              display: "block",
+              width: "100%",
+              maxHeight: 180,
+              objectFit: "cover",
+              borderRadius: 12,
+              marginTop: 12,
+              background: C.bg,
+            }}
+          />
+        ) : null}
+        <div style={{ marginTop: 14 }}>
+          <label htmlFor="meal-scan-note" style={labelStyle}>
+            Note
+          </label>
+          <textarea
+            id="meal-scan-note"
+            className="gt-input"
+            value={note}
+            maxLength={500}
+            rows={3}
+            disabled={busy}
+            placeholder="e.g. weight is food only — no plate"
+            onChange={function (e) {
+              setNote(e.target.value);
+            }}
+            style={inputStyle}
+          />
+        </div>
+        {props.error ? (
+          <div style={{ marginTop: 10, padding: "10px 12px", background: C.red, color: C.redT, borderRadius: 12, fontSize: 12, fontWeight: 600, lineHeight: 1.4 }}>
+            {props.error}
+          </div>
+        ) : null}
+        <div style={{ display: "flex", gap: 9, marginTop: 17 }}>
+          <button
+            type="button"
+            onClick={props.onCancel}
+            className="gt-card gt-focus-ring"
+            style={{ flex: 1, padding: "11px", borderRadius: 12, fontSize: 13, fontWeight: 700, color: C.muted, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", minHeight: 44 }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={function () {
+              if (busy) return;
+              props.onAnalyze(note);
+            }}
+            disabled={busy}
+            className="gt-focus-ring"
+            style={{
+              flex: 1.4,
+              padding: "11px",
+              borderRadius: 12,
+              border: "none",
+              background: busy ? C.border : C.gradCTA,
+              color: busy ? C.muted : C.onAccent,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: busy ? "default" : "pointer",
+              opacity: busy ? 0.7 : 1,
+              fontFamily: "'DM Sans',sans-serif",
+              boxShadow: busy ? "none" : C.shadowCTASoft,
+              minHeight: 44,
+            }}
+          >
+            {busy ? "Analyzing\u2026" : "Analyze"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    portalHost
+  );
+}
+
 function MealScanSheet(props) {
   var estimate = props.estimate || {};
   var costLine = formatMealScanCostLine(props.cost, props.usage);
@@ -3208,6 +3383,9 @@ function MealScanSheet(props) {
           Review meal scan
         </div>
         <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{confLabel}</div>
+        {props.userNote ? (
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 6, lineHeight: 1.4 }}>{props.userNote}</div>
+        ) : null}
         {estimate.notes ? (
           <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.4 }}>{estimate.notes}</div>
         ) : null}
@@ -3572,9 +3750,16 @@ function CalorieTab(props) {
   var scanBusy = scanBusyS[0],
     setScanBusy = scanBusyS[1];
   var scanInputRef = useRef(null);
+  var scanAbortRef = useRef(null);
   var scanSessionS = useState(0);
   var scanSession = scanSessionS[0],
     setScanSession = scanSessionS[1];
+  var pendingScanS = useState(null);
+  var pendingScan = pendingScanS[0],
+    setPendingScan = pendingScanS[1];
+  var scanUserNoteS = useState("");
+  var scanUserNote = scanUserNoteS[0],
+    setScanUserNote = scanUserNoteS[1];
 
   useEffect(
     function () {
@@ -3787,13 +3972,32 @@ function CalorieTab(props) {
         setScanCost(null);
         setScanUsage(null);
         setScanPreview(null);
+        setScanUserNote("");
         setQ("");
         setResults([]);
       });
   }
 
+  function discardPendingScan() {
+    if (scanAbortRef.current) {
+      scanAbortRef.current.abort();
+      scanAbortRef.current = null;
+    }
+    setPendingScan(null);
+    setScanPreview(null);
+    setScanBusy(false);
+  }
+
+  function clearMealScanReview() {
+    setScanEstimate(null);
+    setScanCost(null);
+    setScanUsage(null);
+    setScanPreview(null);
+    setScanUserNote("");
+  }
+
   function onMealPhotoSelected(file) {
-    if (!file || scanBusy) return;
+    if (!file || scanBusy || pendingScan) return;
     var type = (file.type || "").toLowerCase();
     if (type && type.indexOf("image/") !== 0) {
       setError("Please choose a photo of your meal.");
@@ -3804,40 +4008,75 @@ function CalorieTab(props) {
     compressImageForScan(file, 640, 0.65)
       .then(function (packed) {
         setScanPreview(packed.previewUrl);
-        return fetch("/api/food/analyze", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            imageBase64: packed.imageBase64,
-            mimeType: packed.mimeType,
-          }),
-        }).then(function (r) {
-          return r.json().then(
-            function (data) {
-              if (!r.ok) {
-                throw new Error(mealScanErrorMessage(r.status, data, "Scan failed (" + r.status + ")"));
-              }
-              if (!data || !data.estimate) throw new Error("No estimate returned");
-              setScanSession(function (n) {
-                return n + 1;
-              });
-              setScanEstimate(data.estimate);
-              setScanCost(data.cost || null);
-              setScanUsage(data.usage || null);
-            },
-            function () {
-              throw new Error(mealScanErrorMessage(r.status, null, "Scan failed (" + r.status + ")"));
-            }
-          );
+        setPendingScan({
+          imageBase64: packed.imageBase64,
+          mimeType: packed.mimeType,
+          previewUrl: packed.previewUrl,
         });
       })
       .catch(function (e) {
         setError(String((e && e.message) || e));
+        setPendingScan(null);
+        setScanPreview(null);
+      })
+      .finally(function () {
+        setScanBusy(false);
+      });
+  }
+
+  function analyzePendingMeal(note) {
+    if (!pendingScan || scanBusy) return;
+    var trimmed = String(note || "").trim().slice(0, 500);
+    var payload = {
+      imageBase64: pendingScan.imageBase64,
+      mimeType: pendingScan.mimeType,
+    };
+    if (trimmed) payload.note = trimmed;
+    var ac = new AbortController();
+    scanAbortRef.current = ac;
+    setScanBusy(true);
+    setError(null);
+    fetch("/api/food/analyze", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: ac.signal,
+    })
+      .then(function (r) {
+        return r.json().then(
+          function (data) {
+            if (!r.ok) {
+              throw new Error(mealScanErrorMessage(r.status, data, "Scan failed (" + r.status + ")"));
+            }
+            if (!data || !data.estimate) throw new Error("No estimate returned");
+            return data;
+          },
+          function () {
+            throw new Error(mealScanErrorMessage(r.status, null, "Scan failed (" + r.status + ")"));
+          }
+        );
+      })
+      .then(function (data) {
+        if (ac.signal.aborted) return;
+        setScanSession(function (n) {
+          return n + 1;
+        });
+        setScanUserNote(trimmed);
+        setScanEstimate(data.estimate);
+        setScanCost(data.cost || null);
+        setScanUsage(data.usage || null);
+        setPendingScan(null);
+      })
+      .catch(function (e) {
+        if (ac.signal.aborted || (e && e.name === "AbortError")) return;
+        setError(String((e && e.message) || e));
         setScanEstimate(null);
         setScanCost(null);
         setScanUsage(null);
+        setScanUserNote("");
       })
       .finally(function () {
+        if (scanAbortRef.current === ac) scanAbortRef.current = null;
         setScanBusy(false);
       });
   }
@@ -3997,9 +4236,9 @@ function CalorieTab(props) {
             type="button"
             aria-label="Scan meal photo"
             className="gt-focus-ring gt-min-tap"
-            disabled={scanBusy}
+            disabled={scanBusy || !!pendingScan}
             onClick={function () {
-              if (scanBusy) return;
+              if (scanBusy || pendingScan) return;
               if (scanInputRef.current) scanInputRef.current.click();
             }}
             style={{
@@ -4008,14 +4247,14 @@ function CalorieTab(props) {
               height: 44,
               borderRadius: 14,
               border: "1.5px solid " + C.border,
-              cursor: scanBusy ? "default" : "pointer",
+              cursor: scanBusy || pendingScan ? "default" : "pointer",
               fontFamily: "'DM Sans',sans-serif",
               color: C.text,
               background: C.sheet,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              opacity: scanBusy ? 0.55 : 1,
+              opacity: scanBusy || pendingScan ? 0.55 : 1,
               WebkitTapHighlightColor: "transparent",
             }}
           >
@@ -4051,9 +4290,9 @@ function CalorieTab(props) {
             +
           </button>
         </div>
-        {scanBusy && (
+        {scanBusy && !pendingScan && (
           <div style={{ marginTop: 8, padding: "10px 12px", borderRadius: 12, fontSize: 13, color: C.muted, background: C.sheet }}>
-            Analyzing meal photo{"\u2026"}
+            Preparing photo{"\u2026"}
           </div>
         )}
         {(q.trim() || searching) && (
@@ -4203,7 +4442,7 @@ function CalorieTab(props) {
         })}
       </div>
 
-      {error && (
+      {error && !pendingScan && (
         <div style={{ margin: "12px 16px 0", padding: "10px 14px", background: C.red, color: C.redT, borderRadius: 12, fontSize: 12, fontWeight: 600, display: "flex", alignItems: "flex-start", gap: 8 }}>
           <span style={{ flex: 1 }}>{error}</span>
           <button
@@ -4233,6 +4472,17 @@ function CalorieTab(props) {
         />
       )}
 
+      {pendingScan && !scanEstimate && (
+        <MealScanNoteSheet
+          portalRoot={props.portalRoot}
+          previewUrl={pendingScan.previewUrl}
+          busy={scanBusy}
+          error={error}
+          onCancel={discardPendingScan}
+          onAnalyze={analyzePendingMeal}
+        />
+      )}
+
       {scanEstimate && (
         <MealScanSheet
           key={"scan-" + scanSession}
@@ -4241,12 +4491,8 @@ function CalorieTab(props) {
           cost={scanCost}
           usage={scanUsage}
           previewUrl={scanPreview}
-          onCancel={function () {
-            setScanEstimate(null);
-            setScanCost(null);
-            setScanUsage(null);
-            setScanPreview(null);
-          }}
+          userNote={scanUserNote}
+          onCancel={clearMealScanReview}
           onConfirm={function (edited) {
             return logScannedMeal(edited);
           }}
