@@ -1,4 +1,4 @@
-# GymTrack — UX & React supplement (ui-ux-pro-max excerpts)
+# BrickByBrick — UX & React supplement (ui-ux-pro-max excerpts)
 
 _Static excerpts synthesized from [.cursor/skills/ui-ux-pro-max/data/ux-guidelines.csv](../.cursor/skills/ui-ux-pro-max/data/ux-guidelines.csv) and [stacks/react.csv](../.cursor/skills/ui-ux-pro-max/data/stacks/react.csv) — use during implementation._
 

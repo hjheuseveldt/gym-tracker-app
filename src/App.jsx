@@ -6114,7 +6114,7 @@ export default function App() {
               <IconDumbbellMark size={48} color={C.accent} />
             </div>
           </div>
-          <div className="gt-splash-text">GymTrack</div>
+          <div className="gt-splash-text">BrickByBrick</div>
         </div>
       </div>
     );
@@ -6692,7 +6692,7 @@ export default function App() {
               <IconDumbbellMark size={48} color={C.accent} />
             </div>
           </div>
-          <div className="gt-splash-text">GymTrack</div>
+          <div className="gt-splash-text">BrickByBrick</div>
         </div>
       )}
     </div>

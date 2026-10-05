@@ -1,78 +1,107 @@
 /**
- * Renders navy-silver PWA / favicon PNGs from inline SVG via sharp.
+ * Builds BrickByBrick PWA / favicon PNGs from the ring artwork.
  * Run: npm run generate-icons
  *
- * Uses the same dumbbell icon as the Gainz tab (IGainz from icons.jsx),
- * rendered as thick silver strokes on the CTA gradient background.
- *
- * Palette: CTA gradient #2A3040 → #1A1F2E → #121620
+ * Source of truth: scripts/brand/ring-icon-source.jpg (1280×720).
+ * Measured on that file: ring center (640, 349), outer metal edge ~218px.
+ * Exports sit on a pure white square. The ring fills most of the canvas,
+ * with padding so iOS's rounded mask does not clip the metal. The maskable
+ * icon keeps the same artwork inside Android's 80% safe zone.
  */
 import sharp from "sharp";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-var __dirname = path.dirname(fileURLToPath(import.meta.url));
-var ROOT = path.join(__dirname, "..");
-var PUB = path.join(ROOT, "public");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.join(__dirname, "..");
+const PUB = path.join(ROOT, "public");
+const SOURCE = path.join(__dirname, "brand", "ring-icon-source.jpg");
 
-function svgIcon(opts) {
-  var maskable = opts.maskable === true;
-  var rOuter = maskable ? 88 : 108;
-  var rInner = rOuter - 10;
-  var rInnerHi = rOuter - 16;
+const CENTER_X = 640;
+const CENTER_Y = 349;
+/** Crop radius. Includes the antialiased rim, then the rest is forced white. */
+const CROP_RADIUS = 224;
+/** Pixels farther than this from the ring center are background, not metal. */
+const KEEP_RADIUS = 220;
 
-  var motifScaleFull = 16;
-  var motifScale = maskable ? motifScaleFull * 0.72 : motifScaleFull;
+/** Ring diameter as a fraction of the icon canvas (any-purpose / Apple). */
+const STANDARD_FRACTION = 0.84;
+/** Smaller so the full ring stays inside the maskable safe zone. */
+const MASKABLE_FRACTION = 0.7;
 
-  var gOpen = '<g transform="translate(256,256) scale(' + motifScale + ') translate(-12,-12)" fill="url(#silver)" stroke="url(#silver)" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round">';
-  var gClose = "</g>";
+async function loadRingSquare() {
+  const side = CROP_RADIUS * 2;
+  const left = CENTER_X - CROP_RADIUS;
+  const top = CENTER_Y - CROP_RADIUS;
+  const { data, info } = await sharp(SOURCE)
+    .extract({ left, top, width: side, height: side })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
 
-  var g = [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">',
-    "<defs>",
-    '<linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">',
-    '<stop offset="0%" stop-color="#2A3040"/>',
-    '<stop offset="50%" stop-color="#1A1F2E"/>',
-    '<stop offset="100%" stop-color="#121620"/>',
-    "</linearGradient>",
-    '<linearGradient id="silver" x1="0%" y1="0%" x2="0%" y2="100%">',
-    '<stop offset="0%" stop-color="#E8EAEF"/>',
-    '<stop offset="55%" stop-color="#C8CCD4"/>',
-    '<stop offset="100%" stop-color="#9EA4AF"/>',
-    "</linearGradient>",
-    "</defs>",
-    '<rect width="512" height="512" rx="' + String(rOuter) + '" ry="' + String(rOuter) + '" fill="url(#bg)"/>',
-    '<rect x="10" y="10" width="492" height="492" rx="' + String(rInner) + '" fill="none" stroke="rgba(212,216,224,0.48)" stroke-width="2.5"/>',
-    '<rect x="14" y="14" width="484" height="484" rx="' + String(rInnerHi) + '" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.75"/>',
-    gOpen,
-    '  <rect x="1.5" y="9.5" width="3.5" height="5" rx="1.2"/>',
-    '  <rect x="5" y="7" width="3" height="10" rx="1.2"/>',
-    '  <rect x="7.5" y="10.5" width="9" height="3" rx="1.5"/>',
-    '  <rect x="16" y="7" width="3" height="10" rx="1.2"/>',
-    '  <rect x="19" y="9.5" width="3.5" height="5" rx="1.2"/>',
-    gClose,
-    "</svg>",
-  ].join("");
+  if (info.width !== side || info.height !== side || info.channels !== 3) {
+    throw new Error("Unexpected source crop " + info.width + "x" + info.height + " c" + info.channels);
+  }
 
-  return g;
+  const out = Buffer.alloc(side * side * 4);
+  for (let y = 0; y < side; y++) {
+    for (let x = 0; x < side; x++) {
+      const dist = Math.hypot(x - CROP_RADIUS, y - CROP_RADIUS);
+      const src = (y * side + x) * 3;
+      const dst = (y * side + x) * 4;
+      let r = data[src];
+      let g = data[src + 1];
+      let b = data[src + 2];
+      const outside = dist > KEEP_RADIUS;
+      const paperWhite = r >= 252 && g >= 252 && b >= 252;
+      if (outside || paperWhite) {
+        r = 255;
+        g = 255;
+        b = 255;
+      }
+      out[dst] = r;
+      out[dst + 1] = g;
+      out[dst + 2] = b;
+      out[dst + 3] = 255;
+    }
+  }
+
+  return sharp(out, { raw: { width: side, height: side, channels: 4 } }).png().toBuffer();
 }
 
-async function writePng(rel, svgString, px) {
-  var out = path.join(PUB, rel);
-  await sharp(Buffer.from(svgString)).resize(px, px, { fit: "fill" }).png({ compressionLevel: 9 }).toFile(out);
-  console.warn(" wrote " + rel + " (" + px + ")");
+async function renderIcon(ringPng, size, ringFraction) {
+  const diameter = Math.round(size * ringFraction);
+  const resized = await sharp(ringPng).resize(diameter, diameter, { fit: "fill", kernel: "lanczos3" }).png().toBuffer();
+  const pad = Math.floor((size - diameter) / 2);
+  return sharp({
+    create: {
+      width: size,
+      height: size,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    },
+  })
+    .composite([{ input: resized, left: pad, top: pad }])
+    .png({ compressionLevel: 9 })
+    .toBuffer();
 }
 
 await fs.mkdir(PUB, { recursive: true });
+const ring = await loadRingSquare();
 
-var full = svgIcon({ maskable: false });
-var mask512 = svgIcon({ maskable: true });
+const outputs = [
+  ["icon-512.png", 512, STANDARD_FRACTION],
+  ["icon-192.png", 192, STANDARD_FRACTION],
+  ["apple-touch-icon.png", 180, STANDARD_FRACTION],
+  ["favicon.png", 48, STANDARD_FRACTION],
+  ["icon-512-maskable.png", 512, MASKABLE_FRACTION],
+];
 
-await writePng("icon-512.png", full, 512);
-await writePng("icon-192.png", full, 192);
-await writePng("apple-touch-icon.png", full, 180);
-await writePng("favicon.png", full, 48);
-await writePng("icon-512-maskable.png", mask512, 512);
+for (const [name, size, fraction] of outputs) {
+  const buf = await renderIcon(ring, size, fraction);
+  await fs.writeFile(path.join(PUB, name), buf);
+  console.warn(" wrote " + name + " (" + size + ", ring " + Math.round(fraction * 100) + "%)");
+}
 
 console.warn("PWA icons written to public/");

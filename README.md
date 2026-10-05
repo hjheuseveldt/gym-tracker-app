@@ -1,4 +1,4 @@
-# Gym Tracker App
+# BrickByBrick
 
 ## Database setup
 
@@ -21,7 +21,7 @@ npm run dev
 
 ### PWA / Add to Home Screen
 
-In-app theme is Soft Health (mint canvas `#F7FFFC`, turquoise `#2EC4B6`). Manifest `theme_color` matches. Raster home-screen icons may still use the older navy mark until regenerated — specs: [`docs/HOME_SCREEN_ICONS.md`](docs/HOME_SCREEN_ICONS.md).
+In-app theme is Soft Health (mint canvas `#F7FFFC`, turquoise `#2EC4B6`). Manifest `theme_color` matches. Home-screen icons are the silver ring mark (arrow up, white background) — specs: [`docs/HOME_SCREEN_ICONS.md`](docs/HOME_SCREEN_ICONS.md).
 
 **After a branding deploy, iPhone users should delete the old home screen shortcut and add the site again** (Safari caches home screen icons aggressively).
 
