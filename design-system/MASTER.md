@@ -1,4 +1,4 @@
-# GymTrack — Design system master
+# BrickByBrick — Design system master
 
 Apple Health / Fitness **Soft Health** UI in light mode: mint-wash canvas, opaque white grouped cards, turquoise accent. Source: ui-ux-pro-max (Health & Wellness + Spatial UI) applied as a visual-only restyle.
 

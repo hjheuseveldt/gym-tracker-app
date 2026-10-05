@@ -1,6 +1,6 @@
 {
-  "name": "GymTrack",
-  "short_name": "GymTrack",
+  "name": "BrickByBrick",
+  "short_name": "BrickByBrick",
   "description": "Soft Health training companion — workouts, sleep, calories, habits, and coach.",
   "start_url": "/",
   "scope": "/",
