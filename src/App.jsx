@@ -47,6 +47,7 @@ import {
 import {
   habitDotColor,
   formatDateKey,
+  habitExistedOn,
   isAllTrackedHabitsComplete,
   countAllCompleteDaysInMonth,
   countCompletionsInMonth,
@@ -5207,10 +5208,18 @@ function DaySummarySheet(props) {
 
   var s = sleep[k];
   var l = wl[k];
-  var hd = habitsDoneOn(habits, comp, k);
   var perfect = isPerfectDay(habits, comp, sleep, k, tk);
   var allHabitsDone = isAllTrackedHabitsComplete(habits, comp, k, tk);
   var sched = scheduledHabitsOn(habits, k);
+  var existedSched = sched.filter(function (h) {
+    return habitExistedOn(h, k);
+  });
+  var laterSched = sched.filter(function (h) {
+    return !habitExistedOn(h, k);
+  });
+  var existedDone = existedSched.filter(function (h) {
+    return !!(comp[h.id] && comp[h.id][k]);
+  }).length;
 
   var calData = calState.data;
   var sumNum = function (e, key) {
@@ -5374,7 +5383,7 @@ function DaySummarySheet(props) {
         <div className="gt-card" style={{borderRadius: 14, padding: "12px 14px", marginBottom: 10}}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
-              Habits {hd.total > 0 ? "(" + hd.done + "/" + hd.total + ")" : ""}
+              Habits {existedSched.length > 0 ? "(" + existedDone + "/" + existedSched.length + ")" : ""}
             </div>
             <span style={{ display: "flex", lineHeight: 0 }}>
               <IconKpiHabit size={20} color={C.accent} />
@@ -5384,7 +5393,7 @@ function DaySummarySheet(props) {
             <div style={{ fontSize: 12, color: C.muted }}>No habits scheduled this day.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              {sched.map(function (h) {
+              {existedSched.map(function (h) {
                 var done = !!(comp[h.id] && comp[h.id][k]);
                 return (
                   <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 9 }}>
@@ -5399,6 +5408,18 @@ function DaySummarySheet(props) {
                       <HabitIcon id={h.icon} size={18} color={C.text} />
                     </span>
                     <span style={{ fontSize: 13, color: done ? C.gd : C.text, fontWeight: done ? 700 : 500, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayHabitNameOnDate(h, focusHistory, k)}</span>
+                  </div>
+                );
+              })}
+              {laterSched.map(function (h) {
+                return (
+                  <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 9, opacity: 0.55 }}>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", border: "2px dashed " + C.border, flexShrink: 0 }} />
+                    <span style={{ display: "flex", alignItems: "center" }}>
+                      <HabitIcon id={h.icon} size={18} color={C.muted} />
+                    </span>
+                    <span style={{ fontSize: 13, color: C.muted, fontWeight: 500, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayHabitNameOnDate(h, focusHistory, k)}</span>
+                    <span style={{ fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: 0.2, flexShrink: 0 }}>Not tracked yet</span>
                   </div>
                 );
               })}
