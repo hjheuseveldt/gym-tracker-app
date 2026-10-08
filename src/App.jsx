@@ -52,8 +52,17 @@ import {
   countAllCompleteDaysInMonth,
   countCompletionsInMonth,
   allCompleteStreak,
+  calendarViewOptions,
+  parseHabitViewId,
+  resolveCalendarView,
+  readStoredCalendarView,
+  writeStoredCalendarView,
+  countHabitCompletionsInMonth,
+  habitMonthScheduledStats,
+  habitCompletionStreak,
+  formatCompletionRate,
 } from "./habitCalendar.js";
-import { CalendarModeTabs, HabitDayCell, HabitMonthLegend, ActivityHeatLegend } from "./TrackedHabitMonth.jsx";
+import { CalendarViewMenu, HabitDayCell, HabitMonthLegend, ActivityHeatLegend, ActivityHeatDay, SingleHabitDayCell, SingleHabitLegend } from "./TrackedHabitMonth.jsx";
 
 var APP_NAV_TABS = [
   { id: "home", label: "Today", Icon: IToday },
@@ -4883,6 +4892,35 @@ var LAYER_LEGENDS = {
   workouts: ["rgba(46,196,182,0.28)", "rgba(46,196,182,0.48)", "rgba(46,196,182,0.72)", "#1FA89C"],
 };
 
+function calendarStorage() {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    return localStorage;
+  } catch (e) {
+    return null;
+  }
+}
+
+function focusHabitForLayer(habits, layer) {
+  var habitViewId = parseHabitViewId(layer);
+  if (habitViewId == null) return null;
+  var found = null;
+  (habits || []).forEach(function (h) {
+    if (Number(h.id) === habitViewId) found = h;
+  });
+  return found;
+}
+
+function habitViewKpis(habit, comp, year, monthIndex, todayKey) {
+  var stats = habitMonthScheduledStats(habit, comp, year, monthIndex, todayKey);
+  return [
+    { val: countHabitCompletionsInMonth(habit, comp, year, monthIndex, todayKey), label: "Done", Icon: IconKpiHabit },
+    { val: habitCompletionStreak(habit, comp, todayKey), label: "Streak", Icon: IconKpiStar },
+    { val: formatCompletionRate(stats.rate), label: "Rate", Icon: IconKpiHabit },
+    { val: stats.missed, label: "Missed", Icon: IconKpiStar },
+  ];
+}
+
 function UnifiedCalendar(props) {
   var habits = props.habits,
     comp = props.comp,
@@ -4891,9 +4929,17 @@ function UnifiedCalendar(props) {
     tk = props.todayKey;
   var cy = props.calY,
     cm = props.calM;
-  var layS = useState("habits");
-  var layer = layS[0],
-    setLayer = layS[1];
+  var pickS = useState(function () {
+    return readStoredCalendarView(calendarStorage());
+  });
+  var picked = pickS[0],
+    setPicked = pickS[1];
+  var layer = resolveCalendarView(picked, habits);
+  function selectLayer(id) {
+    var next = resolveCalendarView(id, habits);
+    writeStoredCalendarView(calendarStorage(), next);
+    setPicked(next);
+  }
   var dS = useState(null);
   var selDay = dS[0],
     setSelDay = dS[1];
@@ -4954,7 +5000,6 @@ function UnifiedCalendar(props) {
   }
 
   var viewingWake = layer === "wake";
-  var viewingHabits = layer === "habits";
   var viewingAll = layer === "all";
   var monthCheckins = countCompletionsInMonth(habits, comp, cy, cm, tk);
   var monthAllDone = countAllCompleteDaysInMonth(habits, comp, cy, cm, tk);
@@ -4964,9 +5009,14 @@ function UnifiedCalendar(props) {
   habits.forEach(function (h, i) {
     habitColors[h.id] = habitDotColor(i);
   });
-  var calTitle = viewingAll ? "All done" : viewingHabits ? "Habits" : viewingWake ? "Wake Window" : "Workouts";
+  var focusHabit = focusHabitForLayer(habits, layer);
+  var viewingHabit = !!focusHabit;
+  var viewingHabits = layer === "habits";
+  var viewOptions = calendarViewOptions(habits, focusHistory, tk);
   var kpis;
-  if (viewingHabits || viewingAll) {
+  if (viewingHabit) {
+    kpis = habitViewKpis(focusHabit, comp, cy, cm, tk);
+  } else if (viewingHabits || viewingAll) {
     kpis = [
       { val: habits.length, label: "Tracked", Icon: IconKpiHabit },
       { val: monthCheckins, label: "Check-ins", Icon: IconKpiHabit },
@@ -5007,18 +5057,10 @@ function UnifiedCalendar(props) {
           }}
         />
       )}
-      <div style={{ padding: "0 22px 10px" }}>
-        <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Calendar</div>
-        <div style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.1 }}>
-          {calTitle}
-        </div>
+      <div style={{ padding: "0 14px 12px" }}>
+        <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6, padding: "0 4px 8px" }}>Calendar</div>
+        <CalendarViewMenu options={viewOptions} value={layer} onChange={selectLayer} />
       </div>
-      <CalendarModeTabs
-        layer={layer}
-        onChange={function (id) {
-          setLayer(id);
-        }}
-      />
 
       <div style={{ padding: "0 14px 12px", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
         {kpis.map(function (k2, i) {
@@ -5088,6 +5130,22 @@ function UnifiedCalendar(props) {
               : heat
               ? "1px solid rgba(20,117,108,0.18)"
               : "1.5px solid " + C.border;
+            if (viewingHabit) {
+              return (
+                <SingleHabitDayCell
+                  key={k}
+                  day={day}
+                  dateKey={k}
+                  isToday={isT}
+                  habit={focusHabit}
+                  comp={comp}
+                  focusHistory={focusHistory}
+                  todayKey={tk}
+                  color={habitColors[focusHabit.id]}
+                  onSelect={setSelDay}
+                />
+              );
+            }
             if (viewingHabits || viewingAll) {
               return (
                 <HabitDayCell
@@ -5107,53 +5165,26 @@ function UnifiedCalendar(props) {
               );
             }
             return (
-              <div
-                key={i}
-                onClick={function () {
+              <ActivityHeatDay
+                key={k}
+                day={day}
+                dateKey={k}
+                isFuture={isFut}
+                isToday={isT}
+                heat={heat}
+                perfect={perfect}
+                hasWorkout={hasWk}
+                hasWake={hasWake}
+                glow={wkGlow || wakeGlow}
+                ringBorder={ringBorder}
+                onSelect={function () {
                   setSelDay(k);
                 }}
-                style={{
-                  aspectRatio: "1",
-                  background: "transparent",
-                  borderRadius: 12,
-                  position: "relative",
-                  cursor: "pointer",
-                  opacity: isFut ? 0.42 : 1,
-                  transition: "transform 0.12s ease",
-                }}
-              >
-                <div
-                  className={wkGlow || wakeGlow ? "gt-cal-glow" : undefined}
-                  style={{
-                    position: "absolute",
-                    inset: 3,
-                    borderRadius: "50%",
-                    background: heat || "transparent",
-                    border: ringBorder,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    boxShadow: "none",
-                    transition: "background 0.3s ease, border-color 0.2s ease",
-                  }}
-                >
-                  <span style={{ fontSize: 12, fontWeight: isT ? 700 : 500, color: C.text, position: "relative", zIndex: 3 }}>{day}</span>
-                </div>
-                {!isFut && (hasWk || hasWake) && (
-                  <div style={{ position: "absolute", bottom: 2, left: 0, right: 0, display: "flex", gap: 2, justifyContent: "center", pointerEvents: "none" }}>
-                    {hasWk && <div style={{ width: 3, height: 3, borderRadius: "50%", background: C.accent }} />}
-                    {hasWake && <div style={{ width: 3, height: 3, borderRadius: "50%", background: C.accentDeep }} />}
-                  </div>
-                )}
-                {perfect && (
-                  <div style={{ position: "absolute", top: 0, right: 1, lineHeight: 0, pointerEvents: "none" }}>
-                    <IconKpiStar size={11} color="#F5C518" />
-                  </div>
-                )}
-              </div>
+              />
             );
           })}
         </div>
+        {viewingHabit && <SingleHabitLegend color={habitColors[focusHabit.id]} isOnePercent={isOnePercentHabit(focusHabit)} />}
         {(viewingHabits || viewingAll) && (
           <HabitMonthLegend
             mode={layer}
@@ -5163,7 +5194,7 @@ function UnifiedCalendar(props) {
             habitColors={habitColors}
           />
         )}
-        {!viewingHabits && !viewingAll && <ActivityHeatLegend viewingWake={viewingWake} legend={legend} />}
+        {!viewingHabits && !viewingAll && !viewingHabit && <ActivityHeatLegend viewingWake={viewingWake} legend={legend} />}
       </div>
     </div>
   );

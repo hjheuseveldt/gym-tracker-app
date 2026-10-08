@@ -13,6 +13,17 @@ import {
   countAllCompleteDaysInMonth,
   countCompletionsInMonth,
   allCompleteStreak,
+  habitDayStatus,
+  countHabitCompletionsInMonth,
+  habitMonthScheduledStats,
+  habitCompletionStreak,
+  formatCompletionRate,
+  calendarViewOptions,
+  parseHabitViewId,
+  resolveCalendarView,
+  readStoredCalendarView,
+  writeStoredCalendarView,
+  CAL_VIEW_STORAGE_KEY,
 } from "./habitCalendar.js";
 
 var gym = { id: 3, name: "Gym", icon: "gym", scheduledDays: [1, 2, 3, 4, 5, 6], createdOn: "2026-05-12" };
@@ -119,4 +130,79 @@ test("month counts and streak skip rest days and do not break on an unfinished t
   var gymOnly = [gym];
   var gymComp = mark([3], ["2026-10-03", "2026-10-05", "2026-10-06", "2026-10-07"]);
   assert.equal(allCompleteStreak(gymOnly, gymComp, "2026-10-08"), 4);
+});
+
+test("habit day status distinguishes future, untracked, rest, done, and miss", () => {
+  var comp = { 6: { "2026-10-06": true }, 3: { "2026-10-03": true } };
+  assert.equal(habitDayStatus(wake, comp, "2026-10-09", "2026-10-08"), "future");
+  assert.equal(habitDayStatus(wake, comp, "2026-10-04", "2026-10-08"), "untracked");
+  assert.equal(habitDayStatus(wake, comp, "2026-10-05", "2026-10-08"), "miss");
+  assert.equal(habitDayStatus(wake, comp, "2026-10-06", "2026-10-08"), "done");
+  assert.equal(habitDayStatus(gym, comp, "2026-10-04", "2026-10-08"), "rest");
+  assert.equal(habitDayStatus(gym, comp, "2026-10-03", "2026-10-08"), "done");
+  assert.equal(habitDayStatus(gym, {}, "2026-10-05", "2026-10-08"), "miss");
+});
+
+test("per-habit month stats count completions, rate, and streak without punishing rest days or days before tracking", () => {
+  var comp = mark([3], ["2026-10-03", "2026-10-05", "2026-10-06", "2026-10-07"]);
+  comp[6] = { "2026-10-06": true, "2026-10-07": true };
+  assert.equal(countHabitCompletionsInMonth(gym, comp, 2026, 9, "2026-10-08"), 4);
+  var gymStats = habitMonthScheduledStats(gym, comp, 2026, 9, "2026-10-08");
+  assert.deepEqual(gymStats, { done: 4, due: 7, missed: 3, rate: 4 / 7 });
+  assert.equal(habitCompletionStreak(gym, comp, "2026-10-08"), 4);
+  assert.equal(formatCompletionRate(gymStats.rate), "57%");
+  assert.equal(formatCompletionRate(null), "\u2013");
+
+  var wakeStats = habitMonthScheduledStats(wake, comp, 2026, 9, "2026-10-08");
+  assert.equal(wakeStats.due, 4);
+  assert.equal(wakeStats.done, 2);
+  assert.equal(wakeStats.missed, 2);
+  assert.equal(habitCompletionStreak(wake, comp, "2026-10-08"), 2);
+  assert.equal(habitCompletionStreak(wake, comp, "2026-10-05"), 0);
+});
+
+test("calendar views keep the combined calendar and add one view per current habit", () => {
+  var history = [
+    { habitId: 5, focus: "No Caffeine", startedOn: "1970-01-01" },
+    { habitId: 5, focus: "Three chapters of BoM", startedOn: "2026-10-01" },
+  ];
+  var oneNamed = Object.assign({}, one, { name: "1%: Three chapters of BoM" });
+  var views = calendarViewOptions([oneNamed, talk, gym, wake], history, "2026-10-08");
+  assert.deepEqual(
+    views.map(function (v) {
+      return v.id;
+    }),
+    ["habits", "all", "habit:5", "habit:4", "habit:3", "habit:6", "workouts", "wake"]
+  );
+  assert.equal(views[0].label, "Habits");
+  assert.equal(views[0].group, "Overview");
+  assert.equal(views[2].label, "1%: Three chapters of BoM");
+  assert.equal(views[2].group, "Habits");
+  assert.equal(views[2].color, habitDotColor(0));
+  assert.equal(views[3].color, habitDotColor(1));
+  assert.equal(views[views.length - 1].group, "Activity");
+  assert.equal(views[views.length - 1].label, "Wake");
+  assert.equal(parseHabitViewId("habit:5"), 5);
+  assert.equal(parseHabitViewId("habits"), null);
+  assert.equal(parseHabitViewId("habit:nope"), null);
+});
+
+test("stored calendar view falls back when the habit is gone", () => {
+  var store = {
+    bag: {},
+    getItem: function (k) {
+      return Object.prototype.hasOwnProperty.call(this.bag, k) ? this.bag[k] : null;
+    },
+    setItem: function (k, v) {
+      this.bag[k] = String(v);
+    },
+  };
+  writeStoredCalendarView(store, "habit:3");
+  assert.equal(store.bag[CAL_VIEW_STORAGE_KEY], "habit:3");
+  assert.equal(readStoredCalendarView(store), "habit:3");
+  assert.equal(resolveCalendarView("habit:3", tracked), "habit:3");
+  assert.equal(resolveCalendarView("habit:99", tracked), "habits");
+  assert.equal(resolveCalendarView("nope", tracked), "habits");
+  assert.equal(resolveCalendarView("wake", tracked), "wake");
+  assert.equal(readStoredCalendarView(null), "");
 });
