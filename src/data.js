@@ -1,5 +1,6 @@
 import { supabase, supaReady } from "./supabase.js";
 import { normalizeHabitIcon, toDbHabitIcon } from "./icons.jsx";
+import { createdOnFromTimestamp } from "./habitCalendar.js";
 
 // Row <-> client shape converters
 
@@ -9,6 +10,7 @@ function rowToHabit(r) {
     name: r.name,
     icon: normalizeHabitIcon(r.emoji),
     scheduledDays: Array.isArray(r.scheduled_days) ? r.scheduled_days.map(Number) : [0, 1, 2, 3, 4, 5, 6],
+    createdOn: createdOnFromTimestamp(r.created_at),
     _sort: typeof r.sort_order === "number" ? r.sort_order : 0,
   };
 }
