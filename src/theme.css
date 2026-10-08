@@ -668,7 +668,7 @@ button.gt-cal-span-option[aria-checked="true"] {
 .gt-year-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 button.gt-year-month {
@@ -677,10 +677,10 @@ button.gt-year-month {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 3px;
+  gap: 2px;
   min-inline-size: 0;
   margin: 0;
-  padding: 6px 4px 5px;
+  padding: 5px 3px 4px;
   border-radius: 12px;
   border: 1px solid var(--gt-border);
   background: var(--gt-surface);
@@ -716,8 +716,7 @@ button.gt-year-month {
 .gt-year-day {
   display: grid;
   place-items: center;
-  aspect-ratio: 1;
-  min-block-size: 9px;
+  block-size: 9px;
 }
 
 .gt-year-dot {
