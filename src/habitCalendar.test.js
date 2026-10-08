@@ -24,6 +24,13 @@ import {
   readStoredCalendarView,
   writeStoredCalendarView,
   CAL_VIEW_STORAGE_KEY,
+  isYearViewDayComplete,
+  yearViewCompletedDates,
+  buildMonthCells,
+  resolveCalendarSpan,
+  readStoredCalendarSpan,
+  writeStoredCalendarSpan,
+  CAL_SPAN_STORAGE_KEY,
 } from "./habitCalendar.js";
 
 var gym = { id: 3, name: "Gym", icon: "gym", scheduledDays: [1, 2, 3, 4, 5, 6], createdOn: "2026-05-12" };
@@ -205,4 +212,113 @@ test("stored calendar view falls back when the habit is gone", () => {
   assert.equal(resolveCalendarView("nope", tracked), "habits");
   assert.equal(resolveCalendarView("wake", tracked), "wake");
   assert.equal(readStoredCalendarView(null), "");
+});
+
+function yearModel(extra) {
+  return Object.assign(
+    {
+      habits: tracked,
+      comp: {},
+      workoutLogs: {},
+    },
+    extra || {}
+  );
+}
+
+test("year view marks a per-habit day only when that habit was completed", () => {
+  var comp = {
+    3: { "2026-10-03": true, "2026-10-04": true, "2026-10-05": true },
+    6: { "2026-10-06": true },
+  };
+  var model = yearModel({ comp: comp });
+  assert.equal(isYearViewDayComplete("habit:3", "2026-10-05", "2026-10-08", model), true);
+  assert.equal(isYearViewDayComplete("habit:3", "2026-10-04", "2026-10-08", model), true);
+  assert.equal(isYearViewDayComplete("habit:3", "2026-10-06", "2026-10-08", model), false);
+  assert.equal(isYearViewDayComplete("habit:3", "2026-10-02", "2026-10-08", model), false);
+  assert.equal(isYearViewDayComplete("habit:6", "2026-10-04", "2026-10-08", model), false);
+  assert.equal(isYearViewDayComplete("habit:6", "2026-10-06", "2026-10-08", model), true);
+  assert.equal(isYearViewDayComplete("habit:3", "2026-10-09", "2026-10-08", model), false);
+  assert.equal(isYearViewDayComplete("habit:99", "2026-10-05", "2026-10-08", model), false);
+});
+
+test("year view all-done uses the all-complete rule and habits uses any completion", () => {
+  var day = "2026-10-05";
+  var partial = mark([5, 4], [day]);
+  var model = yearModel({ comp: partial });
+  assert.equal(isYearViewDayComplete("all", day, "2026-10-08", model), false);
+  assert.equal(isYearViewDayComplete("habits", day, "2026-10-08", model), true);
+
+  var full = mark([3, 4, 5, 6], [day]);
+  var done = yearModel({ comp: full });
+  assert.equal(isYearViewDayComplete("all", day, "2026-10-08", done), true);
+  assert.equal(isYearViewDayComplete("habits", day, "2026-10-08", done), true);
+
+  var beforeWake = "2026-10-04";
+  var early = yearModel({ comp: mark([3, 4, 5], [beforeWake]) });
+  assert.equal(isYearViewDayComplete("all", beforeWake, "2026-10-08", early), true);
+  assert.equal(isYearViewDayComplete("habits", "2026-10-03", "2026-10-08", early), false);
+  assert.equal(isYearViewDayComplete("all", "2026-10-09", "2026-10-08", done), false);
+  assert.equal(isYearViewDayComplete("habits", "2026-10-09", "2026-10-08", done), false);
+});
+
+test("year view workouts and wake follow a logged workout and a hit wake window", () => {
+  var weekdayWake = Object.assign({}, wake, { scheduledDays: [1, 2, 3, 4, 5] });
+  var habits = [one, talk, gym, weekdayWake];
+  var comp = { 6: { "2026-10-05": true, "2026-10-04": true } };
+  var model = yearModel({
+    habits: habits,
+    comp: comp,
+    wakeHabit: weekdayWake,
+    workoutLogs: { "2026-10-05": { sets: {} }, "2026-10-10": { sets: { Chest: 4 } } },
+  });
+  assert.equal(isYearViewDayComplete("workouts", "2026-10-05", "2026-10-08", model), true);
+  assert.equal(isYearViewDayComplete("workouts", "2026-10-06", "2026-10-08", model), false);
+  assert.equal(isYearViewDayComplete("workouts", "2026-10-10", "2026-10-08", model), false);
+  assert.equal(isYearViewDayComplete("wake", "2026-10-05", "2026-10-08", model), true);
+  assert.equal(isYearViewDayComplete("wake", "2026-10-04", "2026-10-08", model), false);
+  assert.equal(isYearViewDayComplete("wake", "2026-10-06", "2026-10-08", model), false);
+  assert.equal(isYearViewDayComplete("wake", "2026-10-07", "2026-10-08", yearModel({ habits: [one] })), false);
+  assert.equal(isYearViewDayComplete("nope", "2026-10-05", "2026-10-08", model), false);
+});
+
+test("year completion list stays inside the requested year", () => {
+  var comp = mark([4], ["2025-12-31", "2026-01-02", "2026-11-15", "2027-01-01"]);
+  var dates = yearViewCompletedDates("habit:4", 2026, "2026-12-31", yearModel({ comp: comp }));
+  assert.deepEqual(dates, ["2026-01-02", "2026-11-15"]);
+});
+
+test("month cells start on Sunday and include leap day", () => {
+  var jan = buildMonthCells(2026, 0);
+  assert.equal(jan[0], null);
+  assert.equal(jan[3], null);
+  assert.equal(jan[4].dateKey, "2026-01-01");
+  assert.equal(jan[4].day, 1);
+  assert.equal(jan[jan.length - 1].dateKey, "2026-01-31");
+  var feb = buildMonthCells(2024, 1);
+  assert.equal(feb[feb.length - 1].day, 29);
+  assert.equal(feb[feb.length - 1].dateKey, "2024-02-29");
+});
+
+test("stored month or year choice defaults to month", () => {
+  var store = {
+    bag: {},
+    getItem: function (k) {
+      return Object.prototype.hasOwnProperty.call(this.bag, k) ? this.bag[k] : null;
+    },
+    setItem: function (k, v) {
+      this.bag[k] = String(v);
+    },
+  };
+  assert.equal(readStoredCalendarSpan(store), "month");
+  assert.equal(resolveCalendarSpan("nope"), "month");
+  assert.equal(resolveCalendarSpan("year"), "year");
+  writeStoredCalendarSpan(store, "year");
+  assert.equal(store.bag[CAL_SPAN_STORAGE_KEY], "year");
+  assert.equal(readStoredCalendarSpan(store), "year");
+  writeStoredCalendarSpan(store, "month");
+  assert.equal(readStoredCalendarSpan(store), "month");
+  store.bag[CAL_SPAN_STORAGE_KEY] = "decade";
+  assert.equal(readStoredCalendarSpan(store), "month");
+  assert.equal(readStoredCalendarSpan(null), "month");
+  assert.equal(readStoredCalendarSpan({ getItem: function () { throw new Error("blocked"); } }), "month");
 });

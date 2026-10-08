@@ -9,6 +9,8 @@ import {
   isHabitScheduledOn,
   completedHabitsOn,
   isAllTrackedHabitsComplete,
+  isYearViewDayComplete,
+  buildMonthCells,
 } from "./habitCalendar.js";
 
 var C = {
@@ -636,6 +638,101 @@ export function SingleHabitLegend(props) {
           ? "A check is a completion on a scheduled day. Days before this habit was added are not misses. Each day keeps the 1% focus that was active then — tap a day to see it."
           : "A check is a completion on a scheduled day. A dash is a rest day. Days before this habit was added are not misses. Tap a day for details."}
       </p>
+    </div>
+  );
+}
+
+var YEAR_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+var YEAR_MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+var YEAR_DOW = ["S", "M", "T", "W", "T", "F", "S"];
+
+function yearViewCaption(viewId) {
+  if (viewId === "habits") return "A green dot means at least one tracked habit was completed.";
+  if (viewId === "all") return "A green dot means every habit that was due that day was completed.";
+  if (viewId === "workouts") return "A green dot means a workout was logged.";
+  if (viewId === "wake") return "A green dot means the wake window was hit.";
+  return "A green dot means this habit was completed.";
+}
+
+export function CalendarSpanToggle(props) {
+  var span = props.span === "year" ? "year" : "month";
+  var options = [
+    { id: "month", label: "Month" },
+    { id: "year", label: "Year" },
+  ];
+  return (
+    <div className="gt-cal-span" role="radiogroup" aria-label="Calendar range">
+      {options.map(function (opt) {
+        var on = span === opt.id;
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            className="gt-focus-ring gt-cal-span-option"
+            onClick={function () {
+              props.onChange(opt.id);
+            }}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function YearHabitGrid(props) {
+  var year = props.year;
+  var viewId = props.viewId;
+  var todayKey = props.todayKey;
+  var model = props.model;
+  var months = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  return (
+    <div>
+      <div className="gt-year-grid" data-year-grid="3x4">
+        {months.map(function (m) {
+          var cells = buildMonthCells(year, m);
+          var done = 0;
+          var marks = cells.map(function (cell, i) {
+            if (!cell) return { key: "pad-" + m + "-" + i, complete: false };
+            var complete = isYearViewDayComplete(viewId, cell.dateKey, todayKey, model);
+            if (complete) done += 1;
+            return { key: cell.dateKey, complete: complete };
+          });
+          var noun = done === 1 ? " completed day" : " completed days";
+          return (
+            <button
+              key={m}
+              type="button"
+              className="gt-focus-ring gt-year-month"
+              data-year-month={m}
+              aria-label={YEAR_MONTHS_LONG[m] + " " + year + ", " + done + noun}
+              onClick={function () {
+                if (props.onOpenMonth) props.onOpenMonth(m);
+              }}
+            >
+              <span className="gt-year-month-name">{YEAR_MONTHS[m]}</span>
+              <span className="gt-year-dow" aria-hidden="true">
+                {YEAR_DOW.map(function (letter, i) {
+                  return <span key={letter + i}>{letter}</span>;
+                })}
+              </span>
+              <span className="gt-year-days" aria-hidden="true">
+                {marks.map(function (mark) {
+                  return (
+                    <span key={mark.key} className="gt-year-day">
+                      {mark.complete ? <span className="gt-year-dot" /> : null}
+                    </span>
+                  );
+                })}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="gt-year-caption">{yearViewCaption(viewId)}</p>
     </div>
   );
 }
