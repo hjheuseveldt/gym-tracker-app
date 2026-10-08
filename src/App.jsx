@@ -58,12 +58,15 @@ import {
   resolveCalendarView,
   readStoredCalendarView,
   writeStoredCalendarView,
+  readStoredCalendarSpan,
+  writeStoredCalendarSpan,
+  resolveCalendarSpan,
   countHabitCompletionsInMonth,
   habitMonthScheduledStats,
   habitCompletionStreak,
   formatCompletionRate,
 } from "./habitCalendar.js";
-import { CalendarViewMenu, HabitDayCell, HabitMonthLegend, ActivityHeatLegend, ActivityHeatDay, SingleHabitDayCell, SingleHabitLegend } from "./TrackedHabitMonth.jsx";
+import { CalendarViewMenu, CalendarSpanToggle, YearHabitGrid, HabitDayCell, HabitMonthLegend, ActivityHeatLegend, ActivityHeatDay, SingleHabitDayCell, SingleHabitLegend } from "./TrackedHabitMonth.jsx";
 
 var APP_NAV_TABS = [
   { id: "home", label: "Today", Icon: IToday },
@@ -4922,6 +4925,82 @@ function habitViewKpis(habit, comp, year, monthIndex, todayKey) {
   ];
 }
 
+function countDatedInYear(map, year, todayKey, habitId) {
+  var row = habitId == null ? map || {} : (map && map[habitId]) || {};
+  var prefix = String(year) + "-";
+  var n = 0;
+  Object.keys(row).forEach(function (k) {
+    if (k.indexOf(prefix) === 0 && row[k] && (!todayKey || k <= todayKey)) n++;
+  });
+  return n;
+}
+
+function yearScopeKpis(opts) {
+  var year = opts.year;
+  var tk = opts.todayKey;
+  var habits = opts.habits;
+  var comp = opts.comp;
+  if (opts.focusHabit) {
+    var completions = 0;
+    var done = 0;
+    var due = 0;
+    for (var m = 0; m < 12; m++) {
+      completions += countHabitCompletionsInMonth(opts.focusHabit, comp, year, m, tk);
+      var stats = habitMonthScheduledStats(opts.focusHabit, comp, year, m, tk);
+      done += stats.done;
+      due += stats.due;
+    }
+    return [
+      { val: completions, label: "Done", Icon: IconKpiHabit },
+      { val: habitCompletionStreak(opts.focusHabit, comp, tk), label: "Streak", Icon: IconKpiStar },
+      { val: formatCompletionRate(due ? done / due : null), label: "Rate", Icon: IconKpiHabit },
+      { val: due - done, label: "Missed", Icon: IconKpiStar },
+    ];
+  }
+  if (opts.viewingHabits || opts.viewingAll) {
+    var checkins = 0;
+    var allDone = 0;
+    for (var i = 0; i < 12; i++) {
+      checkins += countCompletionsInMonth(habits, comp, year, i, tk);
+      allDone += countAllCompleteDaysInMonth(habits, comp, year, i, tk);
+    }
+    return [
+      { val: habits.length, label: "Tracked", Icon: IconKpiHabit },
+      { val: checkins, label: "Check-ins", Icon: IconKpiHabit },
+      { val: allDone, label: "All done", Icon: IconKpiStar },
+      { val: opts.allStreak, label: "Streak", Icon: IconKpiStar },
+    ];
+  }
+  var wakes = opts.wakeHabit ? countDatedInYear(comp, year, tk, opts.wakeHabit.id) : 0;
+  var workouts = 0;
+  Object.keys(opts.wl || {}).forEach(function (k) {
+    if (k.indexOf(String(year) + "-") === 0 && (!tk || k <= tk)) workouts++;
+  });
+  var perfect = 0;
+  for (var mo = 0; mo < 12; mo++) {
+    var last = new Date(year, mo + 1, 0).getDate();
+    for (var d = 1; d <= last; d++) {
+      var k = year + "-" + String(mo + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+      if (tk && k > tk) break;
+      if (isPerfectDay(habits, comp, opts.sleep, k, tk)) perfect++;
+    }
+  }
+  if (opts.viewingWake) {
+    return [
+      { val: wakes, label: "Early wakes", Icon: IconAlarmMark },
+      { val: opts.wakeStreak != null ? opts.wakeStreak : "\u2013", label: "Wake streak", Icon: IconAlarmMark },
+      { val: workouts, label: "Workouts", Icon: IconKpiWorkout },
+      { val: perfect, label: "Perfect", Icon: IconKpiStar },
+    ];
+  }
+  return [
+    { val: workouts, label: "Workouts", Icon: IconKpiWorkout },
+    { val: opts.gymStreak != null ? opts.gymStreak : "\u2013", label: "Gym streak", Icon: IconDumbbellMark },
+    { val: wakes, label: "Early wakes", Icon: IconAlarmMark },
+    { val: perfect, label: "Perfect", Icon: IconKpiStar },
+  ];
+}
+
 function UnifiedCalendar(props) {
   var habits = props.habits,
     comp = props.comp,
@@ -4941,6 +5020,17 @@ function UnifiedCalendar(props) {
     writeStoredCalendarView(calendarStorage(), next);
     setPicked(next);
   }
+  var spanS = useState(function () {
+    return readStoredCalendarSpan(calendarStorage());
+  });
+  var span = spanS[0],
+    setSpan = spanS[1];
+  function selectSpan(id) {
+    var next = resolveCalendarSpan(id);
+    writeStoredCalendarSpan(calendarStorage(), next);
+    setSpan(next);
+  }
+  var viewingYear = span === "year";
   var dS = useState(null);
   var selDay = dS[0],
     setSelDay = dS[1];
@@ -5000,6 +5090,14 @@ function UnifiedCalendar(props) {
     props.setCY(y);
   }
 
+  function changePeriod(dir) {
+    if (viewingYear) {
+      props.setCY(cy + dir);
+      return;
+    }
+    changeMonth(dir);
+  }
+
   var viewingWake = layer === "wake";
   var viewingAll = layer === "all";
   var monthCheckins = countCompletionsInMonth(habits, comp, cy, cm, tk);
@@ -5015,7 +5113,24 @@ function UnifiedCalendar(props) {
   var viewingHabits = layer === "habits";
   var viewOptions = calendarViewOptions(habits, focusHistory, tk);
   var kpis;
-  if (viewingHabit) {
+  if (viewingYear) {
+    kpis = yearScopeKpis({
+      year: cy,
+      todayKey: tk,
+      habits: habits,
+      comp: comp,
+      wl: wl,
+      sleep: sleep,
+      focusHabit: focusHabit,
+      viewingHabits: viewingHabits,
+      viewingAll: viewingAll,
+      viewingWake: viewingWake,
+      wakeHabit: wakeHabit,
+      allStreak: allStreak,
+      wakeStreak: wakeStreak,
+      gymStreak: gymStreak,
+    });
+  } else if (viewingHabit) {
     kpis = habitViewKpis(focusHabit, comp, cy, cm, tk);
   } else if (viewingHabits || viewingAll) {
     kpis = [
@@ -5043,7 +5158,7 @@ function UnifiedCalendar(props) {
   var legend = LAYER_LEGENDS[layer] || LAYER_LEGENDS.workouts;
 
   return (
-    <div data-cal-view={layer} style={{ padding: "14px 0 16px", position: "relative" }}>
+    <div data-cal-view={layer} data-cal-span={span} style={{ padding: "14px 0 16px", position: "relative" }}>
       {selDay && (
         <DaySummarySheet
           dayKey={selDay}
@@ -5059,7 +5174,10 @@ function UnifiedCalendar(props) {
         />
       )}
       <div style={{ padding: "0 14px 12px" }}>
-        <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6, padding: "0 4px 8px" }}>Calendar</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "0 4px 8px" }}>
+          <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Calendar</div>
+          <CalendarSpanToggle span={span} onChange={selectSpan} />
+        </div>
         <CalendarViewMenu options={viewOptions} value={layer} onChange={selectLayer} />
       </div>
 
@@ -5082,26 +5200,40 @@ function UnifiedCalendar(props) {
         <button
           type="button"
           className="gt-focus-ring"
-          aria-label="Previous month"
-          onClick={function () { changeMonth(-1); }}
+          aria-label={viewingYear ? "Previous year" : "Previous month"}
+          onClick={function () { changePeriod(-1); }}
           style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, padding: "4px 12px", display: "flex", alignItems: "center", justifyContent: "center" }}
         >
           <IconChevronCal dir="left" />
         </button>
         <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 16, color: C.text, fontWeight: 600 }}>
-          {MN[cm]} {cy}
+          {viewingYear ? cy : MN[cm] + " " + cy}
         </div>
         <button
           type="button"
           className="gt-focus-ring"
-          aria-label="Next month"
-          onClick={function () { changeMonth(1); }}
+          aria-label={viewingYear ? "Next year" : "Next month"}
+          onClick={function () { changePeriod(1); }}
           style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, padding: "4px 12px", display: "flex", alignItems: "center", justifyContent: "center" }}
         >
           <IconChevronCal dir="right" />
         </button>
       </div>
 
+      {viewingYear ? (
+        <div className="gt-card" style={{ margin: "0 14px", borderRadius: 18, padding: 10 }}>
+          <YearHabitGrid
+            year={cy}
+            viewId={layer}
+            todayKey={tk}
+            model={{ habits: habits, comp: comp, workoutLogs: wl, wakeHabit: wakeHabit }}
+            onOpenMonth={function (monthIndex) {
+              props.setCM(monthIndex);
+              selectSpan("month");
+            }}
+          />
+        </div>
+      ) : (
       <div className="gt-card" style={{margin: "0 14px",borderRadius: 18, padding: 14}}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 8 }}>
           {DL.map(function (d) {
@@ -5197,6 +5329,7 @@ function UnifiedCalendar(props) {
         )}
         {!viewingHabits && !viewingAll && !viewingHabit && <ActivityHeatLegend viewingWake={viewingWake} legend={legend} />}
       </div>
+      )}
     </div>
   );
 }

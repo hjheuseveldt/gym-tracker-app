@@ -274,3 +274,102 @@ export function writeStoredCalendarView(storage, id) {
     /* private mode or a full quota should not break the calendar */
   }
 }
+
+export var CAL_SPAN_STORAGE_KEY = "brickbybrick.calendarSpan";
+
+export function resolveCalendarSpan(id) {
+  return id === "year" ? "year" : "month";
+}
+
+export function readStoredCalendarSpan(storage) {
+  try {
+    if (!storage || !storage.getItem) return "month";
+    return resolveCalendarSpan(storage.getItem(CAL_SPAN_STORAGE_KEY));
+  } catch (e) {
+    return "month";
+  }
+}
+
+export function writeStoredCalendarSpan(storage, span) {
+  try {
+    if (storage && storage.setItem) storage.setItem(CAL_SPAN_STORAGE_KEY, resolveCalendarSpan(span));
+  } catch (e) {
+    /* private mode or a full quota should not break the calendar */
+  }
+}
+
+function findHabit(habits, habitId) {
+  var found = null;
+  (habits || []).forEach(function (h) {
+    if (h && Number(h.id) === Number(habitId)) found = h;
+  });
+  return found;
+}
+
+function wakeHabitForYear(model) {
+  if (model && model.wakeHabit) return model.wakeHabit;
+  var found = null;
+  ((model && model.habits) || []).forEach(function (h) {
+    if (h && h.icon === "wake") found = h;
+  });
+  return found;
+}
+
+/**
+ * Green-dot rule for the year grid. Future days are never complete.
+ * habits: at least one currently tracked habit was completed (not the stricter all-done rule).
+ * all: every habit that existed and was scheduled that day was completed.
+ * habit:<id>: that habit has a completion (including a rest-day check-in).
+ * workouts: a workout log exists for the day.
+ * wake: the wake habit was scheduled that weekday and completed, matching the monthly wake fill.
+ */
+export function isYearViewDayComplete(viewId, dateKey, todayKey, model) {
+  var data = model || {};
+  if (!dateKey || !todayKey || dateKey > todayKey) return false;
+  var habits = data.habits || [];
+  var comp = data.comp || {};
+  if (viewId === "habits") return completedHabitsOn(habits, comp, dateKey).length > 0;
+  if (viewId === "all") return isAllTrackedHabitsComplete(habits, comp, dateKey, todayKey);
+  if (viewId === "workouts") {
+    var logs = data.workoutLogs || {};
+    return !!logs[dateKey];
+  }
+  if (viewId === "wake") {
+    var wake = wakeHabitForYear(data);
+    if (!wake) return false;
+    if (!isHabitScheduledOn(wake, dateKey)) return false;
+    return isHabitCompletedOn(wake, comp, dateKey);
+  }
+  var hid = parseHabitViewId(viewId);
+  if (hid == null) return false;
+  var habit = findHabit(habits, hid);
+  if (!habit) return false;
+  return habitDayStatus(habit, comp, dateKey, todayKey) === "done";
+}
+
+export function yearViewCompletedDates(viewId, year, todayKey, model) {
+  var out = [];
+  var y = Number(year);
+  for (var m = 0; m < 12; m++) {
+    var last = daysInMonth(y, m);
+    for (var d = 1; d <= last; d++) {
+      var k = monthDateKey(y, m, d);
+      if (isYearViewDayComplete(viewId, k, todayKey, model)) out.push(k);
+    }
+  }
+  return out;
+}
+
+export function buildMonthCells(year, monthIndex) {
+  var y = Number(year);
+  var m = Number(monthIndex);
+  var first = new Date(y, m, 1).getDay();
+  if (isNaN(first)) return [];
+  var last = daysInMonth(y, m);
+  var cells = [];
+  for (var i = 0; i < first; i++) cells.push(null);
+  for (var d = 1; d <= last; d++) {
+    cells.push({ day: d, dateKey: monthDateKey(y, m, d) });
+  }
+  return cells;
+}

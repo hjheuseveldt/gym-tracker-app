@@ -631,3 +631,105 @@ button.gt-cal-view-option[aria-current="true"] {
     transition: none;
   }
 }
+
+.gt-cal-span {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  border: 1px solid var(--gt-border);
+  background: var(--gt-surface);
+}
+
+button.gt-cal-span-option {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 32px;
+  min-width: 58px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gt-muted);
+  font-family: "DM Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+button.gt-cal-span-option[aria-checked="true"] {
+  background: var(--gt-accent-deep);
+  color: #ffffff;
+}
+
+.gt-year-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+button.gt-year-month {
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 6px 4px 5px;
+  border-radius: 12px;
+  border: 1px solid var(--gt-border);
+  background: var(--gt-surface);
+  color: var(--gt-text);
+  cursor: pointer;
+  font-family: "DM Sans", sans-serif;
+  text-align: start;
+}
+
+.gt-year-month-name {
+  padding-inline: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.2px;
+}
+
+.gt-year-dow,
+.gt-year-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+}
+
+.gt-year-dow span {
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+  color: var(--gt-muted);
+}
+
+.gt-year-day {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-block-size: 9px;
+}
+
+.gt-year-dot {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  background: var(--gt-success);
+}
+
+.gt-year-caption {
+  margin: 10px 2px 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--gt-muted);
+}
