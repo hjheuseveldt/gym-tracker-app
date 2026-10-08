@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase, supaReady } from "./supabase.js";
+import { armLaunchSplash } from "./launchSplash.js";
 import * as D from "./data.js";
 import {
   IToday,
@@ -5564,12 +5565,6 @@ export default function App() {
   var h22 = useState(null);
   var bootErr = h22[0],
     setBootErr = h22[1];
-  var hSplash = useState(false);
-  var splashOut = hSplash[0],
-    setSplashOut = hSplash[1];
-  var hSplashDone = useState(false);
-  var splashDone = hSplashDone[0],
-    setSplashDone = hSplashDone[1];
   var h23 = useState(tk);
   var selDay = h23[0],
     setSelDay = h23[1];
@@ -5648,10 +5643,7 @@ export default function App() {
   }, []);
 
   useEffect(function () {
-    if (!booted || splashOut) return;
-    var t1 = setTimeout(function () { setSplashOut(true); }, 1200);
-    var t2 = setTimeout(function () { setSplashDone(true); }, 4400);
-    return function () { clearTimeout(t1); clearTimeout(t2); };
+    return armLaunchSplash(typeof document === "undefined" ? null : document, booted);
   }, [booted]);
 
   function scrollStripToEnd() {
@@ -6170,21 +6162,7 @@ export default function App() {
     setSortRdy({});
   }
 
-  if (!booted) {
-    return (
-      <div>
-        <style>{"body{background:#f7fffc;display:flex;justify-content:center;align-items:center;min-height:100vh;}@media (max-width:480px),(display-mode:standalone){body{background:transparent;display:block;min-height:100vh;}}"}</style>
-        <div className={"gt-splash gt-page-bg"} style={{ fontFamily: "'DM Sans',sans-serif" }}>
-          <div className="gt-splash-logo">
-            <div className="gt-splash-ring" aria-hidden="true">
-              <IconDumbbellMark size={48} color={C.accent} />
-            </div>
-          </div>
-          <div className="gt-splash-text">BrickByBrick</div>
-        </div>
-      </div>
-    );
-  }
+  if (!booted) return null;
   var navSwipeIdx = APP_NAV_TABS.findIndex(function (x) {
     return x.id === tab;
   });
@@ -6751,16 +6729,6 @@ export default function App() {
           </div>
         )}
       </div>
-      {!splashDone && (
-        <div className={"gt-splash gt-page-bg" + (splashOut ? " gt-splash-out" : "")} style={{ fontFamily: "'DM Sans',sans-serif" }}>
-          <div className="gt-splash-logo">
-            <div className="gt-splash-ring" aria-hidden="true">
-              <IconDumbbellMark size={48} color={C.accent} />
-            </div>
-          </div>
-          <div className="gt-splash-text">BrickByBrick</div>
-        </div>
-      )}
     </div>
   );
 }
