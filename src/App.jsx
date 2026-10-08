@@ -44,6 +44,15 @@ import {
   applyFocusChange,
   resolveFocusForDate,
 } from "./onePercent.js";
+import {
+  habitDotColor,
+  formatDateKey,
+  isAllTrackedHabitsComplete,
+  countAllCompleteDaysInMonth,
+  countCompletionsInMonth,
+  allCompleteStreak,
+} from "./habitCalendar.js";
+import { CalendarModeTabs, HabitDayCell, HabitMonthLegend, ActivityHeatLegend } from "./TrackedHabitMonth.jsx";
 
 var APP_NAV_TABS = [
   { id: "home", label: "Today", Icon: IToday },
@@ -209,6 +218,27 @@ function ensureBuiltinHabits(habits) {
     repairedOnePercent: o.repaired,
     historySeed: o.historySeed,
   };
+}
+
+function stampSeedCreatedOn(ensured) {
+  var key = formatDateKey(new Date());
+  function stamp(h) {
+    if (!h || h.createdOn) return h;
+    return Object.assign({}, h, { createdOn: key });
+  }
+  var seededWake = ensured.seededWake ? stamp(ensured.seededWake) : null;
+  var seededOne = ensured.seededOnePercent ? stamp(ensured.seededOnePercent) : null;
+  var wakeId = seededWake ? seededWake.id : null;
+  var oneId = seededOne ? seededOne.id : null;
+  return Object.assign({}, ensured, {
+    habits: ensured.habits.map(function (h) {
+      if (wakeId != null && h.id === wakeId) return seededWake;
+      if (oneId != null && h.id === oneId) return seededOne;
+      return h;
+    }),
+    seededWake: seededWake,
+    seededOnePercent: seededOne,
+  });
 }
 
 function persistBuiltinHabits(ensured) {
@@ -4860,15 +4890,9 @@ function UnifiedCalendar(props) {
     tk = props.todayKey;
   var cy = props.calY,
     cm = props.calM;
-  var layS = useState("workouts");
+  var layS = useState("habits");
   var layer = layS[0],
     setLayer = layS[1];
-  useEffect(
-    function () {
-      if (layer === "habits" || layer === "sleep") setLayer("workouts");
-    },
-    [layer]
-  );
   var dS = useState(null);
   var selDay = dS[0],
     setSelDay = dS[1];
@@ -4929,24 +4953,45 @@ function UnifiedCalendar(props) {
   }
 
   var viewingWake = layer === "wake";
-  var kpis = viewingWake
-    ? [
-        { val: monthWakes, label: "Early wakes", Icon: IconAlarmMark },
-        { val: wakeStreak != null ? wakeStreak : "\u2013", label: "Wake streak", Icon: IconAlarmMark },
-        { val: monthWorkouts, label: "Workouts", Icon: IconKpiWorkout },
-        { val: perfectCount, label: "Perfect", Icon: IconKpiStar },
-      ]
-    : [
-        { val: monthWorkouts, label: "Workouts", Icon: IconKpiWorkout },
-        { val: gymStreak != null ? gymStreak : "\u2013", label: "Gym streak", Icon: IconDumbbellMark },
-        { val: monthWakes, label: "Early wakes", Icon: IconAlarmMark },
-        { val: perfectCount, label: "Perfect", Icon: IconKpiStar },
-      ];
+  var viewingHabits = layer === "habits";
+  var viewingAll = layer === "all";
+  var monthCheckins = countCompletionsInMonth(habits, comp, cy, cm, tk);
+  var monthAllDone = countAllCompleteDaysInMonth(habits, comp, cy, cm, tk);
+  var allStreak = allCompleteStreak(habits, comp, tk);
+  var focusHistory = props.focusHistory || [];
+  var habitColors = {};
+  habits.forEach(function (h, i) {
+    habitColors[h.id] = habitDotColor(i);
+  });
+  var calTitle = viewingAll ? "All done" : viewingHabits ? "Habits" : viewingWake ? "Wake Window" : "Workouts";
+  var kpis;
+  if (viewingHabits || viewingAll) {
+    kpis = [
+      { val: habits.length, label: "Tracked", Icon: IconKpiHabit },
+      { val: monthCheckins, label: "Check-ins", Icon: IconKpiHabit },
+      { val: monthAllDone, label: "All done", Icon: IconKpiStar },
+      { val: allStreak, label: "Streak", Icon: IconKpiStar },
+    ];
+  } else if (viewingWake) {
+    kpis = [
+      { val: monthWakes, label: "Early wakes", Icon: IconAlarmMark },
+      { val: wakeStreak != null ? wakeStreak : "\u2013", label: "Wake streak", Icon: IconAlarmMark },
+      { val: monthWorkouts, label: "Workouts", Icon: IconKpiWorkout },
+      { val: perfectCount, label: "Perfect", Icon: IconKpiStar },
+    ];
+  } else {
+    kpis = [
+      { val: monthWorkouts, label: "Workouts", Icon: IconKpiWorkout },
+      { val: gymStreak != null ? gymStreak : "\u2013", label: "Gym streak", Icon: IconDumbbellMark },
+      { val: monthWakes, label: "Early wakes", Icon: IconAlarmMark },
+      { val: perfectCount, label: "Perfect", Icon: IconKpiStar },
+    ];
+  }
 
   var legend = LAYER_LEGENDS[layer] || LAYER_LEGENDS.workouts;
 
   return (
-    <div style={{ padding: "14px 0 16px", position: "relative" }}>
+    <div data-cal-view={layer} style={{ padding: "14px 0 16px", position: "relative" }}>
       {selDay && (
         <DaySummarySheet
           dayKey={selDay}
@@ -4961,37 +5006,18 @@ function UnifiedCalendar(props) {
           }}
         />
       )}
-      <div style={{ padding: "0 22px 12px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Calendar</div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.1 }}>
-            {viewingWake ? "Wake Window" : "Workouts"}
-          </div>
+      <div style={{ padding: "0 22px 10px" }}>
+        <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6 }}>Calendar</div>
+        <div style={{ fontSize: 26, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif", lineHeight: 1.1 }}>
+          {calTitle}
         </div>
-        <button
-          type="button"
-          className="gt-focus-ring gt-min-tap"
-          onClick={function () {
-            setLayer(viewingWake ? "workouts" : "wake");
-          }}
-          aria-label={viewingWake ? "Switch to workouts calendar" : "Switch to wake calendar"}
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: "50%",
-            background: C.gl,
-            border: "none",
-            color: C.accent,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          {viewingWake ? <IconAlarmMark size={22} color={C.accent} /> : <IconDumbbellMark size={22} color={C.accent} />}
-        </button>
       </div>
+      <CalendarModeTabs
+        layer={layer}
+        onChange={function (id) {
+          setLayer(id);
+        }}
+      />
 
       <div style={{ padding: "0 14px 12px", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
         {kpis.map(function (k2, i) {
@@ -5061,6 +5087,24 @@ function UnifiedCalendar(props) {
               : heat
               ? "1px solid rgba(20,117,108,0.18)"
               : "1.5px solid " + C.border;
+            if (viewingHabits || viewingAll) {
+              return (
+                <HabitDayCell
+                  key={k}
+                  day={day}
+                  dateKey={k}
+                  isFuture={isFut}
+                  isToday={isT}
+                  habits={habits}
+                  comp={comp}
+                  focusHistory={focusHistory}
+                  habitColors={habitColors}
+                  mode={layer}
+                  todayKey={tk}
+                  onSelect={setSelDay}
+                />
+              );
+            }
             return (
               <div
                 key={i}
@@ -5109,25 +5153,16 @@ function UnifiedCalendar(props) {
             );
           })}
         </div>
-        <div style={{ marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 9, color: C.muted, gap: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span>{viewingWake ? "Missed" : "Low"}</span>
-            {legend.map(function (c2, i) {
-              return <div key={i} style={{ width: 12, height: 12, borderRadius: 3, background: c2, border: "1px solid " + C.border }} />;
-            })}
-            <span>{viewingWake ? "Hit" : "High"}</span>
-          </div>
-          <div style={{ display: "flex", gap: 7 }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-              <div style={{ width: 5, height: 5, borderRadius: "50%", background: C.accent }} />
-              gym
-            </span>
-            <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-              <div style={{ width: 5, height: 5, borderRadius: "50%", background: C.accentDeep }} />
-              wake
-            </span>
-          </div>
-        </div>
+        {(viewingHabits || viewingAll) && (
+          <HabitMonthLegend
+            mode={layer}
+            habits={habits}
+            focusHistory={focusHistory}
+            todayKey={tk}
+            habitColors={habitColors}
+          />
+        )}
+        {!viewingHabits && !viewingAll && <ActivityHeatLegend viewingWake={viewingWake} legend={legend} />}
       </div>
     </div>
   );
@@ -5174,6 +5209,7 @@ function DaySummarySheet(props) {
   var l = wl[k];
   var hd = habitsDoneOn(habits, comp, k);
   var perfect = isPerfectDay(habits, comp, sleep, k, tk);
+  var allHabitsDone = isAllTrackedHabitsComplete(habits, comp, k, tk);
   var sched = scheduledHabitsOn(habits, k);
 
   var calData = calState.data;
@@ -5221,10 +5257,19 @@ function DaySummarySheet(props) {
           <div>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{dayLabel}</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: C.text, fontFamily: "'DM Serif Display',serif" }}>{fmtDS(k)}</div>
-            {perfect && (
-              <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: "rgba(245,207,94,0.18)", color: "#8A6A10", fontSize: 10, fontWeight: 700, letterSpacing: 0.3, border: "1px solid rgba(180,140,30,0.35)" }}>
-                <IconKpiStar size={12} color="#E5C848" />
-                <span>Perfect day</span>
+            {(perfect || allHabitsDone) && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                {perfect && (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: "rgba(245,207,94,0.18)", color: "#8A6A10", fontSize: 10, fontWeight: 700, letterSpacing: 0.3, border: "1px solid rgba(180,140,30,0.35)" }}>
+                    <IconKpiStar size={12} color="#E5C848" />
+                    <span>Perfect day</span>
+                  </div>
+                )}
+                {allHabitsDone && (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: "#E8F8F5", color: C.accentDeep, fontSize: 10, fontWeight: 700, letterSpacing: 0.3, border: "1px solid rgba(20,117,108,0.28)" }}>
+                    <span>All habits done</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -5524,7 +5569,7 @@ export default function App() {
 
   useEffect(function () {
     if (!supaReady()) {
-      var local = ensureBuiltinHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
+      var local = stampSeedCreatedOn(ensureBuiltinHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]));
       setHabits(local.habits);
       setFocusHistory(local.historySeed ? [local.historySeed] : []);
       setBooted(true);
@@ -5533,7 +5578,7 @@ export default function App() {
     D.loadAll()
       .then(function (data) {
         if (!data) {
-          var fallback = ensureBuiltinHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
+          var fallback = stampSeedCreatedOn(ensureBuiltinHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]));
           setHabits(fallback.habits);
           setFocusHistory(fallback.historySeed ? [fallback.historySeed] : []);
           setBooted(true);
@@ -5541,7 +5586,7 @@ export default function App() {
         }
         var isFresh = data.habits.length === 0 && Object.keys(data.logs).length === 0;
         if (isFresh) {
-          var fresh = ensureBuiltinHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
+          var fresh = stampSeedCreatedOn(ensureBuiltinHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]));
           setHabits(fresh.habits);
           fresh.habits.forEach(function (h, i) {
             D.fireAndForget(D.upsertHabit(h, i), "seed-habit");
@@ -5551,7 +5596,7 @@ export default function App() {
           }
           setFocusHistory(fresh.historySeed ? [fresh.historySeed] : []);
         } else {
-          var ensured = ensureBuiltinHabits(data.habits);
+          var ensured = stampSeedCreatedOn(ensureBuiltinHabits(data.habits));
           setHabits(ensured.habits);
           persistBuiltinHabits(ensured);
           var hist = data.focusHistory || [];
@@ -5574,7 +5619,7 @@ export default function App() {
       .catch(function (e) {
         console.error("[boot] loadAll failed:", e);
         setBootErr(String(e && e.message ? e.message : e));
-        var errLocal = ensureBuiltinHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]);
+        var errLocal = stampSeedCreatedOn(ensureBuiltinHabits([DEFAULT_GYM_HABIT, DEFAULT_WAKE_HABIT]));
         setHabits(errLocal.habits);
         setFocusHistory(errLocal.historySeed ? [errLocal.historySeed] : []);
         setBooted(true);
@@ -6058,7 +6103,7 @@ export default function App() {
     if (newIconId === ICON_WAKE && wake) return;
     if (newIconId === ICON_SPARK || newIconId === ICON_ONE_PERCENT) return;
     var id = Date.now();
-    var newH = { id: id, name: newName.trim(), icon: newIconId, scheduledDays: newDays };
+    var newH = { id: id, name: newName.trim(), icon: newIconId, scheduledDays: newDays, createdOn: formatDateKey(new Date()) };
     var sortIdx = habits.length;
     setHabits(function (p) {
       return p.concat([newH]);
