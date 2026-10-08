@@ -477,3 +477,157 @@ textarea.gt-input:focus-visible {
   white-space: nowrap;
   border: 0;
 }
+button.gt-cal-view-trigger {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  cursor: pointer;
+  text-align: left;
+  font-family: "DM Sans", sans-serif;
+  color: var(--gt-text);
+}
+
+.gt-cal-view-label {
+  flex: 1;
+  min-width: 0;
+  font-family: "DM Serif Display", serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.gt-cal-chevron {
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.gt-cal-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.gt-cal-view-menu {
+  margin: 0;
+  padding: 6px;
+  border-radius: 18px;
+  box-sizing: border-box;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  max-height: min(70dvh, 480px);
+  width: min(360px, calc(100vw - 28px));
+  color: var(--gt-text);
+  z-index: 80;
+}
+
+.gt-cal-view-menu[popover] {
+  inset: auto;
+  position: fixed;
+  border: 1px solid var(--gt-border);
+  background: var(--gt-surface);
+  box-shadow: var(--gt-glass-shadow-elevated);
+}
+
+.gt-cal-view-menu.is-portal {
+  position: fixed;
+  inset: auto;
+  z-index: 80;
+}
+
+button.gt-cal-view-backdrop {
+  appearance: none;
+  -webkit-appearance: none;
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.gt-cal-view-heading {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--gt-muted);
+  padding: 8px 10px 4px;
+}
+
+button.gt-cal-view-option {
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: "DM Sans", sans-serif;
+  color: var(--gt-text);
+}
+
+button.gt-cal-view-option[aria-current="true"] {
+  background: var(--gt-success-glass);
+}
+
+.gt-cal-view-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.gt-cal-view-dot-empty {
+  background: transparent;
+}
+
+.gt-cal-view-option-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.gt-cal-view-option-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gt-cal-view-option-hint {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gt-muted);
+}
+
+.gt-cal-view-check-spacer {
+  width: 14px;
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gt-cal-chevron {
+    transition: none;
+  }
+}
