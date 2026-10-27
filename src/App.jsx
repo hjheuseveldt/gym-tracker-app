@@ -9,6 +9,7 @@ import {
   IToday,
   ICal,
   IGainz,
+  IProgress,
   ISettings,
   ISleep,
   IFlame,
@@ -67,11 +68,13 @@ import {
   formatCompletionRate,
 } from "./habitCalendar.js";
 import { CalendarViewMenu, CalendarSpanToggle, YearHabitGrid, HabitDayCell, HabitMonthLegend, ActivityHeatLegend, ActivityHeatDay, SingleHabitDayCell, SingleHabitLegend } from "./TrackedHabitMonth.jsx";
+import { ProgressTab } from "./ProgressTab.jsx";
 
 var APP_NAV_TABS = [
   { id: "home", label: "Today", Icon: IToday },
   { id: "calendar", label: "Calendar", Icon: ICal },
   { id: "gainz", label: "Gainz", Icon: IGainz },
+  { id: "progress", label: "Progress", Icon: IProgress },
   { id: "data", label: "Data", Icon: IPercent },
   { id: "sleep", label: "Sleep", Icon: ISleep },
   { id: "calories", label: "Calories", Icon: IFlame },
@@ -6606,6 +6609,7 @@ export default function App() {
           )}
           {paneTab === "data" && <DataTab wl={logs} habits={habits} comp={comp} sleep={sleep} todayKey={tk} />}
           {paneTab === "gainz" && <GainzTab wl={logs} gym={gym} comp={comp} todayKey={tk} />}
+          {paneTab === "progress" && <ProgressTab logs={logs} todayKey={tk} portalRoot={phoneRef} />}
           {paneTab === "sleep" && <SleepTab sleep={sleep} setSleep={setSleep} />}
           {paneTab === "calories" && <CalorieTab portalRoot={phoneRef} />}
           {paneTab === "settings" && (
