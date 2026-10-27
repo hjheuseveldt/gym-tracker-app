@@ -233,6 +233,18 @@ export function IGainz(props) {
   );
 }
 
+export function IProgress(props) {
+  var c = props.color || DEF;
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 16.5h18" />
+      <circle cx="6.5" cy="16.5" r="1.35" fill={c} stroke="none" />
+      <circle cx="12" cy="16.5" r="1.35" fill={c} stroke="none" />
+      <circle cx="17.5" cy="16.5" r="2.45" fill={c} stroke="none" />
+    </svg>
+  );
+}
+
 export function ICycles(props) {
   var c = props.color || DEF;
   return (
