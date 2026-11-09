@@ -157,6 +157,52 @@ export function chronologicalPair(a, b) {
   return a.date <= b.date ? { earlier: a, later: b } : { earlier: b, later: a };
 }
 
+/** Saved progress JPEGs. The shutter reads these so the preview crop and the file match. */
+export var PROGRESS_PHOTO_MAX_EDGE = 3840;
+export var PROGRESS_PHOTO_JPEG_QUALITY = 0.92;
+export var PROGRESS_PHOTO_MIME = "image/jpeg";
+/** Preferred still size. `ideal` lets the browser pick a smaller mode when the sensor cannot match. */
+export var PROGRESS_CAMERA_IDEAL_WIDTH = 4032;
+export var PROGRESS_CAMERA_IDEAL_HEIGHT = 3024;
+
+export function progressCameraConstraints(facing) {
+  var mode = facing === "environment" ? "environment" : "user";
+  return {
+    audio: false,
+    video: {
+      facingMode: { ideal: mode },
+      width: { ideal: PROGRESS_CAMERA_IDEAL_WIDTH },
+      height: { ideal: PROGRESS_CAMERA_IDEAL_HEIGHT },
+    },
+  };
+}
+
+/** Last resort when the high-resolution request is rejected. No audio, no file is written. */
+export function progressCameraFallbackConstraints() {
+  return { audio: false, video: true };
+}
+
+function positiveCameraEdge(value) {
+  var n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/**
+ * Ask an open track for its largest mode, capped at the ideal still size.
+ * Returns null when the browser does not report capabilities.
+ */
+export function progressCameraBoost(capabilities) {
+  var widthMax = positiveCameraEdge(capabilities && capabilities.width && capabilities.width.max);
+  var heightMax = positiveCameraEdge(capabilities && capabilities.height && capabilities.height.max);
+  if (!(widthMax > 0) || !(heightMax > 0)) return null;
+  var cap = Math.max(PROGRESS_CAMERA_IDEAL_WIDTH, PROGRESS_CAMERA_IDEAL_HEIGHT);
+  var scale = Math.min(1, cap / widthMax, cap / heightMax);
+  return {
+    width: { ideal: Math.max(1, Math.round(widthMax * scale)) },
+    height: { ideal: Math.max(1, Math.round(heightMax * scale)) },
+  };
+}
+
 /** Source rectangle for object-fit: cover, so the saved frame matches the preview. */
 export function coverSourceRect(srcW, srcH, destW, destH) {
   if (!(srcW > 0) || !(srcH > 0) || !(destW > 0) || !(destH > 0)) return null;
@@ -170,10 +216,15 @@ export function coverSourceRect(srcW, srcH, destW, destH) {
   return { sx: 0, sy: (srcH - sh) / 2, sw: srcW, sh: sh };
 }
 
-export function captureOutputSize(viewW, viewH, maxEdge) {
-  var max = maxEdge > 0 ? maxEdge : 1600;
-  var width = viewW;
-  var height = viewH;
+/**
+ * Output pixels for a capture. Never upscales.
+ * The long edge is capped at `maxEdge` (default 3840) so a camera frame is not
+ * reduced to the CSS size of the preview.
+ */
+export function captureOutputSize(sourceW, sourceH, maxEdge) {
+  var max = maxEdge > 0 ? maxEdge : PROGRESS_PHOTO_MAX_EDGE;
+  var width = sourceW;
+  var height = sourceH;
   var edge = Math.max(width, height);
   if (edge > max) {
     var scale = max / edge;
@@ -183,6 +234,21 @@ export function captureOutputSize(viewW, viewH, maxEdge) {
   return {
     width: Math.max(1, Math.round(width)),
     height: Math.max(1, Math.round(height)),
+  };
+}
+
+/**
+ * Crop and encode plan for one shutter press.
+ * The crop matches the preview; the saved size uses camera pixels, not CSS pixels.
+ */
+export function progressFramePlan(videoWidth, videoHeight, frameWidth, frameHeight) {
+  var crop = coverSourceRect(videoWidth, videoHeight, frameWidth, frameHeight);
+  if (!crop) return null;
+  return {
+    crop: crop,
+    size: captureOutputSize(crop.sw, crop.sh, PROGRESS_PHOTO_MAX_EDGE),
+    mime: PROGRESS_PHOTO_MIME,
+    quality: PROGRESS_PHOTO_JPEG_QUALITY,
   };
 }
 

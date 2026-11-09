@@ -5,9 +5,7 @@ import { supaReady } from "./supabase.js";
 import { loadProgressPhotos, saveProgressPhoto, signProgressPhoto } from "./progressData.js";
 import {
   buildTimeline,
-  captureOutputSize,
   chronologicalPair,
-  coverSourceRect,
   formatLongDate,
   formatShortDate,
   formatWeightDelta,
@@ -15,6 +13,10 @@ import {
   formatWeightNumber,
   latestBodyweights,
   latestPhoto,
+  progressCameraBoost,
+  progressCameraConstraints,
+  progressCameraFallbackConstraints,
+  progressFramePlan,
   scrollLeftForToday,
   weightRowsFromLogs,
 } from "./progressModel.js";
@@ -33,6 +35,27 @@ function stopStream(stream) {
   stream.getTracks().forEach(function (track) {
     track.stop();
   });
+}
+
+function boostProgressCamera(stream) {
+  var track = stream.getVideoTracks()[0];
+  var boost = null;
+  try {
+    if (track && typeof track.getCapabilities === "function") {
+      boost = progressCameraBoost(track.getCapabilities());
+    }
+  } catch (err) {
+    boost = null;
+  }
+  if (!boost || !track || typeof track.applyConstraints !== "function") return Promise.resolve(stream);
+  return track.applyConstraints(boost).then(
+    function () {
+      return stream;
+    },
+    function () {
+      return stream;
+    }
+  );
 }
 
 function usePortalHost(portalRoot) {
@@ -331,26 +354,23 @@ function CameraSheet(props) {
         return undefined;
       }
       navigator.mediaDevices
-        .getUserMedia({
-          audio: false,
-          video: {
-            facingMode: { ideal: facing },
-            width: { ideal: 1280 },
-            height: { ideal: 1600 },
-          },
-        })
+        .getUserMedia(progressCameraConstraints(facing))
         .catch(function () {
           if (cancelled || !navigator.mediaDevices) throw new Error("camera");
-          return navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+          return navigator.mediaDevices.getUserMedia(progressCameraFallbackConstraints());
         })
         .then(function (stream) {
           if (cancelled) {
             stopStream(stream);
-            return;
+            return null;
           }
           active = stream;
           stopStream(streamRef.current);
           streamRef.current = stream;
+          return boostProgressCamera(stream);
+        })
+        .then(function (stream) {
+          if (!stream || cancelled) return;
           var video = videoRef.current;
           if (!video) return;
           video.srcObject = stream;
@@ -386,15 +406,28 @@ function CameraSheet(props) {
     var video = videoRef.current;
     var frame = frameRef.current;
     if (!video || !frame || !video.videoWidth) return;
-    var crop = coverSourceRect(video.videoWidth, video.videoHeight, frame.clientWidth, frame.clientHeight);
-    var size = captureOutputSize(frame.clientWidth, frame.clientHeight, 1600);
-    if (!crop) return;
+    var plan = progressFramePlan(video.videoWidth, video.videoHeight, frame.clientWidth, frame.clientHeight);
+    if (!plan) return;
     var canvas = document.createElement("canvas");
-    canvas.width = size.width;
-    canvas.height = size.height;
+    canvas.width = plan.size.width;
+    canvas.height = plan.size.height;
     var ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, size.width, size.height);
+    // The video frame is already upright. Encode those pixels so the JPEG matches
+    // the preview, is not rotated again, and is never written to the camera roll.
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(
+      video,
+      plan.crop.sx,
+      plan.crop.sy,
+      plan.crop.sw,
+      plan.crop.sh,
+      0,
+      0,
+      plan.size.width,
+      plan.size.height
+    );
     canvas.toBlob(
       function (blob) {
         if (!blob) {
@@ -408,8 +441,8 @@ function CameraSheet(props) {
         stopStream(streamRef.current);
         streamRef.current = null;
       },
-      "image/jpeg",
-      0.86
+      plan.mime,
+      plan.quality
     );
   }
 
